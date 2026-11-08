@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!validDate(paidAt)) return NextResponse.json({ error: 'Enter a valid payment date.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     const period = await db.prepare(`SELECT p.id, p.employee_id AS employeeId, p.amount_due AS amountDue,
       p.period_start AS periodStart, p.period_end AS periodEnd, e.name AS employeeName
       FROM salary_periods p JOIN employees e ON e.id = p.employee_id
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .run(workspaceId, transactionId, 'SALARY_PAYMENT_RECORDED', JSON.stringify({ periodId, employeeId: period.employeeId, amount }), access.member.name);
     });
     await recordPayment();
-    return NextResponse.json(await getTeamData(), { status: 201 });
+    return NextResponse.json(await getTeamData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     console.error('Failed to record salary payment', error);
     return NextResponse.json({ error: 'Could not record this salary payment.' }, { status: 500 });

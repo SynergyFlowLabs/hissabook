@@ -3,6 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import postgres, { type Sql, type TransactionSql } from 'postgres';
+import { hashPassword } from '@/lib/passwords';
+import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_USER_NAME, DEMO_WORKSPACE_NAME, DEMO_WORKSPACE_SLUG } from '@/lib/demo-account';
 
 const databaseUrl = process.env.DATABASE_URL;
 const databasePath = process.env.DATABASE_PATH ?? join(process.cwd(), 'data', 'hisaabook.sqlite');
@@ -354,7 +356,8 @@ function dayOffset(daysAgo: number) {
   return date.toISOString();
 }
 
-export async function ensureDemoWorkspace() {
+export async function ensureDemoWorkspace(workspaceId?: number) {
+  if (workspaceId !== undefined) return Number(workspaceId);
   if (postgresClient) {
     await db.prepare(`INSERT INTO workspaces (slug, name, business_type, currency)
       VALUES (?, ?, ?, ?) ON CONFLICT (slug) DO NOTHING`).run('hisaabook', 'My Business', 'Business', 'PKR');
@@ -396,14 +399,79 @@ export async function ensureDemoWorkspace() {
   return await seed();
 }
 
+export async function ensurePublicDemoAccount() {
+  const provision = db.transaction(async () => {
+    await db.prepare(`INSERT INTO workspaces (slug, name, business_type, currency)
+      VALUES (?, ?, ?, ?) ON CONFLICT (slug) DO NOTHING`)
+      .run(DEMO_WORKSPACE_SLUG, DEMO_WORKSPACE_NAME, 'Creative agency', 'PKR');
+    const workspace = await db.prepare('SELECT id FROM workspaces WHERE slug = ?').get(DEMO_WORKSPACE_SLUG) as { id: number } | undefined;
+    if (!workspace) throw new Error('DEMO_WORKSPACE_INITIALIZATION_FAILED');
+    const workspaceId = Number(workspace.id);
+
+    await db.prepare(`INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, name) DO NOTHING`)
+      .run(workspaceId, 'Business bank', 'BANK', 'PKR', 383250);
+    await db.prepare(`INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, name) DO NOTHING`)
+      .run(workspaceId, 'Cash in hand', 'CASH', 'PKR', 0);
+    const bank = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ?').get(workspaceId, 'Business bank') as { id: number } | undefined;
+    const cash = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ?').get(workspaceId, 'Cash in hand') as { id: number } | undefined;
+    if (!bank || !cash) throw new Error('DEMO_ACCOUNT_INITIALIZATION_FAILED');
+
+    const existingDemoUser = await db.prepare('SELECT id FROM users WHERE email = ?').get(DEMO_EMAIL);
+    if (!existingDemoUser) {
+      await db.prepare(`INSERT INTO users (email, display_name, password_hash)
+        VALUES (?, ?, ?) ON CONFLICT (email) DO NOTHING`).run(DEMO_EMAIL, DEMO_USER_NAME, hashPassword(DEMO_PASSWORD));
+    }
+    const user = await db.prepare('SELECT id FROM users WHERE email = ?').get(DEMO_EMAIL) as { id: number } | undefined;
+    if (!user) throw new Error('DEMO_USER_INITIALIZATION_FAILED');
+    await db.prepare(`INSERT INTO workspace_members (workspace_id, user_id, role)
+      VALUES (?, ?, 'OWNER') ON CONFLICT (workspace_id, user_id) DO NOTHING`).run(workspaceId, Number(user.id));
+
+    const ownerCount = (await db.prepare('SELECT COUNT(*) AS count FROM owners WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+    if (ownerCount === 0) {
+      const owner = db.prepare('INSERT INTO owners (workspace_id, name, role, share, effective_at) VALUES (?, ?, ?, ?, ?)');
+      await owner.run(workspaceId, 'Areeba Khan', 'Business owner', 45, dayOffset(90));
+      await owner.run(workspaceId, 'Hamza Malik', 'Partner', 35, dayOffset(90));
+      await owner.run(workspaceId, 'Sara Ahmed', 'Partner', 20, dayOffset(90));
+    }
+
+    const loanCount = (await db.prepare('SELECT COUNT(*) AS count FROM loans WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+    if (loanCount === 0) {
+      const loan = db.prepare(`INSERT INTO loans (workspace_id, direction, name, counterparty, principal, outstanding, due_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      await loan.run(workspaceId, 'PAYABLE', 'Short-term business loan', 'Fariha', 50000, 50000, dayOffset(-37).slice(0, 10));
+      await loan.run(workspaceId, 'RECEIVABLE', 'Advance to vendor', 'Print House', 25000, 25000, dayOffset(-11).slice(0, 10));
+    }
+
+    const transactionCount = (await db.prepare('SELECT COUNT(*) AS count FROM transactions WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+    if (transactionCount === 0) {
+      const transaction = db.prepare(`INSERT INTO transactions
+        (workspace_id, account_id, type, amount, description, category, transaction_date, status, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      await transaction.run(workspaceId, Number(bank.id), 'INCOME', 85000, 'Website project', 'Client payment', dayOffset(0), 'CLEARED', 'Areeba Khan');
+      await transaction.run(workspaceId, Number(bank.id), 'EXPENSE', 32000, 'Studio rent', 'Rent & utilities', dayOffset(0), 'CLEARED', 'Areeba Khan');
+      await transaction.run(workspaceId, Number(cash.id), 'CONTRIBUTION', 50000, 'Hamza · Capital', 'Owner contribution', dayOffset(1), 'CLEARED', 'Hamza Malik');
+      await transaction.run(workspaceId, Number(bank.id), 'EXPENSE', 12500, 'Software subscriptions', 'Tools & software', dayOffset(2), 'PENDING', 'Areeba Khan');
+      await db.prepare(`INSERT INTO audit_events (workspace_id, action, details, actor)
+        VALUES (?, ?, ?, ?)`).run(workspaceId, 'DEMO_WORKSPACE_SEEDED', 'Public demo sample data initialized', DEMO_USER_NAME);
+    }
+    return workspaceId;
+  });
+  const workspaceId = await provision();
+  await ensureDemoModuleData(workspaceId);
+  return workspaceId;
+}
+
 export async function isSetupComplete() {
-  return (await db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count > 0;
+  const workspaceId = await ensureDemoWorkspace();
+  return (await db.prepare("SELECT COUNT(*) AS count FROM workspace_members WHERE workspace_id = ? AND role = 'OWNER' AND active = 1").get(workspaceId) as { count: number }).count > 0;
 }
 
 export async function createInitialOwner(name: string, email: string, passwordHash: string) {
   const workspaceId = await ensureDemoWorkspace();
   const createOwner = db.transaction(async () => {
-    const count = (await db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count;
+    const count = (await db.prepare("SELECT COUNT(*) AS count FROM workspace_members WHERE workspace_id = ? AND role = 'OWNER' AND active = 1").get(workspaceId) as { count: number }).count;
     if (count > 0) throw new Error('SETUP_ALREADY_COMPLETE');
     const userId = Number((await db.prepare('INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)').run(email, name, passwordHash)).lastInsertRowid);
     await db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'OWNER');
@@ -415,15 +483,14 @@ export async function createInitialOwner(name: string, email: string, passwordHa
 }
 
 export async function getWorkspaceMember(userId: number) {
-  const workspaceId = await ensureDemoWorkspace();
   return await db.prepare(`SELECT wm.id, wm.workspace_id AS workspaceId, wm.user_id AS userId, wm.role, u.email, u.display_name AS name
     FROM workspace_members wm JOIN users u ON u.id = wm.user_id
-    WHERE wm.user_id = ? AND wm.workspace_id = ? AND wm.active = 1 AND u.active = 1 LIMIT 1`).get(userId, workspaceId) as
+    WHERE wm.user_id = ? AND wm.active = 1 AND u.active = 1 ORDER BY wm.created_at ASC LIMIT 1`).get(userId) as
     { id: number; workspaceId: number; userId: number; role: string; email: string; name: string } | undefined;
 }
 
-export async function getWorkspaceAccessData() {
-  const workspaceId = await ensureDemoWorkspace();
+export async function getWorkspaceAccessData(workspaceId?: number) {
+  workspaceId = await ensureDemoWorkspace(workspaceId);
   const members = await db.prepare(`SELECT wm.id, wm.user_id AS userId, u.display_name AS name, u.email, wm.role, wm.active, wm.created_at AS joinedAt
     FROM workspace_members wm JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? ORDER BY wm.role = 'OWNER' DESC, u.display_name COLLATE NOCASE`).all(workspaceId);
   const invitations = await db.prepare(`SELECT id, email, display_name AS name, role, expires_at AS expiresAt, created_at AS createdAt
@@ -431,8 +498,8 @@ export async function getWorkspaceAccessData() {
   return { members, invitations };
 }
 
-export async function createWorkspaceInvitation(input: { email: string; name: string; role: string; tokenHash: string; expiresAt: string; createdBy: number; actor: string }) {
-  const workspaceId = await ensureDemoWorkspace();
+export async function createWorkspaceInvitation(input: { workspaceId: number; email: string; name: string; role: string; tokenHash: string; expiresAt: string; createdBy: number; actor: string }) {
+  const workspaceId = await ensureDemoWorkspace(input.workspaceId);
   return db.transaction(async () => {
     const existingMember = await db.prepare(`SELECT wm.id FROM workspace_members wm JOIN users u ON u.id = wm.user_id
       WHERE wm.workspace_id = ? AND u.email = ?`).get(workspaceId, input.email);
@@ -457,6 +524,7 @@ export async function getInvitationByHash(tokenHash: string) {
 }
 
 export async function getCredentialRecord(email: string) {
+  if (email.trim().toLowerCase() === DEMO_EMAIL) await ensurePublicDemoAccount();
   return await db.prepare('SELECT id, email, display_name AS name, password_hash AS passwordHash FROM users WHERE email = ? AND active = 1')
     .get(email) as { id: number; email: string; name: string; passwordHash: string } | undefined;
 }
@@ -486,8 +554,8 @@ export function acceptWorkspaceInvitation(tokenHash: string, passwordHash: strin
   })();
 }
 
-export async function updateWorkspaceMember(memberId: number, input: { role?: string; active?: boolean }, actor: string) {
-  const workspaceId = await ensureDemoWorkspace();
+export async function updateWorkspaceMember(memberId: number, input: { role?: string; active?: boolean }, actor: string, selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   return db.transaction(async () => {
     const member = await db.prepare('SELECT id, role, active FROM workspace_members WHERE id = ? AND workspace_id = ?').get(memberId, workspaceId) as { id: number; role: string; active: number } | undefined;
     if (!member) throw new Error('MEMBER_NOT_FOUND');
@@ -497,12 +565,12 @@ export async function updateWorkspaceMember(memberId: number, input: { role?: st
     await db.prepare('UPDATE workspace_members SET role = ?, active = ? WHERE id = ?').run(role, active, memberId);
     await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
       .run(workspaceId, active ? 'MEMBER_ACCESS_UPDATED' : 'MEMBER_ACCESS_REVOKED', JSON.stringify({ memberId, role, active }), actor);
-    return await getWorkspaceAccessData();
+    return await getWorkspaceAccessData(workspaceId);
   })();
 }
 
-export async function revokeWorkspaceInvitation(invitationId: number, actor: string) {
-  const workspaceId = await ensureDemoWorkspace();
+export async function revokeWorkspaceInvitation(invitationId: number, actor: string, selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   const result = await db.prepare(`UPDATE workspace_invitations SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ? AND accepted_at IS NULL AND revoked_at IS NULL`).run(invitationId, workspaceId);
   if (result.changes) await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
     .run(workspaceId, 'INVITATION_REVOKED', JSON.stringify({ invitationId }), actor);
@@ -511,7 +579,10 @@ export async function revokeWorkspaceInvitation(invitationId: number, actor: str
 
 export async function ensureDemoModuleData(workspaceId?: number) {
   workspaceId = workspaceId ?? await ensureDemoWorkspace();
-  if (postgresClient) return;
+  if (postgresClient) {
+    const workspace = await db.prepare('SELECT slug FROM workspaces WHERE id = ?').get(workspaceId) as { slug: string } | undefined;
+    if (workspace?.slug !== DEMO_WORKSPACE_SLUG) return;
+  }
   const seedModules = db.transaction(async () => {
     const itemCount = (await db.prepare('SELECT COUNT(*) AS count FROM inventory_items WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
     if (itemCount === 0) {
@@ -551,8 +622,8 @@ export async function ensureDemoModuleData(workspaceId?: number) {
   await seedModules();
 }
 
-export async function getInventoryData() {
-  const workspaceId = await ensureDemoWorkspace();
+export async function getInventoryData(selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   await ensureDemoModuleData(workspaceId);
   const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
   const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
@@ -572,8 +643,8 @@ export async function getInventoryData() {
   return { workspace, accounts, items, movements, summary: { ...totals, lowStock } };
 }
 
-export async function getTeamData() {
-  const workspaceId = await ensureDemoWorkspace();
+export async function getTeamData(selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   await ensureDemoModuleData(workspaceId);
   const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
   const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
@@ -611,8 +682,9 @@ export async function getTeamData() {
   const monthStartDate = `${currentMonth}-01`;
   const nextMonthDate = new Date(Date.UTC(new Date(today).getUTCFullYear(), new Date(today).getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
   const currentSalaryDue = normalizedPeriods.filter((period) => String(period.periodStart).startsWith(currentMonth)).reduce((sum, period) => sum + Number(period.balance), 0);
-  const paidThisMonth = (await db.prepare(`SELECT COALESCE(SUM(amount), 0) AS total FROM salary_payments
-    WHERE paid_at >= ? AND paid_at < ?`).get(monthStartDate, nextMonthDate) as { total: number }).total;
+  const paidThisMonth = (await db.prepare(`SELECT COALESCE(SUM(sp.amount), 0) AS total FROM salary_payments sp
+    JOIN salary_periods p ON p.id = sp.salary_period_id
+    WHERE p.workspace_id = ? AND sp.paid_at >= ? AND sp.paid_at < ?`).get(workspaceId, monthStartDate, nextMonthDate) as { total: number }).total;
   return {
     workspace, accounts, employees, periods: normalizedPeriods, payments,
     summary: {
@@ -638,8 +710,8 @@ export type DashboardTransaction = {
   note: string;
 };
 
-export async function getDashboardData() {
-  const workspaceId = await ensureDemoWorkspace();
+export async function getDashboardData(selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   const workspace = await db.prepare('SELECT id, name, business_type AS businessType, currency FROM workspaces WHERE id = ?').get(workspaceId);
   const accounts = await db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency, a.opening_balance AS openingBalance,
     a.opening_balance + COALESCE((SELECT SUM(CASE

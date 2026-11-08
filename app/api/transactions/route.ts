@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
   if (body.dueDate && !isValidDate(body.dueDate)) return NextResponse.json({ error: 'Enter a valid due date.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     const source = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
     if (!source) return NextResponse.json({ error: 'The selected account was not found in this business.' }, { status: 400 });
     if (destinationAccountId) {
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
     });
 
     const id = await createTransaction();
-    const result = await getDashboardData();
+    const result = await getDashboardData(access.member.workspaceId);
     return NextResponse.json({ ...result, createdTransactionId: id }, { status: 201 });
   } catch (error) {
     console.error('Failed to create transaction', error);

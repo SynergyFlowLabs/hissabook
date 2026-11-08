@@ -4,6 +4,7 @@ import { CSSProperties, FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { ArrowRight, Briefcase, Check } from 'lucide-react';
+import DemoLoginCard from '@/components/demo-login-card';
 
 const authScreenStyle: CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '28px 16px', background: 'radial-gradient(circle at 15% 18%, #e7f2e9 0, transparent 31%), radial-gradient(circle at 85% 82%, #e9efe7 0, transparent 28%), #f6f8f5' };
 const authCardStyle: CSSProperties = { boxSizing: 'border-box', width: 'min(100%, 410px)', padding: 30, border: '1px solid #e8ede8', borderRadius: 18, background: '#fff', boxShadow: '0 18px 60px #203b2d12' };
@@ -42,6 +43,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
     <div className="auth-eyebrow" style={{ color: '#176b50', fontSize: 9, letterSpacing: '.14em', fontWeight: 800, marginBottom: 8 }}>{mode === 'setup' ? 'FIRST-TIME SETUP' : 'YOUR BUSINESS BOOKS'}</div>
     <h1 className="auth-title" style={{ margin: 0, color: '#1c2c23', fontSize: 23, letterSpacing: '-.8px' }}>{mode === 'setup' ? 'Create your owner account' : 'Welcome back'}</h1>
     <p className="auth-subtitle" style={{ margin: '8px 0 22px', color: '#89958d', fontSize: 11, lineHeight: 1.6 }}>{mode === 'setup' ? 'Set up the first owner account for this Hisaabook workspace.' : 'Sign in to continue to your private business workspace.'}</p>
+    {mode === 'login' && <div style={{ marginBottom: 18 }}><DemoLoginCard compact /></div>}
     <form onSubmit={submit} className="auth-form" style={{ display: 'grid', gap: 14 }}>
       {mode === 'setup' && <label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Your name</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} required maxLength={100} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Areeba Khan" /></label>}
       <label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Email address</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" /></label>

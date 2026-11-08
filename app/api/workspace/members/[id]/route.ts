@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.role !== undefined && !editableRoles.includes(body.role)) return NextResponse.json({ error: 'Choose an available non-owner role.' }, { status: 400 });
   if (body.active !== undefined && typeof body.active !== 'boolean') return NextResponse.json({ error: 'Active must be true or false.' }, { status: 400 });
   if (body.role === undefined && body.active === undefined) return NextResponse.json({ error: 'No membership changes were provided.' }, { status: 400 });
-  try { return NextResponse.json(await updateWorkspaceMember(id, body, access.member.name)); }
+  try { return NextResponse.json(await updateWorkspaceMember(id, body, access.member.name, access.member.workspaceId)); }
   catch (error) {
     if (error instanceof Error && error.message === 'MEMBER_NOT_FOUND') return NextResponse.json({ error: 'Workspace member not found.' }, { status: 404 });
     if (error instanceof Error && error.message === 'OWNER_ACCESS_PROTECTED') return NextResponse.json({ error: 'Owner access cannot be changed here.' }, { status: 409 });

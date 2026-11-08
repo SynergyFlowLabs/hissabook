@@ -19,11 +19,11 @@ export async function POST(request: NextRequest) {
   if (!Number.isFinite(reorderLevel) || reorderLevel < 0 || reorderLevel > 1_000_000_000) return NextResponse.json({ error: 'Reorder level must be zero or greater.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     await db.prepare(`INSERT INTO inventory_items (workspace_id, name, sku, category, unit, reorder_level)
       VALUES (?, ?, ?, ?, ?, ?)`)
       .run(workspaceId, name, body.sku?.trim().slice(0, 40) || '', body.category?.trim().slice(0, 60) || 'General', unit, reorderLevel);
-    return NextResponse.json(await getInventoryData(), { status: 201 });
+    return NextResponse.json(await getInventoryData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return NextResponse.json({ error: 'An item with that name already exists.' }, { status: 409 });
