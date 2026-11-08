@@ -38,37 +38,37 @@ export async function POST(request: NextRequest) {
   if (unitCost !== null && unitCost > 0 && !accountId) return NextResponse.json({ error: 'Choose the account used to pay for this stock receipt.' }, { status: 400 });
 
   try {
-    const workspaceId = ensureDemoWorkspace();
-    const item = db.prepare('SELECT id, name, unit FROM inventory_items WHERE id = ? AND workspace_id = ? AND active = 1').get(itemId, workspaceId) as { id: number; name: string; unit: string } | undefined;
+    const workspaceId = await ensureDemoWorkspace();
+    const item = await db.prepare('SELECT id, name, unit FROM inventory_items WHERE id = ? AND workspace_id = ? AND active = 1').get(itemId, workspaceId) as { id: number; name: string; unit: string } | undefined;
     if (!item) return NextResponse.json({ error: 'This inventory item was not found or is inactive.' }, { status: 404 });
-    const current = db.prepare('SELECT COALESCE(SUM(quantity_delta), 0) AS stock FROM inventory_movements WHERE item_id = ?').get(itemId) as { stock: number };
+    const current = await db.prepare('SELECT COALESCE(SUM(quantity_delta), 0) AS stock FROM inventory_movements WHERE item_id = ?').get(itemId) as { stock: number };
     const delta = type === 'ISSUE' || (type === 'ADJUSTMENT' && body.adjustmentDirection === 'DECREASE') ? -quantity : quantity;
     if (current.stock + delta < -0.000001) return NextResponse.json({ error: `Only ${current.stock.toLocaleString()} ${item.unit} are currently recorded; this movement would make stock negative.` }, { status: 400 });
     if (accountId) {
-      const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
+      const account = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
       if (!account) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
     }
     if (unitCost !== null && unitCost > 0 && Math.round(quantity * unitCost) < 1) return NextResponse.json({ error: 'Receipt total must be at least ₨ 1.' }, { status: 400 });
 
-    const createMovement = db.transaction(() => {
+    const createMovement = db.transaction(async () => {
       let transactionId: number | null = null;
       if (unitCost !== null && unitCost > 0 && accountId) {
         const totalCost = Math.round(quantity * unitCost);
-        const transactionResult = db.prepare(`INSERT INTO transactions
+        const transactionResult = await db.prepare(`INSERT INTO transactions
           (workspace_id, account_id, type, amount, description, category, counterparty, note, transaction_date, status)
           VALUES (?, ?, 'EXPENSE', ?, ?, 'Inventory purchases', ?, ?, ?, 'CLEARED')`)
           .run(workspaceId, accountId, totalCost, `Inventory purchase · ${item.name}`, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
         transactionId = Number(transactionResult.lastInsertRowid);
-        db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
+        await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
           .run(workspaceId, transactionId, 'INVENTORY_PURCHASE_RECORDED', JSON.stringify({ itemId, quantity, unitCost, totalCost }));
       }
-      db.prepare(`INSERT INTO inventory_movements
+      await db.prepare(`INSERT INTO inventory_movements
         (workspace_id, item_id, transaction_id, type, quantity_delta, unit_cost, counterparty, note, movement_date)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(workspaceId, itemId, transactionId, type, delta, unitCost, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
     });
-    createMovement();
-    return NextResponse.json(getInventoryData(), { status: 201 });
+    await createMovement();
+    return NextResponse.json(await getInventoryData(), { status: 201 });
   } catch (error) {
     console.error('Failed to record inventory movement', error);
     return NextResponse.json({ error: 'Could not save this stock movement.' }, { status: 500 });

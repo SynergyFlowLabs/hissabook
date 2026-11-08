@@ -54,38 +54,38 @@ export async function POST(request: NextRequest) {
   if (body.dueDate && !isValidDate(body.dueDate)) return NextResponse.json({ error: 'Enter a valid due date.' }, { status: 400 });
 
   try {
-    const workspaceId = ensureDemoWorkspace();
-    const source = db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
+    const workspaceId = await ensureDemoWorkspace();
+    const source = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
     if (!source) return NextResponse.json({ error: 'The selected account was not found in this business.' }, { status: 400 });
     if (destinationAccountId) {
-      const destination = db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(destinationAccountId, workspaceId);
+      const destination = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(destinationAccountId, workspaceId);
       if (!destination) return NextResponse.json({ error: 'The destination account was not found in this business.' }, { status: 400 });
     }
 
-    const createTransaction = db.transaction(() => {
+    const createTransaction = db.transaction(async () => {
       let loanId: number | null = null;
       const counterparty = body.counterparty?.trim().slice(0, 120) || '';
       if (type === 'LOAN_RECEIVED' || type === 'LOAN_GIVEN') {
         const direction = type === 'LOAN_RECEIVED' ? 'PAYABLE' : 'RECEIVABLE';
-        const loanResult = db.prepare(`INSERT INTO loans
+        const loanResult = await db.prepare(`INSERT INTO loans
           (workspace_id, direction, name, counterparty, principal, outstanding, due_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)`)
           .run(workspaceId, direction, description, counterparty, amount, amount, body.dueDate || null);
         loanId = Number(loanResult.lastInsertRowid);
       }
 
-      const transactionResult = db.prepare(`INSERT INTO transactions
+      const transactionResult = await db.prepare(`INSERT INTO transactions
         (workspace_id, account_id, destination_account_id, loan_id, type, amount, description, category, counterparty, note, transaction_date, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CLEARED')`)
         .run(workspaceId, accountId, destinationAccountId, loanId, type, amount, description, category.slice(0, 80), counterparty, body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
       const transactionId = Number(transactionResult.lastInsertRowid);
-      db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
+      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
         .run(workspaceId, transactionId, 'TRANSACTION_CREATED', JSON.stringify({ type, amount, description }));
       return transactionId;
     });
 
-    const id = createTransaction();
-    const result = getDashboardData();
+    const id = await createTransaction();
+    const result = await getDashboardData();
     return NextResponse.json({ ...result, createdTransactionId: id }, { status: 201 });
   } catch (error) {
     console.error('Failed to create transaction', error);

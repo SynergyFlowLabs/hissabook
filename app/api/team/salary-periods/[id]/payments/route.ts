@@ -27,36 +27,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!validDate(paidAt)) return NextResponse.json({ error: 'Enter a valid payment date.' }, { status: 400 });
 
   try {
-    const workspaceId = ensureDemoWorkspace();
-    const period = db.prepare(`SELECT p.id, p.employee_id AS employeeId, p.amount_due AS amountDue,
+    const workspaceId = await ensureDemoWorkspace();
+    const period = await db.prepare(`SELECT p.id, p.employee_id AS employeeId, p.amount_due AS amountDue,
       p.period_start AS periodStart, p.period_end AS periodEnd, e.name AS employeeName
       FROM salary_periods p JOIN employees e ON e.id = p.employee_id
       WHERE p.id = ? AND p.workspace_id = ?`).get(periodId, workspaceId) as {
         id: number; employeeId: number; amountDue: number; periodStart: string; periodEnd: string; employeeName: string;
       } | undefined;
     if (!period) return NextResponse.json({ error: 'Salary period not found.' }, { status: 404 });
-    const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
+    const account = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
     if (!account) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
-    const paid = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM salary_payments WHERE salary_period_id = ?').get(periodId) as { total: number };
+    const paid = await db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM salary_payments WHERE salary_period_id = ?').get(periodId) as { total: number };
     const remaining = period.amountDue - paid.total;
     if (remaining <= 0) return NextResponse.json({ error: 'This salary period is already fully paid.' }, { status: 409 });
     if (amount > remaining) return NextResponse.json({ error: `Payment is more than the remaining salary due (${remaining.toLocaleString()} PKR).` }, { status: 400 });
 
-    const recordPayment = db.transaction(() => {
+    const recordPayment = db.transaction(async () => {
       const description = `Salary payment · ${period.employeeName} (${period.periodStart} – ${period.periodEnd})`;
-      const transactionResult = db.prepare(`INSERT INTO transactions
+      const transactionResult = await db.prepare(`INSERT INTO transactions
         (workspace_id, account_id, type, amount, description, category, note, transaction_date, status)
         VALUES (?, ?, 'EXPENSE', ?, ?, 'Salaries & wages', ?, ?, 'CLEARED')`)
         .run(workspaceId, accountId, amount, description, body.note?.trim().slice(0, 1000) || '', `${paidAt}T12:00:00.000Z`);
       const transactionId = Number(transactionResult.lastInsertRowid);
-      db.prepare(`INSERT INTO salary_payments (salary_period_id, transaction_id, amount, paid_at, note)
+      await db.prepare(`INSERT INTO salary_payments (salary_period_id, transaction_id, amount, paid_at, note)
         VALUES (?, ?, ?, ?, ?)`)
         .run(periodId, transactionId, amount, `${paidAt}T12:00:00.000Z`, body.note?.trim().slice(0, 1000) || '');
-      db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
+      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
         .run(workspaceId, transactionId, 'SALARY_PAYMENT_RECORDED', JSON.stringify({ periodId, employeeId: period.employeeId, amount }));
     });
-    recordPayment();
-    return NextResponse.json(getTeamData(), { status: 201 });
+    await recordPayment();
+    return NextResponse.json(await getTeamData(), { status: 201 });
   } catch (error) {
     console.error('Failed to record salary payment', error);
     return NextResponse.json({ error: 'Could not record this salary payment.' }, { status: 500 });

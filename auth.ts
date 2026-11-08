@@ -10,7 +10,7 @@ async function authenticate(emailInput: unknown, passwordInput: unknown): Promis
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
   if (!email || !password || password.length > 256) return null;
-  const user = getCredentialRecord(email);
+  const user = await getCredentialRecord(email);
   const hash = user?.passwordHash ?? 'scrypt$00000000000000000000000000000000$00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
   const valid = verifyPassword(password, hash);
   if (!user || !valid) return null;

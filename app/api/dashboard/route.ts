@@ -9,7 +9,7 @@ export async function GET() {
   const access = await requireWorkspaceMember();
   if (access.response) return access.response;
   try {
-    return NextResponse.json(getDashboardData());
+    return NextResponse.json(await getDashboardData());
   } catch (error) {
     console.error('Failed to load dashboard data', error);
     return NextResponse.json({ error: 'Could not load business records.' }, { status: 500 });
