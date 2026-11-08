@@ -1,105 +1,73 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import AppSidebar from '@/components/app-sidebar';
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight,
-  Bell, BriefcaseBusiness, Check, ChevronDown, FileText, Filter, HandCoins,
-  Landmark, LayoutDashboard, Menu, MoreHorizontal, Plus, Search, Settings2,
-  ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Users, Wallet, X,
+  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell,
+  Check, FileText, Filter, HandCoins, Landmark, Menu, MoreHorizontal, Plus,
+  Search, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Wallet, X,
 } from 'lucide-react';
 import {
   CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 
-type TransactionKind = 'Income' | 'Expense' | 'Contribution' | 'Withdrawal' | 'Loan received' | 'Loan given' | 'Transfer';
-type Transaction = {
-  id: number;
-  title: string;
-  category: string;
-  date: string;
-  amount: number;
-  kind: TransactionKind;
-  account: string;
-  status: 'Cleared' | 'Pending';
+type TransactionKind = 'Income' | 'Expense' | 'Contribution' | 'Withdrawal' | 'Loan received' | 'Loan given' | 'Loan repayment' | 'Loan collection' | 'Transfer';
+type Period = '7 days' | '30 days' | '90 days';
+type DashboardData = {
+  workspace: { id: number; name: string; businessType: string; currency: string };
+  accounts: Array<{ id: number; name: string; type: string; currency: string; openingBalance: number; balance: number }>;
+  transactions: Array<{ id: number; title: string; category: string; date: string; amount: number; kind: string; account: string; destinationAccount: string | null; status: string; counterparty: string; note: string }>;
+  owners: Array<{ id: number; name: string; role: string; share: number; effectiveAt: string }>;
+  loans: Array<{ id: number; direction: string; name: string; counterparty: string; principal: number; outstanding: number; dueAt: string | null; repaidAmount: number; repaymentCount: number; lastRepaymentAt: string | null }>;
+  summary: { cashBalance: number; incomeThisMonth: number; expensesThisMonth: number; incomeLastMonth: number; expensesLastMonth: number; outstandingLoans: number; activeLoans: number };
+  chart: Array<{ day: string; income: number; expenses: number }>;
 };
 
-const chartSets = {
-  '7 days': [
-    { day: 'Mon', income: 84, expenses: 32 }, { day: 'Tue', income: 105, expenses: 48 },
-    { day: 'Wed', income: 76, expenses: 39 }, { day: 'Thu', income: 134, expenses: 57 },
-    { day: 'Fri', income: 119, expenses: 42 }, { day: 'Sat', income: 169, expenses: 72 }, { day: 'Sun', income: 148, expenses: 50 },
-  ],
-  '30 days': [
-    { day: 'Oct 12', income: 52, expenses: 32 }, { day: 'Oct 16', income: 87, expenses: 44 },
-    { day: 'Oct 20', income: 67, expenses: 38 }, { day: 'Oct 24', income: 128, expenses: 54 },
-    { day: 'Oct 28', income: 103, expenses: 47 }, { day: 'Nov 1', income: 158, expenses: 70 },
-    { day: 'Nov 5', income: 139, expenses: 52 }, { day: 'Nov 8', income: 186, expenses: 62 },
-  ],
-  '90 days': [
-    { day: 'Sep 8', income: 48, expenses: 29 }, { day: 'Sep 20', income: 80, expenses: 42 },
-    { day: 'Oct 2', income: 65, expenses: 34 }, { day: 'Oct 14', income: 119, expenses: 51 },
-    { day: 'Oct 26', income: 93, expenses: 45 }, { day: 'Nov 8', income: 171, expenses: 66 },
-  ],
-};
-
-const initialTransactions: Transaction[] = [
-  { id: 1, title: 'Website project', category: 'Client payment · Income', date: 'Today, 10:42 AM', amount: 85000, kind: 'Income', account: 'Bank account', status: 'Cleared' },
-  { id: 2, title: 'Studio rent', category: 'Rent & utilities · Expense', date: 'Today, 9:15 AM', amount: -32000, kind: 'Expense', account: 'Bank account', status: 'Cleared' },
-  { id: 3, title: 'Hamza · Capital', category: 'Owner contribution', date: 'Yesterday', amount: 50000, kind: 'Contribution', account: 'Cash wallet', status: 'Cleared' },
-  { id: 4, title: 'Software subscriptions', category: 'Tools & software · Expense', date: 'Nov 06, 2026', amount: -12500, kind: 'Expense', account: 'Bank account', status: 'Pending' },
-];
-
-const navigation = [
-  { label: 'Overview', href: '#overview', icon: LayoutDashboard },
-  { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight },
-  { label: 'Accounts', href: '#accounts', icon: Wallet },
-  { label: 'Loans & dues', href: '#loans', icon: HandCoins, badge: '2' },
-  { label: 'Owners', href: '#owners', icon: Users },
-  { label: 'Reports', href: '#reports', icon: FileText },
-];
+type ChartPoint = { day: string; income: number; expenses: number };
 
 function formatPKR(value: number) {
   return `₨ ${Math.abs(value).toLocaleString('en-PK')}`;
+}
+
+function displayKind(value: string): TransactionKind {
+  const labels: Record<string, TransactionKind> = {
+    INCOME: 'Income', EXPENSE: 'Expense', CONTRIBUTION: 'Contribution', WITHDRAWAL: 'Withdrawal',
+    LOAN_RECEIVED: 'Loan received', LOAN_GIVEN: 'Loan given', LOAN_REPAYMENT_OUT: 'Loan repayment', LOAN_REPAYMENT_IN: 'Loan collection', TRANSFER: 'Transfer',
+  };
+  return labels[value] ?? 'Expense';
+}
+
+function apiKind(value: TransactionKind) {
+  return value.toUpperCase().replaceAll(' ', '_');
+}
+
+function displayDate(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-PK', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function shortDate(value: string | null) {
+  if (!value) return 'No due date';
+  return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+}
+
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
 function KindIcon({ kind }: { kind: TransactionKind }) {
   if (kind === 'Income') return <ArrowDownLeft size={14} />;
   if (kind === 'Expense') return <ShoppingBag size={13} />;
   if (kind === 'Contribution') return <HandCoins size={14} />;
-  if (kind === 'Withdrawal') return <ArrowUpRight size={14} />;
+  if (kind === 'Loan collection') return <ArrowDownLeft size={14} />;
+  if (kind === 'Withdrawal' || kind === 'Loan given' || kind === 'Loan repayment') return <ArrowUpRight size={14} />;
   return <ArrowLeftRight size={14} />;
-}
-
-function Sidebar() {
-  return (
-    <aside className="sidebar">
-      <a href="#overview" className="brand" aria-label="Hisaabook home">
-        <span className="brand-mark"><BriefcaseBusiness size={19} strokeWidth={2.1} /></span>
-        <span className="brand-copy"><span className="brand-name">hisaabook</span><span className="brand-caption">Business, in balance</span></span>
-      </a>
-      <button className="workspace-switcher" onClick={() => window.alert('Business switching will be available when workspaces are connected.')}>
-        <span className="workspace-avatar">SS</span>
-        <span className="workspace-meta"><span className="workspace-name">Safa Studio</span><span className="workspace-type">Creative agency</span></span>
-        <ChevronDown size={14} color="#89958d" />
-      </button>
-      <div className="nav-label">Workspace</div>
-      <nav className="nav-list" aria-label="Main navigation">
-        {navigation.map(({ label, href, icon: Icon, badge }, index) => (
-          <a key={label} className={`nav-link ${index === 0 ? 'active' : ''}`} href={href}>
-            <Icon size={16} strokeWidth={1.8} /><span>{label}</span>{badge && <span className="nav-badge">{badge}</span>}
-          </a>
-        ))}
-      </nav>
-      <div className="nav-label" style={{ marginTop: 24 }}>Manage</div>
-      <nav className="nav-list" aria-label="Management navigation">
-        <a className="nav-link" href="#owners"><Settings2 size={16} strokeWidth={1.8} /><span>Business settings</span></a>
-      </nav>
-      <div className="sidebar-spacer" />
-      <div className="help-card"><div className="help-title">A better way to work together</div><div className="help-copy">Keep your business records clear and everyone on the same page.</div><a href="#about" className="help-link">Explore Hisaabook <ArrowRight size={12} /></a></div>
-      <div className="user-profile"><div className="profile-avatar">AK</div><div className="profile-meta"><div className="profile-name">Areeba Khan</div><div className="profile-role">Business owner</div></div><MoreHorizontal size={17} color="#89958d" /></div>
-    </aside>
-  );
 }
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
@@ -107,42 +75,134 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return <div className="chart-tooltip"><div className="chart-tooltip-label">{label}</div>{payload.map((item) => <div className="chart-tooltip-value" key={item.name} style={{ color: item.color }}>{item.name}: ₨ {item.value}k</div>)}</div>;
 }
 
-export default function Dashboard() {
-  const [period, setPeriod] = useState<keyof typeof chartSets>('30 days');
-  const [transactions, setTransactions] = useState(initialTransactions);
+function chartLabel(value: string, period: Period) {
+  const date = new Date(`${value}T12:00:00`);
+  if (period === '7 days') return date.toLocaleDateString('en-PK', { weekday: 'short' });
+  if (period === '30 days') return date.toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+}
+
+function percentChange(current: number, previous: number) {
+  if (!previous) return current ? null : 0;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+export default function Dashboard({ userName, userRole }: { userName: string; userRole: string }) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [period, setPeriod] = useState<Period>('30 days');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<TransactionKind>('Expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('General');
-  const [account, setAccount] = useState('Bank account');
+  const [accountId, setAccountId] = useState('');
+  const [destinationAccountId, setDestinationAccountId] = useState('');
+  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [counterparty, setCounterparty] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [note, setNote] = useState('');
+  const [repaymentOpen, setRepaymentOpen] = useState(false);
+  const [repaymentLoan, setRepaymentLoan] = useState<DashboardData['loans'][number] | null>(null);
+  const [repaymentPrincipal, setRepaymentPrincipal] = useState('');
+  const [repaymentFee, setRepaymentFee] = useState('');
+  const [repaymentFeeDescription, setRepaymentFeeDescription] = useState('');
+  const [repaymentAccount, setRepaymentAccount] = useState('');
+  const [repaymentDate, setRepaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [repaymentNote, setRepaymentNote] = useState('');
+  const [repaymentError, setRepaymentError] = useState('');
+  const [repaymentSaving, setRepaymentSaving] = useState(false);
 
-  const filteredTransactions = useMemo(() => transactions.filter((item) => `${item.title} ${item.category} ${item.account}`.toLowerCase().includes(query.toLowerCase())).slice(0, 5), [transactions, query]);
+  useEffect(() => {
+    fetch('/api/dashboard', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Could not load business records. Please refresh to try again.');
+        return response.json() as Promise<DashboardData>;
+      })
+      .then((result) => {
+        setData(result);
+        if (result.accounts[0]) { setAccountId(String(result.accounts[0].id)); setRepaymentAccount(String(result.accounts[0].id)); }
+        if (result.accounts[1]) setDestinationAccountId(String(result.accounts[1].id));
+      })
+      .catch((error: Error) => setLoadError(error.message));
+  }, []);
+
+  const filteredTransactions = useMemo(() => (data?.transactions ?? []).filter((item) => `${item.title} ${item.category} ${item.account} ${item.counterparty}`.toLowerCase().includes(query.toLowerCase())).slice(0, 5), [data, query]);
+  const periodDays = period === '7 days' ? 7 : period === '30 days' ? 30 : 90;
+  const chartData: ChartPoint[] = data?.chart.slice(-periodDays) ?? [];
+  const isOutgoing = kind === 'Expense' || kind === 'Withdrawal' || kind === 'Loan given';
+
   const showToast = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(''), 3000);
   };
-  const saveTransaction = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const numericAmount = Number(amount.replace(/,/g, ''));
-    if (!numericAmount || !description.trim()) return;
-    const outgoing = kind === 'Expense' || kind === 'Withdrawal' || kind === 'Loan given';
-    const fresh: Transaction = {
-      id: Date.now(), title: description.trim(), category: `${category} · ${kind}`, date: 'Just now',
-      amount: outgoing ? -numericAmount : numericAmount, kind, account, status: 'Cleared',
-    };
-    setTransactions((existing) => [fresh, ...existing]);
-    setDialogOpen(false);
-    setAmount(''); setDescription(''); setCategory('General');
-    showToast('Transaction added to your business ledger.');
+
+  const resetTransactionForm = () => {
+    setAmount(''); setDescription(''); setCategory('General'); setCounterparty(''); setDueDate(''); setNote('');
+    setTransactionDate(new Date().toISOString().slice(0, 10)); setKind('Expense'); setSaveError('');
   };
+
+  const saveTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!data) return;
+    setSaving(true); setSaveError('');
+    try {
+      const response = await fetch('/api/transactions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: apiKind(kind), amount: Number(amount), description, category,
+          accountId: Number(accountId), destinationAccountId: kind === 'Transfer' ? Number(destinationAccountId) : null,
+          transactionDate, counterparty, dueDate: dueDate || null, note,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? 'Could not save this transaction.');
+      setData(result as DashboardData);
+      setDialogOpen(false); resetTransactionForm();
+      showToast('Transaction saved to your business ledger.');
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save this transaction.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openRepayment = (loan: DashboardData['loans'][number]) => {
+    setRepaymentLoan(loan); setRepaymentPrincipal(String(loan.outstanding)); setRepaymentFee(''); setRepaymentFeeDescription('');
+    setRepaymentDate(new Date().toISOString().slice(0, 10)); setRepaymentNote(''); setRepaymentError(''); setRepaymentOpen(true);
+  };
+
+  const recordRepayment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!repaymentLoan) return;
+    setRepaymentSaving(true); setRepaymentError('');
+    try {
+      const response = await fetch(`/api/loans/${repaymentLoan.id}/repayments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ principalAmount: Number(repaymentPrincipal), feeAmount: repaymentFee === '' ? 0 : Number(repaymentFee), feeDescription: repaymentFeeDescription, accountId: Number(repaymentAccount), transactionDate: repaymentDate, note: repaymentNote }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not record the loan repayment.');
+      setData(result as DashboardData); setRepaymentOpen(false); setRepaymentLoan(null);
+      showToast(repaymentLoan.direction === 'PAYABLE' ? 'Loan repayment recorded.' : 'Loan collection recorded.');
+    } catch (error) { setRepaymentError(error instanceof Error ? error.message : 'Could not record the loan repayment.'); }
+    finally { setRepaymentSaving(false); }
+  };
+
+  if (!data) return <div className="loading-screen"><div className="brand-mark" aria-hidden="true">H</div><strong>{loadError ? 'Your records could not be loaded' : 'Opening your business books…'}</strong><span>{loadError || 'Preparing your workspace'}</span>{loadError && <button className="subtle-button" onClick={() => window.location.reload()}>Try again</button>}</div>;
+
+  const incomeChange = percentChange(data.summary.incomeThisMonth, data.summary.incomeLastMonth);
+  const expenseChange = percentChange(data.summary.expensesThisMonth, data.summary.expensesLastMonth);
+  const dateHeading = new Date().toLocaleDateString('en-PK', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="app-shell" id="overview">
-      <Sidebar />
+      <AppSidebar workspaceName={data.workspace.name} businessType={data.workspace.businessType} userName={userName} userRole={userRole} current="overview" loanCount={data.loans.length} />
       <main className="main-area">
         <header className="topbar">
           <button className="icon-button menu-button" aria-label="Open menu" onClick={() => showToast('Use the navigation links to explore your workspace.')}><Menu size={17} /></button>
@@ -150,61 +210,53 @@ export default function Dashboard() {
           <div className="top-actions">
             {searchOpen && <input aria-label="Search transactions" autoFocus className="form-control" style={{ width: 175, height: 34 }} placeholder="Search activity…" value={query} onChange={(event) => setQuery(event.target.value)} />}
             <button className="icon-button" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></button>
-            <button className="icon-button" aria-label="Notifications" onClick={() => showToast('You’re all caught up.') }><Bell size={16} /><span className="notification-dot" /></button>
+            <button className="icon-button" aria-label="Notifications" onClick={() => showToast('You’re all caught up.')}><Bell size={16} /><span className="notification-dot" /></button>
           </div>
         </header>
 
         <div className="content">
           <section className="page-heading">
-            <div><div className="eyebrow">Sunday, November 8, 2026</div><h1 className="page-title">Good morning, Areeba <span aria-hidden="true">✳</span></h1><div className="page-subtitle">Here’s what’s happening with your business today.</div></div>
-            <button className="primary-button" onClick={() => setDialogOpen(true)}><Plus size={15} strokeWidth={2.5} /> Add transaction</button>
+            <div><div className="eyebrow">{dateHeading}</div><h1 className="page-title">Good morning, {userName.split(' ')[0] || 'there'} <span aria-hidden="true">✳</span></h1><div className="page-subtitle">Here’s what’s happening with your business today.</div></div>
+            {['OWNER', 'ADMIN', 'BOOKKEEPER'].includes(userRole) && <button className="primary-button" onClick={() => { setSaveError(''); setDialogOpen(true); }}><Plus size={15} strokeWidth={2.5} /> Add transaction</button>}
           </section>
 
           <section className="stats-grid" aria-label="Business summary">
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Total cash balance</span><span className="stat-icon" style={{ background: '#eaf4ee', color: '#247451' }}><Wallet size={15} /></span></div><div className="stat-value">₨ 486,250</div><div className="stat-foot"><span className="stat-change"><TrendingUp size={11} /> 8.2%</span><span>vs. last month</span></div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Income this month</span><span className="stat-icon" style={{ background: '#eef4fb', color: '#597fa6' }}><ArrowDownLeft size={15} /></span></div><div className="stat-value">₨ 385,000</div><div className="stat-foot"><span className="stat-change"><TrendingUp size={11} /> 12.4%</span><span>vs. last month</span></div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Expenses this month</span><span className="stat-icon" style={{ background: '#fbf0e9', color: '#ba7954' }}><ArrowUpRight size={15} /></span></div><div className="stat-value">₨ 142,800</div><div className="stat-foot"><span className="stat-change down"><TrendingDown size={11} /> 3.1%</span><span>vs. last month</span></div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Outstanding loans</span><span className="stat-icon" style={{ background: '#f3eff9', color: '#8266a3' }}><HandCoins size={15} /></span></div><div className="stat-value">₨ 75,000</div><div className="stat-foot"><span>2 active obligations</span><span style={{ marginLeft: 'auto', color: '#b77b38', fontWeight: 700 }}>1 due soon</span></div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Total cash balance</span><span className="stat-icon" style={{ background: '#eaf4ee', color: '#247451' }}><Wallet size={15} /></span></div><div className="stat-value">{formatPKR(data.summary.cashBalance)}</div><div className="stat-foot"><span>Across {data.accounts.length} business accounts</span></div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Income this month</span><span className="stat-icon" style={{ background: '#eef4fb', color: '#597fa6' }}><ArrowDownLeft size={15} /></span></div><div className="stat-value">{formatPKR(data.summary.incomeThisMonth)}</div><div className="stat-foot">{incomeChange === null ? <span>No comparison yet</span> : <><span className={`stat-change ${incomeChange < 0 ? 'down' : ''}`}><TrendingUp size={11} /> {Math.abs(incomeChange)}%</span><span>vs. last month</span></>}</div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Expenses this month</span><span className="stat-icon" style={{ background: '#fbf0e9', color: '#ba7954' }}><ArrowUpRight size={15} /></span></div><div className="stat-value">{formatPKR(data.summary.expensesThisMonth)}</div><div className="stat-foot">{expenseChange === null ? <span>No comparison yet</span> : <><span className={`stat-change ${expenseChange > 0 ? 'down' : ''}`}><TrendingDown size={11} /> {Math.abs(expenseChange)}%</span><span>vs. last month</span></>}</div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Outstanding loans</span><span className="stat-icon" style={{ background: '#f3eff9', color: '#8266a3' }}><HandCoins size={15} /></span></div><div className="stat-value">{formatPKR(data.summary.outstandingLoans)}</div><div className="stat-foot"><span>{data.summary.activeLoans} active obligations</span></div></div>
           </section>
 
           <section className="dashboard-grid">
             <div className="panel" id="reports">
-              <div className="panel-header"><div><div className="panel-title">Income & expenses</div><div className="panel-subtitle">A look at your business cash flow</div></div><div className="period-select" role="tablist" aria-label="Chart period">{(['7 days', '30 days', '90 days'] as const).map((item) => <button key={item} role="tab" aria-selected={period === item} className={`period-button ${period === item ? 'selected' : ''}`} onClick={() => setPeriod(item)}>{item}</button>)}</div></div>
+              <div className="panel-header"><div><div className="panel-title">Income & expenses</div><div className="panel-subtitle">Recorded income and expense activity</div></div><div className="period-select" role="tablist" aria-label="Chart period">{(['7 days', '30 days', '90 days'] as const).map((item) => <button key={item} role="tab" aria-selected={period === item} className={`period-button ${period === item ? 'selected' : ''}`} onClick={() => setPeriod(item)}>{item}</button>)}</div></div>
               <div className="chart-legend"><span className="legend-item"><i className="legend-dot" style={{ background: '#267b58' }} />Income</span><span className="legend-item"><i className="legend-dot" style={{ background: '#c6d9bd' }} />Expenses</span><span style={{ marginLeft: 'auto' }}>Amounts in thousands</span></div>
-              <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartSets[period]} margin={{ top: 10, right: 9, left: -13, bottom: 0 }}><CartesianGrid vertical={false} strokeDasharray="3 4" /><XAxis dataKey="day" axisLine={false} tickLine={false} tickMargin={10} /><YAxis axisLine={false} tickLine={false} tickMargin={8} tickFormatter={(value) => `${value}`} /><Tooltip content={<CustomTooltip />} /><Line type="monotone" dataKey="income" name="Income" stroke="#267b58" strokeWidth={2.4} dot={false} activeDot={{ r: 4, fill: '#267b58', stroke: '#fff', strokeWidth: 2 }} /><Line type="monotone" dataKey="expenses" name="Expenses" stroke="#b9cfae" strokeWidth={2.2} dot={false} activeDot={{ r: 4, fill: '#b9cfae', stroke: '#fff', strokeWidth: 2 }} /></LineChart></ResponsiveContainer></div>
+              <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 10, right: 9, left: -13, bottom: 0 }}><CartesianGrid vertical={false} strokeDasharray="3 4" /><XAxis dataKey="day" axisLine={false} tickLine={false} tickMargin={10} interval={period === '7 days' ? 0 : period === '30 days' ? 5 : 14} tickFormatter={(value: string) => chartLabel(value, period)} /><YAxis axisLine={false} tickLine={false} tickMargin={8} tickFormatter={(value) => `${value}`} /><Tooltip content={<CustomTooltip />} /><Line type="monotone" dataKey="income" name="Income" stroke="#267b58" strokeWidth={2.4} dot={false} activeDot={{ r: 4, fill: '#267b58', stroke: '#fff', strokeWidth: 2 }} /><Line type="monotone" dataKey="expenses" name="Expenses" stroke="#b9cfae" strokeWidth={2.2} dot={false} activeDot={{ r: 4, fill: '#b9cfae', stroke: '#fff', strokeWidth: 2 }} /></LineChart></ResponsiveContainer></div>
             </div>
             <div className="panel cash-panel" id="accounts">
-              <div className="panel-header"><div><div className="panel-title">Where your money is</div><div className="panel-subtitle">Available across business accounts</div></div><button className="icon-button" aria-label="Account options" style={{ width: 29, height: 29 }} onClick={() => showToast('Account settings are coming soon.')}><MoreHorizontal size={16} /></button></div>
-              <div className="cash-main"><div><div className="cash-amount">₨ 486,250</div><div className="cash-period">Total recorded balance</div></div><span className="cash-trend"><TrendingUp size={11} /> 8.2%</span></div>
-              <div className="balance-progress"><span /></div>
-              <div className="account-row"><div className="account-left"><span className="account-icon"><Landmark size={14} /></span><span><div className="account-name">Business bank</div><div className="account-kind">Meezan Bank · PKR</div></span></div><span className="account-value">₨ 421,250</span></div>
-              <div className="account-row"><div className="account-left"><span className="account-icon" style={{ background: '#f8f2e7', color: '#a18b5c' }}><Wallet size={14} /></span><span><div className="account-name">Cash in hand</div><div className="account-kind">Petty cash · PKR</div></span></div><span className="account-value">₨ 65,000</span></div>
-              <button className="link-button" style={{ marginTop: 12 }} onClick={() => showToast('Account management will be available soon.')}>View all accounts <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button>
+              <div className="panel-header"><div><div className="panel-title">Where your money is</div><div className="panel-subtitle">Recorded balance across accounts</div></div><button className="icon-button" aria-label="Account options" style={{ width: 29, height: 29 }} onClick={() => showToast('Account settings will be available soon.')}><MoreHorizontal size={16} /></button></div>
+              <div className="cash-main"><div><div className="cash-amount">{formatPKR(data.summary.cashBalance)}</div><div className="cash-period">Total recorded balance</div></div><span className="cash-trend"><Wallet size={11} /> {data.accounts.length} accounts</span></div>
+              <div className="balance-progress"><span style={{ width: `${data.summary.cashBalance > 0 ? Math.max(3, Math.min(100, data.accounts.reduce((max, account) => Math.max(max, account.balance), 0) / data.summary.cashBalance * 100)) : 0}%` }} /></div>
+              {data.accounts.map((account) => <div className="account-row" key={account.id}><div className="account-left"><span className="account-icon">{account.type === 'BANK' ? <Landmark size={14} /> : <Wallet size={14} />}</span><span><div className="account-name">{account.name}</div><div className="account-kind">{account.type === 'BANK' ? 'Bank account' : 'Cash account'} · {account.currency}</div></span></div><span className="account-value">{formatPKR(account.balance)}</span></div>)}
+              <button className="link-button" style={{ marginTop: 12 }} onClick={() => showToast('Account management is being built.')}>Account activity <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button>
             </div>
           </section>
 
           <section className="lower-grid">
             <div className="panel" id="transactions">
-              <div className="panel-header"><div><div className="panel-title">Recent transactions</div><div className="panel-subtitle">Your latest business activity</div></div><div className="table-actions"><button className="subtle-button" onClick={() => showToast('Filters will be available with the full ledger.')}><Filter size={12} /> Filter</button><button className="link-button" onClick={() => showToast('Showing the latest transactions in this preview.')}>See all <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div></div>
-              <div style={{ overflowX: 'auto' }}><table className="transaction-table"><thead><tr><th>Transaction</th><th>Date</th><th>Account</th><th>Status</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead><tbody>{filteredTransactions.length ? filteredTransactions.map((item) => <tr key={item.id}><td><div className="transaction-title"><span className="transaction-icon" style={{ background: item.amount < 0 ? '#fbf1eb' : '#edf6ef', color: item.amount < 0 ? '#ba7954' : '#39825a' }}><KindIcon kind={item.kind} /></span><span><div className="transaction-name">{item.title}</div><div className="transaction-category">{item.category}</div></span></div></td><td className="table-muted">{item.date}</td><td className="table-muted">{item.account}</td><td><span className={`status-pill ${item.status.toLowerCase()}`}><i className="legend-dot" style={{ width: 5, height: 5, background: 'currentColor' }} />{item.status}</span></td><td className={item.amount < 0 ? 'amount-negative' : 'amount-positive'} style={{ textAlign: 'right' }}>{item.amount < 0 ? '−' : '+'}{formatPKR(item.amount)}</td></tr>) : <tr><td colSpan={5} style={{ textAlign: 'center', color: '#8b958e', padding: 24 }}>No matching activity found.</td></tr>}</tbody></table></div>
+              <div className="panel-header"><div><div className="panel-title">Recent transactions</div><div className="panel-subtitle">Your latest saved business activity</div></div><div className="table-actions"><button className="subtle-button" onClick={() => showToast('Transaction filtering is coming next.')}><Filter size={12} /> Filter</button><button className="link-button" onClick={() => showToast('The full transaction ledger is coming next.')}>See all <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div></div>
+              <div style={{ overflowX: 'auto' }}><table className="transaction-table"><thead><tr><th>Transaction</th><th>Date</th><th>Account</th><th>Status</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead><tbody>{filteredTransactions.length ? filteredTransactions.map((item) => { const itemKind = displayKind(item.kind); const negative = ['EXPENSE', 'WITHDRAWAL', 'LOAN_GIVEN', 'LOAN_REPAYMENT_OUT'].includes(item.kind); const neutral = item.kind === 'TRANSFER'; return <tr key={item.id}><td><div className="transaction-title"><span className="transaction-icon" style={{ background: negative ? '#fbf1eb' : '#edf6ef', color: negative ? '#ba7954' : '#39825a' }}><KindIcon kind={itemKind} /></span><span><div className="transaction-name">{item.title}</div><div className="transaction-category">{item.category} · {itemKind}</div></span></div></td><td className="table-muted">{displayDate(item.date)}</td><td className="table-muted">{item.kind === 'TRANSFER' ? `${item.account} → ${item.destinationAccount}` : item.account}</td><td><span className={`status-pill ${item.status.toLowerCase()}`}><i className="legend-dot" style={{ width: 5, height: 5, background: 'currentColor' }} />{item.status === 'CLEARED' ? 'Cleared' : item.status === 'PENDING' ? 'Pending' : 'Voided'}</span></td><td className={neutral ? 'table-muted' : negative ? 'amount-negative' : 'amount-positive'} style={{ textAlign: 'right' }}>{neutral ? '' : negative ? '−' : '+'}{formatPKR(item.amount)}</td></tr>; }) : <tr><td colSpan={5} style={{ textAlign: 'center', color: '#8b958e', padding: 24 }}>No matching activity found.</td></tr>}</tbody></table></div>
             </div>
             <div className="panel" id="owners">
-              <div className="panel-header"><div><div className="panel-title">Ownership overview</div><div className="panel-subtitle">Agreed shares in Safa Studio</div></div><button className="link-button" onClick={() => showToast('Ownership history will be available with your business records.')}>View details <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div>
-              <div className="owner-list">
-                <div className="owner-row"><div className="owner-avatar" style={{ background: '#e9f1e8' }}>AK</div><div className="owner-info"><div className="owner-name">Areeba Khan <span style={{ color: '#a0aaa2', fontSize: 8, fontWeight: 500 }}>· You</span></div><div className="owner-bar"><span style={{ width: '45%' }} /></div></div><div className="owner-share">45%</div></div>
-                <div className="owner-row"><div className="owner-avatar" style={{ background: '#edf2e1' }}>HM</div><div className="owner-info"><div className="owner-name">Hamza Malik</div><div className="owner-bar"><span style={{ width: '35%' }} /></div></div><div className="owner-share">35%</div></div>
-                <div className="owner-row"><div className="owner-avatar" style={{ background: '#f5eee1' }}>SA</div><div className="owner-info"><div className="owner-name">Sara Ahmed</div><div className="owner-bar"><span style={{ width: '20%' }} /></div></div><div className="owner-share">20%</div></div>
-              </div>
+              <div className="panel-header"><div><div className="panel-title">Ownership overview</div><div className="panel-subtitle">Recorded shares in {data.workspace.name}</div></div><button className="link-button" onClick={() => showToast('Ownership history and edits are coming next.')}>View details <ArrowRight size={11} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div>
+              <div className="owner-list">{data.owners.map((owner) => <div className="owner-row" key={owner.id}><div className="owner-avatar" style={{ background: '#e9f1e8' }}>{initials(owner.name)}</div><div className="owner-info"><div className="owner-name">{owner.name}{owner.name.trim().toLowerCase() === userName.trim().toLowerCase() && <span style={{ color: '#a0aaa2', fontSize: 8, fontWeight: 500 }}> · You</span>}</div><div className="owner-bar"><span style={{ width: `${owner.share}%` }} /></div></div><div className="owner-share">{Number(owner.share).toLocaleString('en-PK')}%</div></div>)}</div>
               <div className="owner-note"><ShieldCheck size={13} /><span>Shares are recorded as agreed by your team. Contributions and ownership are tracked separately.</span></div>
             </div>
           </section>
 
           <section className="panel loans-panel" id="loans">
-            <div className="panel-header"><div><div className="panel-title">Loans & amounts due</div><div className="panel-subtitle">Keep track of what’s owed to and by your business</div></div><button className="subtle-button" onClick={() => { setKind('Loan received'); setDialogOpen(true); }}><Plus size={12} /> Record a loan</button></div>
-            <div className="loan-list">
-              <div className="loan-item"><span className="loan-icon"><ArrowDownLeft size={15} /></span><span><div className="loan-name">Short-term business loan</div><div className="loan-due">Owed to Fariha · Due Dec 15</div></span><span className="loan-amount">₨ 50,000<small>Payable · 1 active</small></span></div>
-              <div className="loan-item"><span className="loan-icon" style={{ background: '#edf5ee', color: '#4e8a61' }}><ArrowUpRight size={15} /></span><span><div className="loan-name">Advance to vendor</div><div className="loan-due">Owed by Print House · Due Nov 20</div></span><span className="loan-amount">₨ 25,000<small>Receivable · 1 active</small></span></div>
-            </div>
+            <div className="panel-header"><div><div className="panel-title">Loans & amounts due</div><div className="panel-subtitle">Keep track of what’s owed to and by your business</div></div>{['OWNER', 'ADMIN', 'BOOKKEEPER'].includes(userRole) && <button className="subtle-button" onClick={() => { setKind('Loan received'); setSaveError(''); setDialogOpen(true); }}><Plus size={12} /> Record a loan</button>}</div>
+            {data.loans.length ? <div className="loan-list">{data.loans.map((loan) => <div className="loan-item" key={loan.id}><span className="loan-icon" style={loan.direction === 'RECEIVABLE' ? { background: '#edf5ee', color: '#4e8a61' } : undefined}>{loan.direction === 'RECEIVABLE' ? <ArrowUpRight size={15} /> : <ArrowDownLeft size={15} />}</span><span><div className="loan-name">{loan.name}</div><div className="loan-due">{loan.direction === 'PAYABLE' ? 'Owed to' : 'Owed by'} {loan.counterparty || 'Unspecified'} · Due {shortDate(loan.dueAt)}</div></span><span className="loan-amount">{formatPKR(loan.outstanding)}<small>{loan.outstanding === 0 ? 'Settled' : loan.direction === 'PAYABLE' ? 'Payable' : 'Receivable'}</small><small>{formatPKR(loan.repaidAmount)} principal repaid</small></span>{loan.outstanding > 0 && ['OWNER', 'ADMIN', 'BOOKKEEPER'].includes(userRole) && <button className="loan-repay-button" onClick={() => openRepayment(loan)}>{loan.direction === 'PAYABLE' ? 'Repay' : 'Collect'}</button>}</div>)}</div> : <div className="empty-state">No outstanding loans or dues recorded.</div>}
           </section>
           <div className="footer-note" id="about">Hisaabook keeps your business records clear. For bookkeeping reference only — not legal, tax, or accounting advice.</div>
         </div>
@@ -213,13 +265,25 @@ export default function Dashboard() {
       <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-card"><div className="dialog-header"><div><Dialog.Title className="dialog-title">Add a transaction</Dialog.Title><Dialog.Description className="dialog-description">Keep a clear record of money moving through your business.</Dialog.Description></div><Dialog.Close asChild><button className="close-button" aria-label="Close dialog"><X size={15} /></button></Dialog.Close></div>
         <form onSubmit={saveTransaction}><div className="form-grid">
           <label className="form-field full"><span className="form-label">Transaction type</span><select className="form-control" value={kind} onChange={(event) => setKind(event.target.value as TransactionKind)}><option>Expense</option><option>Income</option><option>Contribution</option><option>Withdrawal</option><option>Loan received</option><option>Loan given</option><option>Transfer</option></select></label>
-          <label className="form-field"><span className="form-label">Amount (PKR)</span><input className="form-control" type="number" min="1" step="1" required placeholder="e.g. 12,500" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
-          <label className="form-field"><span className="form-label">Date</span><input className="form-control" type="date" defaultValue="2026-11-08" /></label>
-          <label className="form-field full"><span className="form-label">Description</span><input className="form-control" required placeholder="What was this transaction for?" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+          <label className="form-field"><span className="form-label">Amount (PKR)</span><input className="form-control" type="number" min="1" step="1" required placeholder="e.g. 12,500" value={amount} onChange={(event) => setAmount(event.target.value)} /><span className="field-hint">Enter whole PKR amounts for now.</span></label>
+          <label className="form-field"><span className="form-label">Date</span><input className="form-control" type="date" required value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} /></label>
+          <label className="form-field full"><span className="form-label">Description</span><input className="form-control" required maxLength={160} placeholder="What was this transaction for?" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
           <label className="form-field"><span className="form-label">Category</span><select className="form-control" value={category} onChange={(event) => setCategory(event.target.value)}><option>General</option><option>Sales & services</option><option>Rent & utilities</option><option>Tools & software</option><option>Travel & transport</option><option>Owner funding</option><option>Loan repayment</option></select></label>
-          <label className="form-field"><span className="form-label">Business account</span><select className="form-control" value={account} onChange={(event) => setAccount(event.target.value)}><option>Bank account</option><option>Cash in hand</option></select></label>
-          <div className="form-field full"><span className="form-label">Note</span><textarea className="form-control" placeholder="Add a note or reference (optional)" /></div>
-        </div><div className="dialog-footer"><Dialog.Close asChild><button type="button" className="cancel-button">Cancel</button></Dialog.Close><button type="submit" className="primary-button"><Check size={14} /> Save transaction</button></div></form>
+          <label className="form-field"><span className="form-label">{isOutgoing ? 'Paid from' : 'Received into'}</span><select className="form-control" required value={accountId} onChange={(event) => setAccountId(event.target.value)}>{data.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+          {kind === 'Transfer' && <label className="form-field full"><span className="form-label">Transfer to</span><select className="form-control" required value={destinationAccountId} onChange={(event) => setDestinationAccountId(event.target.value)}>{data.accounts.filter((account) => String(account.id) !== accountId).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
+          {(kind === 'Loan received' || kind === 'Loan given') && <><label className="form-field"><span className="form-label">{kind === 'Loan received' ? 'Lender' : 'Borrower'}</span><input className="form-control" maxLength={120} placeholder="Person or business" value={counterparty} onChange={(event) => setCounterparty(event.target.value)} /></label><label className="form-field"><span className="form-label">Due date (optional)</span><input className="form-control" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label></>}
+          <label className="form-field full"><span className="form-label">Note</span><textarea className="form-control" maxLength={1000} placeholder="Add a note or reference (optional)" value={note} onChange={(event) => setNote(event.target.value)} /></label>
+        </div>{saveError && <div className="form-error" role="alert">{saveError}</div>}<div className="dialog-footer"><Dialog.Close asChild><button type="button" className="cancel-button" disabled={saving}>Cancel</button></Dialog.Close><button type="submit" className="primary-button" disabled={saving}>{saving ? 'Saving…' : <><Check size={14} /> Save transaction</>}</button></div></form>
+      </Dialog.Content></Dialog.Portal></Dialog.Root>
+      <Dialog.Root open={repaymentOpen} onOpenChange={setRepaymentOpen}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-card"><div className="dialog-header"><div><Dialog.Title className="dialog-title">{repaymentLoan?.direction === 'PAYABLE' ? 'Record loan repayment' : 'Record loan collection'}</Dialog.Title><Dialog.Description className="dialog-description">{repaymentLoan ? `${repaymentLoan.name} · ${formatPKR(repaymentLoan.outstanding)} principal remaining. Principal changes the loan balance; any fee is recorded separately.` : 'Record a loan repayment or collection.'}</Dialog.Description></div><Dialog.Close asChild><button className="close-button" aria-label="Close repayment dialog"><X size={15} /></button></Dialog.Close></div>
+        <form onSubmit={recordRepayment}><div className="form-grid">
+          <label className="form-field"><span className="form-label">Principal amount (PKR)</span><input className="form-control" type="number" min="1" max={repaymentLoan?.outstanding} step="1" required value={repaymentPrincipal} onChange={(event) => setRepaymentPrincipal(event.target.value)} /></label>
+          <label className="form-field"><span className="form-label">Date</span><input className="form-control" type="date" required value={repaymentDate} onChange={(event) => setRepaymentDate(event.target.value)} /></label>
+          <label className="form-field full"><span className="form-label">{repaymentLoan?.direction === 'PAYABLE' ? 'Paid from' : 'Received into'}</span><select className="form-control" required value={repaymentAccount} onChange={(event) => setRepaymentAccount(event.target.value)}>{data.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+          <label className="form-field"><span className="form-label">Optional interest or fee (PKR)</span><input className="form-control" type="number" min="0" step="1" value={repaymentFee} onChange={(event) => setRepaymentFee(event.target.value)} placeholder="0" /><span className="field-hint">Posted separately as {repaymentLoan?.direction === 'RECEIVABLE' ? 'income' : 'expense'}.</span></label>
+          <label className="form-field"><span className="form-label">Fee / interest description</span><input className="form-control" maxLength={120} required={Number(repaymentFee) > 0} value={repaymentFeeDescription} onChange={(event) => setRepaymentFeeDescription(event.target.value)} placeholder="Required only when amount is entered" /></label>
+          <label className="form-field full"><span className="form-label">Note</span><textarea className="form-control" maxLength={1000} value={repaymentNote} onChange={(event) => setRepaymentNote(event.target.value)} placeholder="Reference or repayment details (optional)" /></label>
+        </div>{repaymentError && <div className="form-error" role="alert">{repaymentError}</div>}<div className="dialog-footer"><Dialog.Close asChild><button type="button" className="cancel-button" disabled={repaymentSaving}>Cancel</button></Dialog.Close><button type="submit" className="primary-button" disabled={repaymentSaving}>{repaymentSaving ? 'Saving…' : <><Check size={14} /> Record {repaymentLoan?.direction === 'PAYABLE' ? 'repayment' : 'collection'}</>}</button></div></form>
       </Dialog.Content></Dialog.Portal></Dialog.Root>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

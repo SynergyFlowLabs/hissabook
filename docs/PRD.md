@@ -8,7 +8,7 @@
 
 ## 1. Summary
 
-HisaabBook is a simple, trustworthy business-records app for businesses of every size and ownership model. A single person can use it to understand their business finances; friends, family, or formal partners can use it together to maintain a shared record and reduce disagreements. It records the business's financial activity—not just partnership shares—including income, expenses, owner contributions and withdrawals, investments, loans, transfers, and other adjustments. It also makes ownership and related agreements visible, while keeping ownership, cash, and profit concepts distinct.
+HisaabBook is a simple, trustworthy business-records app for businesses of every size and ownership model. A single person can use it to understand their business finances; friends, family, or formal partners can use it together to maintain a shared record and reduce disagreements. It records the business's financial activity—not just partnership shares—including income, expenses, owner contributions and withdrawals, investments, loans, transfers, and other adjustments. Planned business-management modules also cover stock/inventory and employee records with salary obligations and payments. Ownership, cash, inventory, and profit concepts remain distinct.
 
 The product is intended to improve day-to-day record keeping and shared understanding. It is not, by itself, a bank, payment processor, tax filing service, legal agreement, or substitute for a qualified accountant or lawyer.
 
@@ -30,6 +30,7 @@ Make clear, dependable business records accessible to a single founder or a team
 - Capture the full lifecycle of common money movements and business obligations.
 - Make every record understandable, attributable, reviewable, and correctable without silently losing history.
 - Help owners see balances, cash flow, outstanding loans, and ownership information in one place.
+- Give businesses a reliable record of stock on hand and employee salary obligations/payments, without implying automated payroll or inventory valuation advice.
 - Work for Pakistan-based businesses, including local currency, dates, language, and low-friction mobile use.
 
 ### Initial success measures (validate with research)
@@ -40,6 +41,8 @@ Make clear, dependable business records accessible to a single founder or a team
 - Time to record a routine transaction.
 - User-reported confidence that records are complete and understandable.
 - Correction/dispute rate and the number of records with unresolved review requests.
+- Inventory-record completeness and frequency of unexplained stock adjustments.
+- Percentage of salary periods with an amount, due date, and settlement status recorded.
 
 Targets should be set after baseline discovery and usability testing; do not treat unvalidated target numbers as commitments.
 
@@ -50,6 +53,8 @@ Targets should be set after baseline discovery and usability testing; do not tre
 2. **Co-founders / friends in an informal venture** — need shared, transparent records of contributions, spending, loans, income, and agreed ownership.
 3. **Bookkeeping owner / administrator** — enters transactions, organizes records, and prepares summaries for owners or an accountant.
 4. **Business participant / owner** — reviews records, sees their own contributions and obligations, and raises a question or correction request.
+5. **Inventory manager / shop operator** — records stock received, sold, used, returned, or adjusted and checks reorder needs.
+6. **Employer / payroll administrator** — maintains employee details and agreed pay rates, tracks each salary period, and records full or partial salary payments.
 
 ### Jobs to be done
 - When money enters or leaves my business, I want to record what it was for and who was involved, so that I can explain the transaction later.
@@ -58,6 +63,8 @@ Targets should be set after baseline discovery and usability testing; do not tre
 - When we agree on ownership, I want the current shares and the effective date recorded, so that everyone can see the same agreement history.
 - When I review the business, I want to know income, expenses, cash movement, receivables, payables, and outstanding loans without confusing these with profit or ownership.
 - When a record is wrong, I want a transparent correction trail rather than an invisible edit.
+- When stock arrives, is sold, or is used, I want quantities and movement history updated so I can see what is on hand and what needs replenishing.
+- When an employee's pay is due, I want the agreed rate, salary period, amount due, and payments recorded separately so I can see what remains unpaid.
 
 ## 6. Product principles
 - **Clarity over accounting jargon:** Use plain language first, with optional detail for experienced users.
@@ -83,8 +90,14 @@ Targets should be set after baseline discovery and usability testing; do not tre
 - Activity/audit history and a way to flag a record for review.
 - Urdu/English-ready content and Pakistan-friendly date, number, and currency presentation; actual language coverage to be validated.
 
-### Not in MVP
-- Bank integrations, automated payment collection, payroll, inventory, invoicing, point of sale, or tax return submission.
+### Planned follow-on modules (P1 unless noted)
+- **Inventory management:** item catalogue, units, stock receipts/issues/adjustments, movement history, and low-stock thresholds. Multi-location stock and valuation/COGS reporting are later (P2) pending accounting-model validation.
+- **Employee and salary tracking:** employee directory, effective-dated salary/pay-rate history, salary periods, and paid/part-paid/unpaid balances. This is record keeping, not automated payroll.
+
+### Not in the initial release / not promised by the product
+- Automated salary calculation/disbursement, statutory deductions or tax withholding, tax return submission, or claims of payroll-law compliance.
+- Bank integrations, automated payment collection, invoicing, or point of sale.
+- Inventory valuation or cost-of-goods-sold calculations presented as formal accounts without a validated accounting method.
 - Automated tax, legal, valuation, or Shariah-compliance advice.
 - Binding digital partnership contracts or legal verification of ownership.
 - Full enterprise accounting, consolidation, multi-entity accounting, or configurable double-entry controls unless later validated.
@@ -101,6 +114,8 @@ Targets should be set after baseline discovery and usability testing; do not tre
 - **Ownership share:** An agreed stake in the business, represented as percentage or units and effective from a date. It is not the same as cash contributed, current account balance, or profit entitlement. The app must not infer one from another.
 - **Transfer:** Movement between the business's own cash/bank accounts. It is not income or expense.
 - **Profit:** A report calculation based on configured income and expense recognition; must be labeled as an estimate or bookkeeping summary unless the business has configured adequate accounting treatment. Cash balance is not profit.
+- **Inventory item and movement:** A product/material with a unit of measure and a dated quantity movement (receipt, issue, return, or adjustment). Stock quantity is not itself cash or profit; valuation requires an explicit method.
+- **Employee and salary period:** An employee record plus an agreed, effective-dated pay rate and a dated pay period. Amount due, amount paid, and remaining amount are distinct; salary data is sensitive and access-controlled.
 
 ## 9. Core user flows
 1. **Set up a business:** Enter business name, currency, timezone/date format, and whether there is one owner or multiple owners. Add owners and optionally record agreed shares and effective date. Clearly explain that this is a record, not legal verification.
@@ -109,6 +124,8 @@ Targets should be set after baseline discovery and usability testing; do not tre
 4. **Review and resolve:** Open a record, inspect its author and history, flag it or request a correction, and keep the original record visible until resolved.
 5. **Review business health:** Select a period and inspect income, expenses, cash balances and movements, loans, owner contributions/withdrawals, and ownership register as separate views.
 6. **Export records:** Select business and date range, choose a report/export, and confirm who can access the generated file.
+7. **Manage inventory (planned):** Create an item with a unit; record stock received, used/sold, returned, or adjusted; review on-hand quantity, movement history, and low-stock items.
+8. **Track employee salary (planned):** Add an employee and effective-dated pay rate; create a salary period, record amount due and one or more payments, then review the remaining payable. Salary records are visible only to authorized roles.
 
 ## 10. Functional requirements overview
 Detailed, testable requirements are in [REQUIREMENTS.md](REQUIREMENTS.md). Feature inventory and phasing are in [FEATURES.md](FEATURES.md).
@@ -119,7 +136,8 @@ Detailed, testable requirements are in [REQUIREMENTS.md](REQUIREMENTS.md). Featu
 - Use local number/date formatting and clear sign/direction labels; avoid relying on color alone.
 - Make English and Urdu language support a product requirement to investigate and plan, including right-to-left layout where Urdu is offered.
 - Use plain examples relevant to small businesses, but do not assume a business type, formal registration, or a particular family/friend relationship.
-- Make the distinction among cash, income, profit, loan, contribution, and ownership explicit in onboarding and reports.
+- Make the distinction among cash, income, profit, loan, contribution, ownership, stock quantity/value, and salary due/paid explicit in onboarding and reports.
+- Treat employee names, compensation, and salary history as sensitive data; do not expose these to all workspace members by default.
 
 ## 12. Trust, privacy, and safety
 - A business's records are private to its authorized members by default.
@@ -138,6 +156,8 @@ Detailed, testable requirements are in [REQUIREMENTS.md](REQUIREMENTS.md). Featu
 | Users treat summaries as formal accounts or tax advice | Label limitations, define calculations, support exports, and validate with accounting/legal professionals. |
 | Incorrect account balance due to missing opening balance or cash movement | Guided setup, visible opening balances, reconciliation prompts, and clear transaction history. |
 | Shared credentials or unwanted access | Per-person accounts, invitations, role controls, revocation, and security safeguards. |
+| Incorrect stock counts or misleading stock value | Attribute every movement, support audited adjustments and counts, and validate any valuation method with accounting professionals. |
+| Salary information exposed to the wrong people | Apply least-privilege payroll permissions, restrict employee-level visibility, and review retention/privacy rules before launch. |
 | Low adoption due to bookkeeping complexity | Test language and entry flow with solo and group businesses; make advanced fields optional. |
 | Local rules and practices vary | Conduct Pakistan-specific user and professional research; avoid legal/tax assumptions in product defaults. |
 
@@ -151,6 +171,9 @@ Detailed, testable requirements are in [REQUIREMENTS.md](REQUIREMENTS.md). Featu
 - What exports do local accountants and business owners need?
 - Which data retention, consent, and privacy obligations apply to the intended launch model?
 - Is ownership share tracking purely informational, or do users expect profit-sharing/capital-account functionality? If supported, what explicit agreement and calculation rules are needed?
+- Which businesses need inventory first (retail, wholesale, food, services), and what units, variants, returns, stock counts, and valuation rules do they use?
+- Should salary tracking cover only fixed monthly salaries at first, or also hourly/daily wages, commissions, advances, and deductions? Which privacy roles are expected?
+- What local payroll, employee-data privacy, retention, and record-export expectations must be reviewed by qualified Pakistan-based professionals?
 
 ## 15. Definition of MVP readiness
 The MVP is ready for a pilot when a solo owner and a multi-owner business can independently create a workspace, enter representative transactions, distinguish loans/contributions/income/expenses/transfers, inspect useful summaries, correct a mistake without erasing history, manage collaborators, and export their records. Core flows must pass usability testing in the intended language/device context, and security, privacy, backup, and support policies must be reviewed before real financial records are accepted.
