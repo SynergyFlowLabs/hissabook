@@ -106,7 +106,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
     finally { setSaving(false); }
   };
 
-  if (!data) return <div className="loading-screen"><div className="brand-mark"><Boxes size={20} /></div><strong>{error || 'Loading inventory…'}</strong><span>{error ? 'Refresh the page to try again.' : 'Preparing your stock records'}</span></div>;
+  if (!data) return <div className="loading-screen"><div className="icon-badge"><Boxes size={20} /></div><strong>{error || 'Loading inventory…'}</strong><span>{error ? 'Refresh the page to try again.' : 'Preparing your stock records'}</span></div>;
 
   return (
     <div className="app-shell" id="overview">

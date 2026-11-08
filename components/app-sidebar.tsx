@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ArrowRight, Briefcase, Boxes, ChevronDown, HandCoins, LayoutDashboard,
+  ArrowRight, Boxes, ChevronDown, HandCoins, LayoutDashboard,
   ArrowLeftRight, Wallet, UsersRound, FileText, LogOut,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -61,7 +61,7 @@ export default function AppSidebar({
     <>
       <aside className="sidebar">
         <a href="/#overview" className="brand" aria-label="Hisaabook home">
-          <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+          <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
           <span className="brand-copy"><span className="brand-name">hisaabook</span><span className="brand-caption">Business, in balance</span></span>
         </a>
         <button className="workspace-switcher" onClick={() => window.alert('Multiple business workspaces are planned for a future release.')} aria-label={`Workspace: ${workspaceName}`}>

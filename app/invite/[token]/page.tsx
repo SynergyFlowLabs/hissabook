@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Briefcase, ShieldX } from 'lucide-react';
+import { ShieldX } from 'lucide-react';
 import InviteAcceptForm from '@/components/invite-accept-form';
 import { getInvitationByHash } from '@/lib/database';
 import { hashInvitationToken } from '@/lib/invitation-tokens';
@@ -16,7 +16,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
       <main className="auth-screen">
         <aside className="auth-aside" aria-hidden="true">
           <a href="/" className="auth-brand" style={{ color: '#eef6ea', marginBottom: 0, position: 'relative', zIndex: 1 }}>
-            <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+            <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
             <span><strong style={{ color: '#eef6ea' }}>hisaabook</strong><small style={{ color: '#8fa889' }}>Business, in balance</small></span>
           </a>
           <div className="auth-aside-copy">
@@ -28,7 +28,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
         </aside>
         <section className="auth-main">
           <div className="auth-card" style={{ textAlign: 'center' }}>
-            <span className="brand-mark" style={{ margin: '0 auto 18px' }}><ShieldX size={19} strokeWidth={2.2} /></span>
+            <span className="icon-badge" style={{ margin: '0 auto 18px' }}><ShieldX size={19} strokeWidth={2.2} /></span>
             <div className="auth-eyebrow">Invitation unavailable</div>
             <h1 className="auth-title">This link can’t be used</h1>
             <p className="auth-subtitle" style={{ marginBottom: 22 }}>The invitation may have expired, been revoked, or already been accepted. Ask the workspace owner for a new link.</p>

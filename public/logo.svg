@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#1e2f25"/>
+      <stop offset="0.55" stop-color="#16241d"/>
+      <stop offset="1" stop-color="#0f1a14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="1.02" cy="-0.05" r="0.9">
+      <stop offset="0" stop-color="#c9f24f" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#c9f24f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1254" height="1254" rx="292" fill="url(#g)"/>
+  <rect width="1254" height="1254" rx="292" fill="url(#glow)"/>
+  <g transform="translate(246 238) scale(1.0) translate(-269 -246)">
+    <path fill="#c9f24f" d="M304 386 L288 397 L277 420 L281 919 L297 941 L323 954 L581 1011 L584 541 L578 514 L543 467 L494 436 L342 385 Z M909 532 L878 535 L859 564 L859 850 L852 874 L832 891 L706 921 L678 934 L661 962 L660 1006 L882 955 L907 943 L922 926 L930 903 L930 567 L923 546 Z M1025 260 L997 254 L984 261 L755 494 L722 463 L702 464 L685 477 L675 495 L675 665 L1028 304 L1035 278 Z"/>
+  </g>
+</svg>

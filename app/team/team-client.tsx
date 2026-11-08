@@ -175,7 +175,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
     finally { setSaving(false); }
   };
 
-  if (!data) return <div className="loading-screen"><div className="brand-mark"><UsersRound size={20} /></div><strong>{loadError || 'Loading team records…'}</strong><span>{loadError ? 'Refresh the page to try again.' : 'Preparing your employee and salary book'}</span></div>;
+  if (!data) return <div className="loading-screen"><div className="icon-badge"><UsersRound size={20} /></div><strong>{loadError || 'Loading team records…'}</strong><span>{loadError ? 'Refresh the page to try again.' : 'Preparing your employee and salary book'}</span></div>;
 
   return (
     <div className="app-shell" id="overview">
