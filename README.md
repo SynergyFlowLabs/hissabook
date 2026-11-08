@@ -13,7 +13,8 @@ Open [http://localhost:3000](http://localhost:3000). Local development uses an i
 
 ## Current working slice
 
-- Next.js App Router dashboard with a responsive UI built with shadcn/ui components (Tailwind CSS v4, Radix primitives), Lucide icons, and Recharts. The design system lives in `app/globals.css` (mint canvas, lime primary, deep-green panels) and follows a modern-fintech reference with circular quick actions, a dark hero balance card, and a floating pill navigation on mobile.
+- Next.js App Router dashboard with a mobile-first, responsive UI built with shadcn/ui components (Tailwind CSS v4, Radix primitives), Lucide icons, and Recharts. The design system lives in `app/globals.css` (mobile-first, mint canvas, lime primary, deep-green panels) and follows a modern-fintech reference with circular quick actions, a dark hero balance card, and a floating pill navigation on mobile.
+- Installable PWA: `app/manifest.ts` (standalone display, shortcuts, maskable icons), full `<head>` metadata via `app/layout.tsx` (Open Graph, Twitter card, theme-color per color scheme, `mask-icon`, MS Tile, canonical), AI-generated logo and social card under `public/` and the `app/opengraph-image.png` convention.
 - Owner account setup, credentials sign-in, hashed passwords, signed sessions, sign-out, and server-side workspace membership/role checks.
 - Owner-managed member invitations with expiring one-time acceptance links, role assignment, access revocation/reactivation, and audit events.
 - Local/demo SQLite storage and a Supabase PostgreSQL production backend for business accounts, owners, transactions, loans, inventory, team records, and audit events.

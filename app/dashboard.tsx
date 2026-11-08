@@ -217,7 +217,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   if (!data) {
     return (
       <div className="loading-screen">
-        <div className="brand-mark" aria-hidden="true"><Briefcase size={22} strokeWidth={2.2} /></div>
+        <div className="brand-mark" aria-hidden="true" style={{width: 52, height: 52, borderRadius: 17}}><img src="/logo.svg" alt="" width={52} height={52} /></div>
         <strong>{loadError ? 'Your records could not be loaded' : 'Opening your business books…'}</strong>
         <span>{loadError || 'Preparing your workspace'}</span>
         {loadError && <Button variant="outline" className="rounded-full" onClick={() => window.location.reload()}>Try again</Button>}

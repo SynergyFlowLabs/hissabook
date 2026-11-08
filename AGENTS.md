@@ -14,6 +14,7 @@ Guidance for AI agents and humans working in this repository. Hisaabook (hisaabo
 - **Next.js 16 (App Router)** + React 19 + TypeScript, strict mode.
 - **Tailwind CSS v4** (via `@tailwindcss/postcss`) and **shadcn/ui** components in `components/ui/`.
 - Icons: `lucide-react`. Charts: `recharts`. Radix primitives underneath shadcn.
+- PWA/branding: `app/manifest.ts`, icons in `public/icons/` (maskable + any), logo at `public/logo.svg`, AI-generated social card `app/opengraph-image.png`, full head metadata in `app/layout.tsx`. Styles are mobile-first — write base rules for small screens and `min-width` media queries for larger ones.
 - Auth: Auth.js v5 (`next-auth`) credentials + signed sessions. Server-side role checks in `lib/authorization.ts` and `lib/page-auth.ts` — always enforce permissions server-side; the UI role flags are only for presentation.
 - Storage: local SQLite (`better-sqlite3`) for dev/preview, Supabase PostgreSQL (`postgres`, transaction pooler) in production. Schema + RLS in `supabase/migrations/`.
 - State: server-rendered where possible; client components (`'use client'`) only for interactivity. Data fetching from client components uses the `/api/*` route handlers.

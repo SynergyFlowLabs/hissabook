@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  ArrowRight, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Boxes, Briefcase,
+  ArrowRight, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Boxes,
   FileText, HandCoins, ShieldCheck, UsersRound, Wallet, PieChart, CircleCheck,
 } from 'lucide-react';
 
@@ -10,7 +10,7 @@ export default function LandingPage() {
       {/* Nav */}
       <header className="landing-nav">
         <Link className="landing-brand" href="/" aria-label="Hisaabook home">
-          <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+          <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
           <span><strong>hisaabook</strong><small>Business, in balance</small></span>
         </Link>
         <nav className="landing-nav-links" aria-label="Main navigation">

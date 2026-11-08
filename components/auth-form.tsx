@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ArrowRight, Briefcase, Check, ShieldCheck, UsersRound, BookOpenCheck } from 'lucide-react';
+import { ArrowRight, Check, ShieldCheck, UsersRound, BookOpenCheck } from 'lucide-react';
 import DemoLoginCard from '@/components/demo-login-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +67,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
       {/* Brand aside (desktop) */}
       <aside className="auth-aside" aria-hidden="true">
         <a href="/" className="auth-brand" style={{ color: '#eef6ea', marginBottom: 0, position: 'relative', zIndex: 1 }}>
-          <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+          <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
           <span><strong style={{ color: '#eef6ea' }}>hisaabook</strong><small style={{ color: '#8fa889' }}>Business, in balance</small></span>
         </a>
         <div className="auth-aside-copy">
@@ -85,7 +85,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
       <section className="auth-main">
         <div className="auth-card">
           <a href="/" className="auth-brand">
-            <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+            <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
             <span><strong>hisaabook</strong><small>Business, in balance</small></span>
           </a>
           <div className="auth-eyebrow">{mode === 'setup' ? 'First-time setup' : 'Your business books'}</div>
