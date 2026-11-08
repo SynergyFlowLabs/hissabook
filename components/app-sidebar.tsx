@@ -8,7 +8,7 @@ import { signOut } from 'next-auth/react';
 
 const links = [
   { label: 'Overview', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
-  { label: 'Transactions', href: '/#transactions', icon: ArrowLeftRight, key: 'transactions' },
+  { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight, key: 'transactions' },
   { label: 'Accounts', href: '/#accounts', icon: Wallet, key: 'accounts' },
   { label: 'Inventory', href: '/inventory', icon: Boxes, key: 'inventory' },
   { label: 'Loans & dues', href: '/#loans', icon: HandCoins, key: 'loans' },
@@ -63,7 +63,7 @@ export default function AppSidebar({
     <nav className="mobile-nav" aria-label="Mobile navigation">
       {[
         { label: 'Home', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
-        { label: 'Activity', href: '/#transactions', icon: ArrowLeftRight, key: 'transactions' },
+        { label: 'Activity', href: '/transactions', icon: ArrowLeftRight, key: 'transactions' },
         { label: 'Stock', href: '/inventory', icon: Boxes, key: 'inventory' },
         { label: 'Team', href: '/team', icon: UsersRound, key: 'team' },
       ].filter(({ key }) => key !== 'team' || canViewTeam).map(({ label, href, icon: Icon, key }) => <a key={key} href={href} className={key === current ? 'active' : ''}><Icon size={17} /><span>{label}</span></a>)}
