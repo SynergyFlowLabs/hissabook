@@ -20,13 +20,13 @@ Open [http://localhost:3000](http://localhost:3000). Local development uses an i
 - Dashboard figures and the 90-day income/expense chart are derived from stored cleared transactions; pending transactions do not affect balances or totals.
 - Create income, expense, owner contribution/withdrawal, loan received/given, and inter-account transfer records. Record partial loan principal repayments and receivable collections; optional interest/fees are posted separately as income or expense. Transfers and principal repayments do not inflate income/expense totals.
 - Search recent transactions and view business account balances, owners/shares, and outstanding loans.
-- Full activity ledger with pagination, text/date/type/category/account/status filters, plus a filtered CSV export that includes loan repayments.
+- Full activity ledger with pagination, text/date/type/category/account/status/creator filters, plus a filtered CSV export that includes loan repayments and recorder attribution.
 - Inventory workspace with editable/archiveable item records, stock receipts/issues/returns/adjustments, low-stock alerts, movement history, and an optional linked purchase expense.
 - Team workspace with employee profile updates and archive/reactivation, effective-dated monthly salary rates, salary periods, partial salary payments, remaining payables, and linked salary expenses.
 
 ## Current limitations
 
-This is an early single-workspace MVP slice. Invitations are copyable one-time links (not emailed); roles are owner, admin, bookkeeper, payroll, and viewer, with server-side permission checks. Password recovery and multi-workspace switching are not implemented. Inventory and employee modules are demonstration-level and do not yet support multiple stock locations, formal stock valuation, statutory payroll calculations, payslips, transaction correction/reversal, account/owner management screens, attachments, or a transaction-owner filter. The seeded workspace is local-demo data only.
+This is an early single-workspace MVP slice. Invitations are copyable one-time links (not emailed); roles are owner, admin, bookkeeper, payroll, and viewer, with server-side permission checks. Password recovery and multi-workspace switching are not implemented. Inventory and employee modules are demonstration-level and do not yet support multiple stock locations, formal stock valuation, statutory payroll calculations, payslips, transaction correction/reversal, account/owner management screens, and attachments. New financial transactions record the signed-in member; seeded demo history retains its sample attribution labels.
 
 ## Deployment and database
 

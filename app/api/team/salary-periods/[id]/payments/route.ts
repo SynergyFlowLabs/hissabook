@@ -45,15 +45,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const recordPayment = db.transaction(async () => {
       const description = `Salary payment · ${period.employeeName} (${period.periodStart} – ${period.periodEnd})`;
       const transactionResult = await db.prepare(`INSERT INTO transactions
-        (workspace_id, account_id, type, amount, description, category, note, transaction_date, status)
-        VALUES (?, ?, 'EXPENSE', ?, ?, 'Salaries & wages', ?, ?, 'CLEARED')`)
-        .run(workspaceId, accountId, amount, description, body.note?.trim().slice(0, 1000) || '', `${paidAt}T12:00:00.000Z`);
+        (workspace_id, account_id, type, amount, description, category, note, transaction_date, status, created_by)
+        VALUES (?, ?, 'EXPENSE', ?, ?, 'Salaries & wages', ?, ?, 'CLEARED', ?)`)
+        .run(workspaceId, accountId, amount, description, body.note?.trim().slice(0, 1000) || '', `${paidAt}T12:00:00.000Z`, access.member.name);
       const transactionId = Number(transactionResult.lastInsertRowid);
       await db.prepare(`INSERT INTO salary_payments (salary_period_id, transaction_id, amount, paid_at, note)
         VALUES (?, ?, ?, ?, ?)`)
         .run(periodId, transactionId, amount, `${paidAt}T12:00:00.000Z`, body.note?.trim().slice(0, 1000) || '');
-      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
-        .run(workspaceId, transactionId, 'SALARY_PAYMENT_RECORDED', JSON.stringify({ periodId, employeeId: period.employeeId, amount }));
+      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, ?, ?, ?, ?)')
+        .run(workspaceId, transactionId, 'SALARY_PAYMENT_RECORDED', JSON.stringify({ periodId, employeeId: period.employeeId, amount }), access.member.name);
     });
     await recordPayment();
     return NextResponse.json(await getTeamData(), { status: 201 });

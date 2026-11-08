@@ -227,14 +227,15 @@ textarea.form-control { height: 67px; padding: 10px; resize: vertical; }
 .ledger-panel { margin-bottom: 15px; }
 .ledger-filter-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
 .ledger-filter-heading .link-button { white-space: nowrap; }
-.ledger-filters { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(105px, 1fr)) repeat(2, minmax(120px, 1fr)); align-items: end; gap: 12px; }
+.ledger-filters { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(5, minmax(105px, 1fr)) repeat(2, minmax(120px, 1fr)); align-items: end; gap: 12px; }
 .ledger-search-control { position: relative; display: block; }
 .ledger-search-control > svg { position: absolute; left: 11px; top: 12px; color: #95a098; pointer-events: none; }
 .ledger-search-control .form-control { padding-left: 32px; }
 .ledger-results { min-width: 0; }
 .ledger-page-count { color: #87928b; font-size: 9px; }
 .ledger-table-wrap { width: 100%; overflow-x: auto; margin-top: 13px; }
-.ledger-table { min-width: 900px; margin-top: 0; }
+.ledger-table { min-width: 1000px; margin-top: 0; }
+.ledger-creator { white-space: nowrap; }
 .ledger-table th, .ledger-table td { display: table-cell !important; }
 .ledger-table td { font-size: 10px; }
 .ledger-kind { display: inline-flex; align-items: center; gap: 5px; color: #338159; font-size: 9px; font-weight: 700; white-space: nowrap; }
