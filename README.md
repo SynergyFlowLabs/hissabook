@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Local development uses an ignored SQLite database at `data/hisaabook.sqlite` and seeds the Safa Studio workspace if it is empty. The login page also provides a shared public demo login (`demo@hisaabook.example` / `HisaabookDemo2026!`) backed by its own sample workspace. Changes in that demo are shared with other visitors; never enter real information. Set `DATABASE_PATH` to use a different local SQLite file. Development generates an ignored local session secret in `data/.auth-secret`; deployments require a unique `AUTH_SECRET` (see [`.env.example`](.env.example)). With `DATABASE_URL` configured, the app uses Supabase PostgreSQL.
+Open [http://localhost:3000](http://localhost:3000). Local development uses an ignored SQLite database at `data/hisaabook.sqlite` and seeds the Safa Studio workspace if it is empty. The landing and sign-in pages both show the shared public demo login (`demo@hisaabook.example` / `HisaabookDemo2026!`) and offer one-click access to its sample workspace. Changes in that demo are shared with other visitors; never enter real information. Set `DATABASE_PATH` to use a different local SQLite file. Development generates an ignored local session secret in `data/.auth-secret`; deployments require a unique `AUTH_SECRET` (see [`.env.example`](.env.example)). With `DATABASE_URL` configured, the app uses Supabase PostgreSQL.
 
 ## Current working slice
 
