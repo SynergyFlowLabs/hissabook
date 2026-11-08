@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (unitCost !== null && unitCost > 0 && !accountId) return NextResponse.json({ error: 'Choose the account used to pay for this stock receipt.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     const item = await db.prepare('SELECT id, name, unit FROM inventory_items WHERE id = ? AND workspace_id = ? AND active = 1').get(itemId, workspaceId) as { id: number; name: string; unit: string } | undefined;
     if (!item) return NextResponse.json({ error: 'This inventory item was not found or is inactive.' }, { status: 404 });
     const current = await db.prepare('SELECT COALESCE(SUM(quantity_delta), 0) AS stock FROM inventory_movements WHERE item_id = ?').get(itemId) as { stock: number };
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         .run(workspaceId, itemId, transactionId, type, delta, unitCost, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
     });
     await createMovement();
-    return NextResponse.json(await getInventoryData(), { status: 201 });
+    return NextResponse.json(await getInventoryData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     console.error('Failed to record inventory movement', error);
     return NextResponse.json({ error: 'Could not save this stock movement.' }, { status: 500 });

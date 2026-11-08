@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.active !== undefined && typeof body.active !== 'boolean') return NextResponse.json({ error: 'Employee status must be active or inactive.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     const current = await db.prepare('SELECT id, name, job_title AS jobTitle, employee_ref AS employeeRef, start_date AS startDate, active FROM employees WHERE id = ? AND workspace_id = ?').get(id, workspaceId) as { id: number; name: string; jobTitle: string; employeeRef: string; startDate: string; active: number } | undefined;
     if (!current) return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
     const name = body.name?.trim() ?? current.name;
@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .run(workspaceId, body.active === false ? 'EMPLOYEE_DEACTIVATED' : body.active === true ? 'EMPLOYEE_REACTIVATED' : 'EMPLOYEE_UPDATED', JSON.stringify({ employeeId: id, name, jobTitle, active: body.active ?? Boolean(current.active), salaryChanged: body.monthlySalary !== undefined }));
     });
     await updateEmployee();
-    return NextResponse.json(await getTeamData());
+    return NextResponse.json(await getTeamData(access.member.workspaceId));
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) return NextResponse.json({ error: 'Another employee already uses that name or salary effective date.' }, { status: 409 });
     console.error('Failed to update employee', error);

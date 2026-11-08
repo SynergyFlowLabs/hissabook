@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!Number.isSafeInteger(accountId) || accountId <= 0) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
   if (!isValidDate(transactionDate)) return NextResponse.json({ error: 'Enter a valid repayment date.' }, { status: 400 });
 
-  const workspaceId = await ensureDemoWorkspace();
+  const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
   const loan = await db.prepare(`SELECT id, direction, name, counterparty, outstanding FROM loans WHERE id = ? AND workspace_id = ?`).get(loanId, workspaceId) as
     { id: number; direction: 'PAYABLE' | 'RECEIVABLE'; name: string; counterparty: string; outstanding: number } | undefined;
   if (!loan) return NextResponse.json({ error: 'Loan not found in this business.' }, { status: 404 });
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return repaymentId;
     });
     const repaymentId = await saveRepayment();
-    return NextResponse.json({ ...await getDashboardData(), createdRepaymentId: repaymentId }, { status: 201 });
+    return NextResponse.json({ ...await getDashboardData(access.member.workspaceId), createdRepaymentId: repaymentId }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'REPAYMENT_EXCEEDS_BALANCE') return NextResponse.json({ error: 'The repayment exceeds the remaining loan balance.' }, { status: 409 });
     console.error('Failed to record loan repayment', error);

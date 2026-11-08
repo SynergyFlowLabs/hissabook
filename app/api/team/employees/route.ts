@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (!Number.isSafeInteger(salary) || salary < 1 || salary > 1_000_000_000) return NextResponse.json({ error: 'Enter a positive whole-PKR monthly salary.' }, { status: 400 });
 
   try {
-    const workspaceId = await ensureDemoWorkspace();
+    const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
     const createEmployee = db.transaction(async () => {
       const result = await db.prepare(`INSERT INTO employees (workspace_id, name, job_title, employee_ref, start_date)
         VALUES (?, ?, ?, ?, ?)`)
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return employeeId;
     });
     await createEmployee();
-    return NextResponse.json(await getTeamData(), { status: 201 });
+    return NextResponse.json(await getTeamData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return NextResponse.json({ error: 'An employee with that name already exists.' }, { status: 409 });

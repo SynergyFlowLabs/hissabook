@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createInitialOwner, isSetupComplete } from '@/lib/database';
 import { hashPassword } from '@/lib/passwords';
+import { DEMO_EMAIL } from '@/lib/demo-account';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
   const password = body.password ?? '';
   if (!name || name.length > 100) return NextResponse.json({ error: 'Enter your name (up to 100 characters).' }, { status: 400 });
   if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
+  if (email === DEMO_EMAIL) return NextResponse.json({ error: 'That email is reserved for the shared demo account.' }, { status: 400 });
   if (password.length < 12 || password.length > 128) return NextResponse.json({ error: 'Use a password between 12 and 128 characters.' }, { status: 400 });
   try {
     await createInitialOwner(name, email, hashPassword(password));
