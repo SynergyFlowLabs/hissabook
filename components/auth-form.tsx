@@ -51,6 +51,6 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
       <button type="submit" className="primary-button auth-submit" style={{ width: '100%', justifyContent: 'center', height: 42, marginTop: 4 }} disabled={saving}>{saving ? 'Please wait…' : mode === 'setup' ? <>Create account <ArrowRight size={14} /></> : <>Sign in <ArrowRight size={14} /></>}</button>
     </form>
     <div className="auth-switch" style={{ borderTop: '1px solid #edf0ed', marginTop: 22, paddingTop: 16, color: '#87928b', fontSize: 10, textAlign: 'center' }}>{mode === 'setup' ? <>Already set up? <a href="/login" style={{ color: '#176b50', fontWeight: 700, textDecoration: 'none' }}>Sign in</a></> : <>First time here? <a href="/setup" style={{ color: '#176b50', fontWeight: 700, textDecoration: 'none' }}>Set up the owner account</a></>}</div>
-    <p className="auth-security" style={{ margin: '17px 0 0', color: '#a0aaa3', fontSize: 8, textAlign: 'center' }}>Private workspace access · Demo data stays local to this app instance</p>
+    <p className="auth-security" style={{ margin: '17px 0 0', color: '#a0aaa3', fontSize: 8, textAlign: 'center' }}>Private workspace access · Your business records aren't public</p>
   </section></main>;
 }
