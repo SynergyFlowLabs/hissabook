@@ -1,9 +1,13 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, X } from 'lucide-react';
+import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, Wallet } from 'lucide-react';
 import AppSidebar from '@/components/app-sidebar';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type TeamData = {
   workspace: { id: number; name: string; currency: string };
@@ -173,79 +177,154 @@ export default function TeamClient({ userName, role }: { userName: string; role:
 
   if (!data) return <div className="loading-screen"><div className="brand-mark"><UsersRound size={20} /></div><strong>{loadError || 'Loading team records…'}</strong><span>{loadError ? 'Refresh the page to try again.' : 'Preparing your employee and salary book'}</span></div>;
 
-  return <div className="app-shell" id="overview">
-    <AppSidebar workspaceName={data.workspace.name} businessType="Team & payroll records" userName={userName} userRole={role} current="team" />
-    <main className="main-area">
-      <header className="topbar"><div className="breadcrumb"><a href="/#overview">Workspace</a><span>/</span><strong>Team & salaries</strong></div><div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span></div></header>
-      <div className="content">
-        <section className="page-heading"><div><div className="eyebrow">PEOPLE & PAY</div><h1 className="page-title">Team & salaries</h1><div className="page-subtitle">Keep employee details and salary obligations in one private place.</div></div><div className="inventory-heading-actions"><button className="subtle-button" onClick={openPeriod}><CalendarDays size={13} /> Create pay period</button><button className="primary-button" onClick={openEmployee}><Plus size={15} /> Add employee</button></div></section>
-        <div className="payroll-notice"><ShieldCheck size={15} /><span><strong>Restricted salary data.</strong> Only owners, admins, and payroll members can access employee compensation. Hisaabook records salary obligations; it does not automate payroll or calculate statutory deductions.</span></div>
-        <section className="stats-grid inventory-stats">
-          <div className="stat-card"><div className="stat-top"><span className="stat-label">Active employees</span><span className="stat-icon inventory-stat-icon"><UsersRound size={15} /></span></div><div className="stat-value">{data.summary.activeEmployees}</div><div className="stat-foot">Current team records</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-label">Salary due this month</span><span className="stat-icon inventory-stat-warn"><CircleDollarSign size={15} /></span></div><div className="stat-value">{money(data.summary.currentSalaryDue)}</div><div className="stat-foot">Unpaid amount across this month’s periods</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-label">Paid this month</span><span className="stat-icon inventory-stat-blue"><ArrowDownLeft size={15} /></span></div><div className="stat-value">{money(data.summary.paidThisMonth)}</div><div className="stat-foot">Recorded salary payments</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-label">Open pay periods</span><span className="stat-icon inventory-stat-gold"><CalendarDays size={15} /></span></div><div className="stat-value">{data.summary.pendingPeriods}</div><div className="stat-foot">Unpaid or partially paid</div></div>
-        </section>
+  return (
+    <div className="app-shell" id="overview">
+      <AppSidebar workspaceName={data.workspace.name} businessType="Team & payroll records" userName={userName} userRole={role} current="team" />
+      <main className="main-area">
+        <header className="topbar">
+          <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Team & salaries</strong></div>
+          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span></div>
+        </header>
+        <div className="content">
+          <section className="page-heading">
+            <div>
+              <span className="eyebrow"><span className="h-1.5 w-1.5 rounded-full bg-[var(--lime-strong)]" aria-hidden="true" />People & pay</span>
+              <h1 className="page-title">Team & salaries</h1>
+              <p className="page-subtitle">Keep employee details and salary obligations in one private place.</p>
+            </div>
+            <div className="inventory-heading-actions"><Button variant="outline" className="h-11 rounded-full bg-white" onClick={openPeriod}><CalendarDays size={14} /> Create pay period</Button><button className="lime-button" onClick={openEmployee}><Plus size={15} strokeWidth={2.6} /> Add employee</button></div>
+          </section>
 
-        <section className="panel inventory-panel">
-          <div className="panel-header"><div><div className="panel-title">Employee directory</div><div className="panel-subtitle">Monthly pay rates are versioned by effective date.</div></div><button className="link-button" onClick={openEmployee}>Add an employee <Plus size={12} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div>
-          <div className="inventory-table-wrap"><table className="transaction-table inventory-table"><thead><tr><th>Employee</th><th>Reference</th><th>Start date</th><th>Monthly rate</th><th>Status</th></tr></thead><tbody>{data.employees.map((employee) => <tr key={employee.id}><td><div className="inventory-item-name">{employee.name}<small>{employee.jobTitle || 'Team member'}</small></div></td><td className="table-muted">{employee.employeeRef || '—'}</td><td className="table-muted">{dateLabel(employee.startDate)}</td><td className="inventory-quantity">{employee.currentSalary ? money(employee.currentSalary) : 'No rate set'}<small>{employee.rateEffectiveFrom ? `Effective ${dateLabel(employee.rateEffectiveFrom)}` : ''}</small></td><td><div className="employee-actions"><span className={`stock-pill ${employee.active ? 'healthy' : 'low'}`}><i />{employee.active ? 'Active' : 'Inactive'}</span><button className="row-icon-button" aria-label={`Edit ${employee.name}`} onClick={() => openEditEmployee(employee)}><Pencil size={12} /></button><button className="row-icon-button archive" aria-label={`${employee.active ? 'Archive' : 'Reactivate'} ${employee.name}`} onClick={() => toggleEmployee(employee)}><Archive size={12} /></button></div></td></tr>)}</tbody></table></div>
-          {!data.employees.length && <div className="empty-state">Add an employee to start tracking salary periods.</div>}
-        </section>
+          <div className="payroll-notice"><ShieldCheck size={17} /><span><strong>Restricted salary data.</strong> Only owners, admins, and payroll members can access employee compensation. Hisaabook records salary obligations; it does not automate payroll or calculate statutory deductions.</span></div>
 
-        <section className="panel inventory-panel movement-panel">
-          <div className="panel-header"><div><div className="panel-title">Salary periods</div><div className="panel-subtitle">Due amounts, payments, and remaining balance are shown separately.</div></div><button className="link-button" onClick={openPeriod}>Create period <Plus size={12} style={{ verticalAlign: 'middle', marginLeft: 3 }} /></button></div>
-          <div className="inventory-table-wrap"><table className="transaction-table inventory-table"><thead><tr><th>Employee / period</th><th>Due date</th><th>Amount due</th><th>Paid</th><th>Remaining</th><th>Status</th><th></th></tr></thead><tbody>{data.periods.map((period) => <tr key={period.id}><td><div className="inventory-item-name">{period.employeeName}<small>{dateLabel(period.periodStart)} – {dateLabel(period.periodEnd)}</small></div></td><td className="table-muted">{dateLabel(period.dueDate)}</td><td>{money(period.amountDue)}</td><td className="table-muted">{money(period.amountPaid)}</td><td className="inventory-quantity">{money(period.balance)}</td><td><span className={`stock-pill ${period.status === 'PAID' ? 'healthy' : period.status === 'OVERDUE' ? 'low' : 'due'}`}><i />{period.status === 'PARTIAL' ? 'Part paid' : period.status.toLowerCase()}</span></td><td>{period.balance > 0 && <button className="link-button" onClick={() => openPayment(period)}>Record payment</button>}</td></tr>)}</tbody></table></div>
-          {!data.periods.length && <div className="empty-state">Create a salary period to track what is due.</div>}
-        </section>
+          <section className="stat-grid" aria-label="Payroll summary">
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Active employees</span><span className="stat-icon lime"><UsersRound size={16} /></span></div><div className="stat-value">{data.summary.activeEmployees}</div><div className="stat-foot">Current team records</div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Salary due this month</span><span className="stat-icon terra"><CircleDollarSign size={16} /></span></div><div className="stat-value">{money(data.summary.currentSalaryDue)}</div><div className="stat-foot">Unpaid across this month’s periods</div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Paid this month</span><span className="stat-icon green"><ArrowDownLeft size={16} /></span></div><div className="stat-value">{money(data.summary.paidThisMonth)}</div><div className="stat-foot">Recorded salary payments</div></div>
+            <div className="stat-card"><div className="stat-top"><span className="stat-label">Open pay periods</span><span className="stat-icon slate"><CalendarDays size={16} /></span></div><div className="stat-value">{data.summary.pendingPeriods}</div><div className="stat-foot">Unpaid or partially paid</div></div>
+          </section>
 
-        <section className="panel salary-history-panel"><div className="panel-header"><div><div className="panel-title">Recent salary payments</div><div className="panel-subtitle">Each recorded payment is also posted as a salaries expense in the business ledger.</div></div></div>
-          {data.payments.length ? <div className="movement-list">{data.payments.slice(0, 6).map((payment) => <div className="movement-row" key={payment.id}><span className="movement-icon out"><ArrowDownLeft size={14} /></span><div className="movement-description"><strong>{money(payment.amount)} salary payment</strong><small>{payment.accountName}{payment.note ? ` · ${payment.note}` : ''}</small></div><div className="movement-quantity negative">−{money(payment.amount)}</div><time>{dateLabel(payment.paidAt)}</time></div>)}</div> : <div className="empty-state">No salary payments recorded yet.</div>}
-        </section>
-        {role === 'OWNER' && <section className="panel workspace-access-panel">
-          <div className="panel-header"><div><div className="panel-title">Workspace access</div><div className="panel-subtitle">Invite people individually, assign least-privilege roles, and revoke access when needed.</div></div><button className="primary-button" onClick={openInvite}><UserPlus size={14} /> Invite member</button></div>
-          {accessError && <div className="form-error access-error" role="alert">{accessError}</div>}
-          {!accessData ? <div className="empty-state">Loading workspace members…</div> : <div className="inventory-table-wrap"><table className="transaction-table inventory-table"><thead><tr><th>Member</th><th>Workspace role</th><th>Status</th><th>Access</th></tr></thead><tbody>{accessData.members.map((member) => <tr key={member.id}>
-            <td><div className="inventory-item-name">{member.name}{member.role === 'OWNER' && <small>{member.email} · Workspace owner</small>}{member.role !== 'OWNER' && <small>{member.email}</small>}</div></td>
-            <td>{member.role === 'OWNER' ? <span className="role-pill owner-role">Owner</span> : <select className="form-control member-role-select" aria-label={`Role for ${member.name}`} value={member.role} onChange={(event) => changeMember(member.id, { role: event.target.value })}><option value="ADMIN">Admin</option><option value="BOOKKEEPER">Bookkeeper</option><option value="PAYROLL">Payroll</option><option value="VIEWER">Viewer</option></select>}</td>
-            <td><span className={`stock-pill ${member.active ? 'healthy' : 'low'}`}><i />{member.active ? 'Active' : 'Access revoked'}</span></td>
-            <td>{member.role !== 'OWNER' && <button className={`access-toggle ${member.active ? 'revoke' : 'restore'}`} onClick={() => changeMember(member.id, { active: !member.active })}>{member.active ? 'Revoke' : 'Restore'}</button>}</td>
-          </tr>)}</tbody></table></div>}
-          {accessData?.invitations.length ? <div className="pending-invites"><div className="panel-title">Pending invitations</div><div className="inventory-table-wrap"><table className="transaction-table inventory-table"><thead><tr><th>Invitee</th><th>Role</th><th>Expires</th><th></th></tr></thead><tbody>{accessData.invitations.map((invite) => <tr key={invite.id}><td><div className="inventory-item-name">{invite.name}<small>{invite.email}</small></div></td><td><span className="role-pill">{invite.role.replace('_', ' ').toLowerCase()}</span></td><td className="table-muted">{dateLabel(invite.expiresAt)}</td><td><button className="row-icon-button archive" aria-label={`Revoke invitation for ${invite.email}`} onClick={() => revokeInvite(invite.id, invite.email)}><Trash2 size={13} /></button></td></tr>)}</tbody></table></div></div> : null}
-          <div className="access-role-note"><strong>Role access</strong><span>Admin manages business records and salaries. Bookkeeper edits transactions and inventory. Payroll can manage employee and salary records. Viewer can read business and inventory data.</span></div>
-        </section>}
-        <div className="footer-note">Salary balances are tracked separately from payments. The demo recognizes salary expense when paid; this is not payroll, tax, or legal advice.</div>
-      </div>
-    </main>
+          <section className="soft-card" style={{ marginTop: 14 }}>
+            <div className="card-header-row">
+              <div><div className="card-title">Employee directory</div><div className="card-subtitle">Monthly pay rates are versioned by effective date.</div></div>
+              <button className="text-link" onClick={openEmployee}>Add an employee <Plus size={12} /></button>
+            </div>
+            <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Employee</th><th>Reference</th><th>Start date</th><th>Monthly rate</th><th>Status</th></tr></thead><tbody>{data.employees.map((employee) => <tr key={employee.id}><td><div className="cell-title">{employee.name}</div><div className="cell-sub">{employee.jobTitle || 'Team member'}</div></td><td className="table-muted">{employee.employeeRef || '—'}</td><td className="table-muted">{dateLabel(employee.startDate)}</td><td className="cell-num">{employee.currentSalary ? money(employee.currentSalary) : 'No rate set'}<div className="cell-sub" style={{ fontWeight: 600 }}>{employee.rateEffectiveFrom ? `Effective ${dateLabel(employee.rateEffectiveFrom)}` : ''}</div></td><td><div className="row-actions"><span className={`pill ${employee.active ? 'good' : 'neutral'}`}>{employee.active ? 'Active' : 'Inactive'}</span><button className="icon-row-button" aria-label={`Edit ${employee.name}`} onClick={() => openEditEmployee(employee)}><Pencil size={13} /></button><button className="icon-row-button archive" aria-label={`${employee.active ? 'Archive' : 'Reactivate'} ${employee.name}`} onClick={() => toggleEmployee(employee)}><Archive size={13} /></button></div></td></tr>)}</tbody></table></div>
+            {!data.employees.length && <div className="empty-state">Add an employee to start tracking salary periods.</div>}
+          </section>
 
-    <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-card"><div className="dialog-header"><div><Dialog.Title className="dialog-title">{dialogMode === 'employee' ? 'Add employee' : dialogMode === 'employeeEdit' ? 'Manage employee' : dialogMode === 'period' ? 'Create salary period' : 'Record salary payment'}</Dialog.Title><Dialog.Description className="dialog-description">{dialogMode === 'employee' ? 'Add the minimum employee and pay details for this record.' : dialogMode === 'employeeEdit' ? 'Update the profile or add a new effective-dated salary rate. Past rates remain in history.' : dialogMode === 'period' ? 'Use the employee’s effective monthly rate or enter an agreed period amount.' : 'Payments update the outstanding balance and create a linked salary expense.'}</Dialog.Description></div><Dialog.Close asChild><button className="close-button" aria-label="Close"><X size={15} /></button></Dialog.Close></div>
-      <form onSubmit={submit}><div className="form-grid">{dialogMode === 'employee' || dialogMode === 'employeeEdit' ? <>
-        <label className="form-field full"><span className="form-label">Employee name</span><input className="form-control" required maxLength={100} value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" /></label>
-        <label className="form-field"><span className="form-label">Job title</span><input className="form-control" maxLength={80} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Designer" /></label>
-        <label className="form-field"><span className="form-label">Employee reference (optional)</span><input className="form-control" maxLength={40} value={employeeRef} onChange={(event) => setEmployeeRef(event.target.value)} placeholder="e.g. EMP-025" /></label>
-        <label className="form-field"><span className="form-label">Start date</span><input className="form-control" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-        <label className="form-field"><span className="form-label">Monthly salary (PKR)</span><input className="form-control" type="number" min="1" step="1" required value={monthlySalary} onChange={(event) => setMonthlySalary(event.target.value)} placeholder="e.g. 75,000" /></label>{dialogMode === 'employeeEdit' && <><label className="form-field full"><span className="form-label">New rate effective from</span><input className="form-control" type="date" required value={rateEffectiveFrom} onChange={(event) => setRateEffectiveFrom(event.target.value)} /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></label><div className="salary-rate-history full"><strong>Rate history</strong>{(data.employees.find((item) => item.id === editingEmployeeId)?.salaryRates ?? []).map((rate) => <div key={rate.id}><span>{dateLabel(rate.effectiveFrom)}</span><span>{money(rate.amount)} / month</span></div>)}</div></>}
-      </> : dialogMode === 'period' ? <>
-        <label className="form-field full"><span className="form-label">Employee</span><select className="form-control" required value={selectedEmployee} onChange={(event) => { setSelectedEmployee(event.target.value); const employee = data.employees.find((item) => String(item.id) === event.target.value); setPeriodAmount(employee?.currentSalary ? String(employee.currentSalary) : ''); }}>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.jobTitle}</option>)}</select></label>
-        <label className="form-field"><span className="form-label">Period starts</span><input className="form-control" type="date" required value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} /></label>
-        <label className="form-field"><span className="form-label">Period ends</span><input className="form-control" type="date" required value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} /></label>
-        <label className="form-field"><span className="form-label">Payment due date</span><input className="form-control" type="date" required value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label>
-        <label className="form-field"><span className="form-label">Amount due (PKR)</span><input className="form-control" type="number" min="1" step="1" value={periodAmount} onChange={(event) => setPeriodAmount(event.target.value)} placeholder="Uses current rate if blank" /></label>
-      </> : <>
-        <div className="salary-payment-summary full"><span>{currentPeriod?.employeeName ?? 'Salary period'}<small>{currentPeriod ? `${dateLabel(currentPeriod.periodStart)} – ${dateLabel(currentPeriod.periodEnd)} · ${money(currentPeriod.balance)} remaining` : ''}</small></span></div>
-        <label className="form-field"><span className="form-label">Payment amount (PKR)</span><input className="form-control" type="number" min="1" max={currentPeriod?.balance} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></label>
-        <label className="form-field"><span className="form-label">Paid date</span><input className="form-control" type="date" required value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></label>
-        <label className="form-field full"><span className="form-label">Paid from</span><select className="form-control" required value={paymentAccount} onChange={(event) => setPaymentAccount(event.target.value)}>{data.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-        <label className="form-field full"><span className="form-label">Reference / note</span><input className="form-control" maxLength={1000} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Optional payment reference" /></label>
-      </>}</div>{formError && <div className="form-error" role="alert">{formError}</div>}<div className="dialog-footer"><Dialog.Close asChild><button type="button" className="cancel-button" disabled={saving}>Cancel</button></Dialog.Close><button className="primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : <><Check size={14} /> {dialogMode === 'employeeEdit' ? 'Save changes' : dialogMode === 'employee' ? 'Create employee' : dialogMode === 'period' ? 'Create period' : 'Record payment'}</>}</button></div></form>
-    </Dialog.Content></Dialog.Portal></Dialog.Root>
-    <Dialog.Root open={inviteOpen} onOpenChange={setInviteOpen}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-card"><div className="dialog-header"><div><Dialog.Title className="dialog-title">Invite a workspace member</Dialog.Title><Dialog.Description className="dialog-description">Choose the access this person needs. The invite link is only shown once.</Dialog.Description></div><Dialog.Close asChild><button className="close-button" aria-label="Close"><X size={15} /></button></Dialog.Close></div>
-      {inviteLink ? <div className="invite-link-result"><div className="invite-link-icon"><Link2 size={17} /></div><strong>Invitation ready to share</strong><span>Send this private link to {inviteEmail}. It expires in seven days and can be used once.</span><label className="form-field"><span className="form-label">Invitation link</span><input className="form-control invite-url-input" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} /></label><button className="primary-button invite-copy-button" onClick={copyInviteLink}><Copy size={13} /> Copy link</button><button className="link-button invite-another" onClick={() => { setInviteLink(''); setInviteEmail(''); setInviteName(''); }}>Invite another person</button></div> : <form onSubmit={createInvite}><div className="form-grid">
-        <label className="form-field full"><span className="form-label">Name</span><input className="form-control" required maxLength={100} value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Invitee name" /></label>
-        <label className="form-field full"><span className="form-label">Email address</span><input className="form-control" type="email" required maxLength={254} value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="person@business.com" /></label>
-        <label className="form-field full"><span className="form-label">Workspace role</span><select className="form-control" value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}><option value="ADMIN">Admin · manage records, employees and salaries</option><option value="BOOKKEEPER">Bookkeeper · edit transactions and inventory</option><option value="PAYROLL">Payroll · manage employee and salary records</option><option value="VIEWER">Viewer · read dashboard and inventory</option></select></label>
-      </div>{inviteError && <div className="form-error" role="alert">{inviteError}</div>}<div className="dialog-footer"><Dialog.Close asChild><button type="button" className="cancel-button" disabled={inviteSaving}>Cancel</button></Dialog.Close><button className="primary-button" type="submit" disabled={inviteSaving}>{inviteSaving ? 'Creating…' : <><UserPlus size={14} /> Create invitation</>}</button></div></form>}
-    </Dialog.Content></Dialog.Portal></Dialog.Root>
-    {toast && <div role="status" className="toast">{toast}</div>}
-  </div>;
+          <section className="soft-card" style={{ marginTop: 14 }}>
+            <div className="card-header-row">
+              <div><div className="card-title">Salary periods</div><div className="card-subtitle">Due amounts, payments, and remaining balance are shown separately.</div></div>
+              <button className="text-link" onClick={openPeriod}>Create period <Plus size={12} /></button>
+            </div>
+            <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Employee / period</th><th>Due date</th><th>Amount due</th><th>Paid</th><th>Remaining</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{data.periods.map((period) => <tr key={period.id}><td><div className="cell-title">{period.employeeName}</div><div className="cell-sub">{dateLabel(period.periodStart)} – {dateLabel(period.periodEnd)}</div></td><td className="table-muted">{dateLabel(period.dueDate)}</td><td className="cell-num">{money(period.amountDue)}</td><td className="table-muted cell-num" style={{ fontWeight: 600 }}>{money(period.amountPaid)}</td><td className="cell-num">{money(period.balance)}</td><td><span className={`pill ${period.status === 'PAID' ? 'good' : period.status === 'OVERDUE' ? 'bad' : 'warn'}`}>{period.status === 'PARTIAL' ? 'Part paid' : period.status.toLowerCase()}</span></td><td>{period.balance > 0 && <button className="text-link" onClick={() => openPayment(period)}>Record payment</button>}</td></tr>)}</tbody></table></div>
+            {!data.periods.length && <div className="empty-state">Create a salary period to track what is due.</div>}
+          </section>
+
+          <section className="soft-card" style={{ marginTop: 14 }}>
+            <div className="card-header-row">
+              <div><div className="card-title">Recent salary payments</div><div className="card-subtitle">Each recorded payment is also posted as a salaries expense in the business ledger.</div></div>
+            </div>
+            {data.payments.length ? <div className="movement-list">{data.payments.slice(0, 6).map((payment) => <div className="movement-row" key={payment.id}><span className="movement-icon out"><ArrowDownLeft size={16} /></span><div className="movement-description"><strong>{money(payment.amount)} salary payment</strong><small style={{ textTransform: 'none' }}>{payment.accountName}{payment.note ? ` · ${payment.note}` : ''}</small></div><div className="movement-quantity negative">−{money(payment.amount)}</div><time>{dateLabel(payment.paidAt)}</time></div>)}</div> : <div className="empty-state"><Wallet size={22} style={{ margin: '0 auto 8px', color: 'var(--lime-strong)' }} />No salary payments recorded yet.</div>}
+          </section>
+
+          {role === 'OWNER' && <section className="soft-card" style={{ marginTop: 14 }}>
+            <div className="card-header-row">
+              <div><div className="card-title">Workspace access</div><div className="card-subtitle">Invite people individually, assign least-privilege roles, and revoke access when needed.</div></div>
+              <button className="lime-button" style={{ height: 42, fontSize: 11 }} onClick={openInvite}><UserPlus size={14} /> Invite member</button>
+            </div>
+            {accessError && <div className="form-error" role="alert" style={{ marginTop: 14 }}>{accessError}</div>}
+            {!accessData ? <div className="empty-state">Loading workspace members…</div> : <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Member</th><th>Workspace role</th><th>Status</th><th>Access</th></tr></thead><tbody>{accessData.members.map((member) => <tr key={member.id}>
+              <td><div className="cell-title">{member.name}</div><div className="cell-sub">{member.email}{member.role === 'OWNER' ? ' · Workspace owner' : ''}</div></td>
+              <td>{member.role === 'OWNER' ? <span className="role-pill owner-role">Owner</span> : <select className="member-role-select" aria-label={`Role for ${member.name}`} value={member.role} onChange={(event) => changeMember(member.id, { role: event.target.value })}><option value="ADMIN">Admin</option><option value="BOOKKEEPER">Bookkeeper</option><option value="PAYROLL">Payroll</option><option value="VIEWER">Viewer</option></select>}</td>
+              <td><span className={`pill ${member.active ? 'good' : 'neutral'}`}>{member.active ? 'Active' : 'Revoked'}</span></td>
+              <td>{member.role !== 'OWNER' && <button className={`access-toggle ${member.active ? 'revoke' : 'restore'}`} onClick={() => changeMember(member.id, { active: !member.active })}>{member.active ? 'Revoke' : 'Restore'}</button>}</td>
+            </tr>)}</tbody></table></div>}
+            {accessData?.invitations.length ? <div className="pending-invites"><div className="card-title" style={{ padding: '0 2px 10px' }}>Pending invitations</div><div className="data-table-wrap" style={{ marginTop: 0 }}><table className="data-table"><thead><tr><th>Invitee</th><th>Role</th><th>Expires</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{accessData.invitations.map((invite) => <tr key={invite.id}><td><div className="cell-title">{invite.name}</div><div className="cell-sub">{invite.email}</div></td><td><span className="role-pill">{invite.role.replace('_', ' ').toLowerCase()}</span></td><td className="table-muted">{dateLabel(invite.expiresAt)}</td><td><button className="icon-row-button archive" aria-label={`Revoke invitation for ${invite.email}`} onClick={() => revokeInvite(invite.id, invite.email)}><Trash2 size={14} /></button></td></tr>)}</tbody></table></div></div> : null}
+            <div className="access-role-note"><strong>Role access</strong><span>Admin manages business records and salaries. Bookkeeper edits transactions and inventory. Payroll can manage employee and salary records. Viewer can read business and inventory data.</span></div>
+          </section>}
+          <p className="footer-note">Salary balances are tracked separately from payments. The demo recognizes salary expense when paid; this is not payroll, tax, or legal advice.</p>
+        </div>
+      </main>
+
+      {/* Main form dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">{dialogMode === 'employee' ? 'Add employee' : dialogMode === 'employeeEdit' ? 'Manage employee' : dialogMode === 'period' ? 'Create salary period' : 'Record salary payment'}</DialogTitle>
+            <DialogDescription>{dialogMode === 'employee' ? 'Add the minimum employee and pay details for this record.' : dialogMode === 'employeeEdit' ? 'Update the profile or add a new effective-dated salary rate. Past rates remain in history.' : dialogMode === 'period' ? 'Use the employee’s effective monthly rate or enter an agreed period amount.' : 'Payments update the outstanding balance and create a linked salary expense.'}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit}>
+            <div className="form-grid">{dialogMode === 'employee' || dialogMode === 'employeeEdit' ? <>
+              <div className="form-field full"><Label htmlFor="emp-name">Employee name</Label><Input id="emp-name" required maxLength={100} value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="emp-title">Job title</Label><Input id="emp-title" maxLength={80} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Designer" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="emp-ref">Employee reference (optional)</Label><Input id="emp-ref" maxLength={40} value={employeeRef} onChange={(event) => setEmployeeRef(event.target.value)} placeholder="e.g. EMP-025" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="emp-start">Start date</Label><Input id="emp-start" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="emp-salary">Monthly salary (PKR)</Label><Input id="emp-salary" type="number" min="1" step="1" required value={monthlySalary} onChange={(event) => setMonthlySalary(event.target.value)} placeholder="e.g. 75,000" className="h-11 rounded-xl" /></div>
+              {dialogMode === 'employeeEdit' && <>
+                <div className="form-field full"><Label htmlFor="emp-rate-from">New rate effective from</Label><Input id="emp-rate-from" type="date" required value={rateEffectiveFrom} onChange={(event) => setRateEffectiveFrom(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></div>
+                <div className="salary-rate-history full"><strong>Rate history</strong>{(data.employees.find((item) => item.id === editingEmployeeId)?.salaryRates ?? []).map((rate) => <div key={rate.id}><span>{dateLabel(rate.effectiveFrom)}</span><span>{money(rate.amount)} / month</span></div>)}</div>
+              </>}
+            </> : dialogMode === 'period' ? <>
+              <div className="form-field full"><Label htmlFor="period-employee">Employee</Label>
+                <Select value={selectedEmployee} onValueChange={(value) => { setSelectedEmployee(value); const employee = data.employees.find((item) => String(item.id) === value); setPeriodAmount(employee?.currentSalary ? String(employee.currentSalary) : ''); }}>
+                  <SelectTrigger id="period-employee" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>{activeEmployees.map((employee) => <SelectItem key={employee.id} value={String(employee.id)}>{employee.name} · {employee.jobTitle}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="form-field"><Label htmlFor="period-start">Period starts</Label><Input id="period-start" type="date" required value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="period-end">Period ends</Label><Input id="period-end" type="date" required value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="period-due">Payment due date</Label><Input id="period-due" type="date" required value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="period-amount">Amount due (PKR)</Label><Input id="period-amount" type="number" min="1" step="1" value={periodAmount} onChange={(event) => setPeriodAmount(event.target.value)} placeholder="Uses current rate if blank" className="h-11 rounded-xl" /></div>
+            </> : <>
+              <div className="salary-payment-summary full"><span>{currentPeriod?.employeeName ?? 'Salary period'}<small>{currentPeriod ? `${dateLabel(currentPeriod.periodStart)} – ${dateLabel(currentPeriod.periodEnd)} · ${money(currentPeriod.balance)} remaining` : ''}</small></span></div>
+              <div className="form-field"><Label htmlFor="pay-amount">Payment amount (PKR)</Label><Input id="pay-amount" type="number" min="1" max={currentPeriod?.balance} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="pay-date">Paid date</Label><Input id="pay-date" type="date" required value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field full"><Label htmlFor="pay-account">Paid from</Label>
+                <Select value={paymentAccount} onValueChange={setPaymentAccount}>
+                  <SelectTrigger id="pay-account" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="form-field full"><Label htmlFor="pay-note">Reference / note</Label><Input id="pay-note" maxLength={1000} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Optional payment reference" className="h-11 rounded-xl" /></div>
+            </>}</div>
+            {formError && <div className="form-error" role="alert">{formError}</div>}
+            <DialogFooter className="mt-5 gap-2">
+              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="h-11 rounded-full px-6" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> {dialogMode === 'employeeEdit' ? 'Save changes' : dialogMode === 'employee' ? 'Create employee' : dialogMode === 'period' ? 'Create period' : 'Record payment'}</>}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="max-h-[92vh] max-w-[520px] overflow-y-auto rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">Invite a workspace member</DialogTitle>
+            <DialogDescription>Choose the access this person needs. The invite link is only shown once.</DialogDescription>
+          </DialogHeader>
+          {inviteLink ? <div className="invite-link-result"><div className="invite-link-icon"><Link2 size={18} /></div><strong>Invitation ready to share</strong><span>Send this private link to {inviteEmail}. It expires in seven days and can be used once.</span><div className="form-field" style={{ textAlign: 'left' }}><Label htmlFor="invite-url">Invitation link</Label><Input id="invite-url" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} className="h-11 rounded-xl font-mono text-[10px]" /></div><Button className="h-11 rounded-full justify-center" onClick={copyInviteLink}><Copy size={14} /> Copy link</Button><button className="text-link" style={{ justifySelf: 'center' }} onClick={() => { setInviteLink(''); setInviteEmail(''); setInviteName(''); }}>Invite another person</button></div> : <form onSubmit={createInvite}>
+            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+              <div className="form-field"><Label htmlFor="invite-name">Name</Label><Input id="invite-name" required maxLength={100} value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Invitee name" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="invite-email">Email address</Label><Input id="invite-email" type="email" required maxLength={254} value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="person@business.com" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="invite-role">Workspace role</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger id="invite-role" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="ADMIN">Admin · manage records, employees and salaries</SelectItem><SelectItem value="BOOKKEEPER">Bookkeeper · edit transactions and inventory</SelectItem><SelectItem value="PAYROLL">Payroll · manage employee and salary records</SelectItem><SelectItem value="VIEWER">Viewer · read dashboard and inventory</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            {inviteError && <div className="form-error" role="alert">{inviteError}</div>}
+            <DialogFooter className="mt-5 gap-2">
+              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={inviteSaving} onClick={() => setInviteOpen(false)}>Cancel</Button>
+              <Button type="submit" className="h-11 rounded-full px-6" disabled={inviteSaving}>{inviteSaving ? 'Creating…' : <><UserPlus size={15} /> Create invitation</>}</Button>
+            </DialogFooter>
+          </form>}
+        </DialogContent>
+      </Dialog>
+      {toast && <div role="status" className="toast">{toast}</div>}
+    </div>
+  );
 }

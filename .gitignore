@@ -37,3 +37,7 @@ next-env.d.ts
 # editor and OS
 .vscode/
 .idea/
+
+# Python cache (agent skill scripts)
+__pycache__/
+*.pyc

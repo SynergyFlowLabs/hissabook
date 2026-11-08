@@ -1,18 +1,19 @@
 'use client';
 
-import { CSSProperties, FormEvent, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ArrowRight, Briefcase } from 'lucide-react';
-
-const authScreenStyle: CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '28px 16px', background: 'radial-gradient(circle at 15% 18%, #e7f2e9 0, transparent 31%), radial-gradient(circle at 85% 82%, #e9efe7 0, transparent 28%), #f6f8f5' };
-const authCardStyle: CSSProperties = { boxSizing: 'border-box', width: 'min(100%, 410px)', padding: 30, border: '1px solid #e8ede8', borderRadius: 18, background: '#fff', boxShadow: '0 18px 60px #203b2d12' };
+import { ArrowRight, Briefcase, Check, ShieldCheck, UsersRound, BookOpenCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function InviteAcceptForm({ token, email, name, role, workspaceName }: { token: string; email: string; name: string; role: string; workspaceName: string }) {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
   const accept = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setSaving(true); setError('');
     try {
@@ -26,16 +27,44 @@ export default function InviteAcceptForm({ token, email, name, role, workspaceNa
       setError(reason instanceof Error ? reason.message : 'Could not accept the invitation.'); setSaving(false);
     }
   };
-  return <main className="auth-screen" style={authScreenStyle}><section className="auth-card" style={authCardStyle}>
-    <a href="/login" className="auth-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#17241f', marginBottom: 34 }}><span className="brand-mark"><Briefcase size={19} /></span><span style={{ display: 'grid', gap: 2 }}><strong style={{ fontSize: 17, letterSpacing: '-.5px' }}>hisaabook</strong><small style={{ color: '#8b958e', fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em' }}>Business, in balance</small></span></a>
-    <div className="auth-eyebrow" style={{ color: '#176b50', fontSize: 9, letterSpacing: '.14em', fontWeight: 800, marginBottom: 8 }}>WORKSPACE INVITATION</div>
-    <h1 className="auth-title" style={{ margin: 0, color: '#1c2c23', fontSize: 23, letterSpacing: '-.8px' }}>Join {workspaceName}</h1>
-    <p className="auth-subtitle" style={{ margin: '8px 0 22px', color: '#89958d', fontSize: 11, lineHeight: 1.6 }}>{name} invited you to join <strong>{workspaceName}</strong> as a <strong>{role.toLowerCase().replace('_', ' ')}</strong>. Invitation for {email}.</p>
-    <form onSubmit={accept} className="auth-form" style={{ display: 'grid', gap: 14 }}><label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Create or enter your account password</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters" /></label>
-      <p className="auth-hint" style={{ margin: '-5px 0 0', color: '#75867a', fontSize: 9 }}>If you already have a Hisaabook account, enter its current password.</p>
-      {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary-button auth-submit" style={{ width: '100%', justifyContent: 'center', height: 42, marginTop: 4 }} disabled={saving}>{saving ? 'Joining workspace…' : <>Accept invitation <ArrowRight size={14} /></>}</button>
-    </form>
-    <p className="auth-security" style={{ margin: '17px 0 0', color: '#a0aaa3', fontSize: 8, textAlign: 'center' }}>This link expires after seven days and can only be used once.</p>
-  </section></main>;
+
+  return (
+    <main className="auth-screen">
+      <aside className="auth-aside" aria-hidden="true">
+        <a href="/" className="auth-brand" style={{ color: '#eef6ea', marginBottom: 0, position: 'relative', zIndex: 1 }}>
+          <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+          <span><strong style={{ color: '#eef6ea' }}>hisaabook</strong><small style={{ color: '#8fa889' }}>Business, in balance</small></span>
+        </a>
+        <div className="auth-aside-copy">
+          <div className="auth-eyebrow" style={{ color: 'var(--lime)' }}>Workspace invitation</div>
+          <h1>You’re invited to {workspaceName}.</h1>
+          <p>{name} asked you to join as a {role.toLowerCase().replace('_', ' ')}. Accept with a password and you’ll see the same shared ledger they do.</p>
+          <ul className="auth-aside-points">
+            <li><Check size={15} strokeWidth={2.6} /><span>Your access level is set by the workspace owner — bookkeeper, payroll, admin or viewer.</span></li>
+            <li><Check size={15} strokeWidth={2.6} /><span>Everything you record is attributed to you. Change history is preserved.</span></li>
+            <li><Check size={15} strokeWidth={2.6} /><span>Salary and compensation records stay visible only to authorized roles.</span></li>
+          </ul>
+        </div>
+        <div className="auth-aside-foot"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><UsersRound size={13} /> Shared, transparent books</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><BookOpenCheck size={13} /> Bookkeeping, not accounting advice</span></div>
+      </aside>
+      <section className="auth-main">
+        <div className="auth-card">
+          <a href="/" className="auth-brand">
+            <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+            <span><strong>hisaabook</strong><small>Business, in balance</small></span>
+          </a>
+          <div className="auth-eyebrow">Workspace invitation</div>
+          <h1 className="auth-title">Join {workspaceName}</h1>
+          <p className="auth-subtitle">{name} invited you to join <strong>{workspaceName}</strong> as a <strong>{role.toLowerCase().replace('_', ' ')}</strong>. Invitation for {email}.</p>
+          <form onSubmit={accept} className="auth-form">
+            <div className="form-field"><Label htmlFor="password" className="form-label">Create or enter your account password</Label><Input id="password" className="h-12 rounded-xl bg-[#fcfdfb]" type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters" /></div>
+            <p className="auth-hint" style={{ marginTop: -6 }}><Check size={12} /> If you already have a Hisaabook account, enter its current password.</p>
+            {error && <div className="form-error" role="alert" style={{ marginTop: 0 }}>{error}</div>}
+            <Button type="submit" className="h-12 w-full rounded-full text-[13px] font-extrabold" disabled={saving}>{saving ? 'Joining workspace…' : <>Accept invitation <ArrowRight size={15} /></>}</Button>
+          </form>
+          <p className="auth-security"><ShieldCheck size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />This link expires after seven days and can only be used once.</p>
+        </div>
+      </section>
+    </main>
+  );
 }
