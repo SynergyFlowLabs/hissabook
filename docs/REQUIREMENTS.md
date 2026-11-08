@@ -72,7 +72,38 @@ The requirements below describe expected product behavior. They do not prescribe
 | RPT-06 | P0 | Users can export permitted records. | Export follows workspace access permissions and selection criteria; users see the export's scope and date range. |
 | RPT-07 | P1 | The app can provide a profit-and-loss style summary. | Calculation and recognition limitations are visible; the product does not represent an informal summary as audited accounts. |
 
-## 6. Collaboration, review, and audit
+## 6. Inventory management
+
+| ID | Priority | Requirement | Acceptance criteria |
+|---|---:|---|---|
+| INV-01 | P1 | An authorized member can create and maintain an inventory item. | The item has a name, unit of measure, active status, and optional SKU/category/description and reorder threshold. |
+| INV-02 | P1 | A member can record stock received. | A receipt records item, quantity, date, source/counterparty, actor, and optional unit cost/evidence; receipt history is retained. |
+| INV-03 | P1 | A member can record stock sold, used, issued, or returned. | Each movement records item, signed quantity/direction, date, reason/reference, and actor; stock movement is not mistaken for cash income/expense. |
+| INV-04 | P1 | Stock corrections are recorded as adjustments rather than silent quantity edits. | An adjustment requires a reason and actor and preserves the previous quantity and movement history. |
+| INV-05 | P1 | The app displays on-hand quantity and movement history per item. | The current quantity reconciles to the opening quantity plus recorded movements; unit of measure is always visible. |
+| INV-06 | P1 | The app warns when a stock movement would take an item below zero. | Negative stock is blocked by default; any permitted override requires appropriate permission and a reason. |
+| INV-07 | P1 | An item can have a low-stock threshold. | The UI identifies items at or below their threshold; it does not create an order or claim stock is available from an external vendor. |
+| INV-08 | P1 | A stock receipt may reference a related purchase transaction. | The link is visible in both records and does not create a duplicate cash movement or expense. |
+| INV-09 | P2 | Users can manage multiple stock locations. | A transfer between locations reduces one location and increases another without changing business-wide quantity. |
+| INV-10 | P2 | The app can provide stock valuation or cost-of-goods-sold summaries. | A disclosed and professionally reviewed method is required; results are not presented as audited accounts. |
+
+## 7. Employee and salary tracking
+
+| ID | Priority | Requirement | Acceptance criteria |
+|---|---:|---|---|
+| EMP-01 | P1 | An authorized user can create and maintain an employee record. | The record supports name, job title, optional internal reference, start/end date, and active/inactive status; unnecessary personal data is not required. |
+| EMP-02 | P1 | The business can record an effective-dated pay rate. | Initial release supports an agreed monthly salary; changes preserve the old rate and its effective dates and do not rewrite past salary periods. |
+| EMP-03 | P1 | An authorized user can create a salary period. | The record identifies the employee, period start/end, due date, amount due, currency, and status (unpaid, partially paid, or paid). |
+| EMP-04 | P1 | A salary period supports one or more payments. | Each payment has a date, amount, account/method, and optional reference; the unpaid balance is calculated as amount due minus recorded payments. |
+| EMP-05 | P1 | Salary due, salary paid, and salary expense are distinguishable. | The product explains its reporting basis and links payments to their salary period to prevent double-counting in cash and expense summaries. |
+| EMP-06 | P1 | Salary and employee data is protected by dedicated permissions. | Only owner/payroll-authorized roles can see or change compensation; ordinary workspace members cannot browse individual salary details by default. |
+| EMP-07 | P1 | Pay-rate and salary-period changes retain an audit history. | The history identifies actor, timestamp, previous value, new value, and reason where applicable. |
+| EMP-08 | P1 | The business can review salary obligations by employee and period. | Authorized users can filter by employee, period, due date, and payment status and export only with permission. |
+| EMP-09 | P1 | The product does not calculate statutory deductions or claim payroll compliance. | Any supported deduction is explicitly entered and identified; the UI does not describe the output as tax/legal advice or compliant payroll. |
+| EMP-10 | P2 | Employee advances can be tracked. | Advances are separate linked obligations and are not silently netted against salary; repayments remain visible. |
+| EMP-11 | P2 | Hourly/daily wages, commissions, bonuses, and payslips may be supported. | Rules, calculations, access, and local professional review are defined before a feature is presented as authoritative. |
+
+## 8. Collaboration, review, and audit
 
 | ID | Priority | Requirement | Acceptance criteria |
 |---|---:|---|---|
@@ -83,7 +114,7 @@ The requirements below describe expected product behavior. They do not prescribe
 | COL-05 | P1 | A business can require review/approval for selected records. | The business can identify pending versus approved records; the policy and effect on summaries are clearly explained. |
 | COL-06 | P1 | Members can comment on a transaction. | Comments retain author and time and are visible only to authorized workspace members. |
 
-## 7. Localization, privacy, and operational quality
+## 9. Localization, privacy, and operational quality
 
 | ID | Priority | Requirement | Acceptance criteria |
 |---|---:|---|---|
@@ -97,7 +128,7 @@ The requirements below describe expected product behavior. They do not prescribe
 | NFR-08 | P0 | Status and transaction meaning are not communicated by color alone. | Text labels/icons and accessible names communicate status and direction. |
 | NFR-09 | P1 | The product remains understandable under slow or intermittent connectivity. | Research identifies minimum viable behavior and users receive clear feedback when an action has not been saved. |
 
-## 8. Cross-cutting rules and edge cases
+## 10. Cross-cutting rules and edge cases
 - A business can have one owner; owner count must not gate ledger usage.
 - A person can be an owner, lender, borrower, payer, or payee in different contexts. Those roles must not be conflated.
 - A contribution is not automatically a loan; a loan is not automatically an investment; the user must choose and records must preserve that choice.
@@ -106,14 +137,20 @@ The requirements below describe expected product behavior. They do not prescribe
 - Transfers between business accounts affect balances but not income/expense totals.
 - Negative values, refunds, corrections, voids, and duplicate-looking transactions need explicit, understandable handling and an audit trail.
 - Reports must state the business, currency, selected period, and calculation basis.
+- Inventory counts are derived from the movement ledger; count corrections require a reason and must retain history.
+- A linked stock purchase and inventory receipt must not double-count cash movement or expenses.
+- Salary amounts, salary payment, and unpaid balance are separate facts; link salary payments to the relevant period to avoid double-counting.
+- Employee compensation is confidential and limited to authorized roles; removal or deactivation of an employee must not erase salary history.
 - A collaborator's removal must not erase historical records or attribution.
 - If an amount's currency differs from the business currency, conversion and any exchange-rate assumptions must be explicit before aggregation.
 
-## 9. Validation checklist before pilot
+## 11. Validation checklist before pilot
 - Interview solo operators and multi-owner businesses, including informal ventures, in the intended launch communities.
 - Test the distinction between income, contribution, loan, withdrawal, transfer, and ownership with representative scenarios.
 - Validate commonly used categories, account types, transaction language, and evidence/receipt practices.
-- Review local privacy, consumer, financial record retention, and business/legal wording with qualified professionals.
+- Test inventory receipts, issues, returns, stock counts, negative-stock prevention, low-stock thresholds, and financial links with representative retailers/service businesses.
+- Test monthly salary setup, effective-dated rate changes, partial and late payments, access control, and report calculations with employers and payroll professionals.
+- Review local privacy, employee data handling, payroll, salary record retention, consumer, financial record retention, and business/legal wording with qualified Pakistan-based professionals.
 - Conduct permission, data export, attachment, backup/restore, and deletion tests.
 - Test workflows on low-cost mobile devices and the intended network conditions.
 - Confirm that exported records are useful to users and their accountants without overstating their accounting status.

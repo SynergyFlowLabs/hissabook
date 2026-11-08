@@ -8,6 +8,12 @@
 /out/
 /build/
 
+# generated local database
+/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
 # production
 /dist/
 

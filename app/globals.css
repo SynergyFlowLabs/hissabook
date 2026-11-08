@@ -221,3 +221,129 @@ textarea.form-control { height: 67px; padding: 10px; resize: vertical; }
   .form-field.full { grid-column: auto; }
   .toast { left: 15px; right: 15px; bottom: 15px; text-align: center; }
 }
+
+.loading-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #435349; text-align: center; padding: 24px; }
+.loading-screen .brand-mark { width: 44px; height: 44px; margin-bottom: 6px; }
+.loading-screen strong { font-size: 15px; }
+.loading-screen span { color: #87938b; font-size: 11px; }
+.field-hint { color: #97a19a; font-size: 8px; }
+.form-error { background: #fff1ed; border: 1px solid #f4d2c8; border-radius: 8px; color: #a34a34; font-size: 10px; padding: 10px 12px; margin-top: 13px; }
+.empty-state { color: #89958d; font-size: 10px; border: 1px dashed #e2e9e3; border-radius: 10px; padding: 22px; text-align: center; margin-top: 14px; }
+button:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
+.currency-badge { display: inline-flex; align-items: center; border: 1px solid #e5ebe5; background: #fff; border-radius: 20px; color: #758078; font-size: 8px; font-weight: 700; letter-spacing: .09em; padding: 7px 9px; }
+.breadcrumb a { color: inherit; text-decoration: none; }
+.breadcrumb a:hover { color: var(--green); }
+.inventory-heading-actions { display: flex; align-items: center; gap: 8px; }
+.inventory-stats .stat-icon { display: grid; }
+.inventory-stat-icon { color: #247451; background: #eaf4ee; }
+.inventory-stat-warn { color: #b77b38; background: #fff4e5; }
+.inventory-stat-blue { color: #597fa6; background: #eef4fb; }
+.inventory-stat-gold { color: #947b46; background: #f8f2e7; }
+.inventory-na { color: #8a958e; font-size: 16px; letter-spacing: -.2px; }
+.inventory-panel { margin-bottom: 16px; }
+.inventory-table-wrap { overflow-x: auto; margin-top: 15px; }
+.inventory-table { margin-top: 0; min-width: 660px; }
+.inventory-table th { padding-left: 10px; padding-right: 10px; }
+.inventory-table td { padding: 12px 10px; }
+.inventory-item-name { color: #34453a; font-size: 10px; font-weight: 700; }
+.inventory-item-name small, .inventory-quantity small { display: block; color: #99a39c; font-size: 8px; font-weight: 500; margin-top: 4px; }
+.inventory-quantity { font-size: 10px; font-weight: 700; color: #314a39; white-space: nowrap; }
+.stock-pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 8px; font-size: 8px; font-weight: 700; white-space: nowrap; text-transform: capitalize; }
+.stock-pill i { width: 5px; height: 5px; display: inline-block; border-radius: 50%; background: currentColor; }
+.stock-pill.healthy { color: #39835a; background: #edf7ef; }
+.stock-pill.low { color: #b77b38; background: #fff5e9; }
+.stock-pill.due { color: #627d9d; background: #eef4fb; }
+.inventory-search { height: 32px; width: min(220px, 42vw); display: flex; align-items: center; gap: 7px; border: 1px solid #e9ede9; color: #8b958e; border-radius: 8px; padding: 0 9px; }
+.inventory-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #34453a; font-size: 9px; background: transparent; }
+.inventory-empty { text-align: center; color: #8b958e; padding: 25px !important; }
+.movement-panel { margin-top: 0; }
+.movement-list { margin-top: 13px; }
+.movement-row { min-height: 52px; border-top: 1px solid #f0f2ef; display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
+.movement-icon { width: 29px; height: 29px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; }
+.movement-icon.in { background: #edf6ef; color: #39825a; }
+.movement-icon.out { background: #fbf1eb; color: #ba7954; }
+.movement-description { flex: 1; min-width: 0; }
+.movement-description strong { display: block; color: #34453a; font-size: 9px; }
+.movement-description small { display: block; color: #99a39c; font-size: 8px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.movement-quantity { font-size: 10px; font-weight: 700; white-space: nowrap; }
+.movement-quantity small { font-size: 8px; font-weight: 500; color: #89958d; }
+.movement-quantity.positive { color: #39825a; }
+.movement-quantity.negative { color: #a56446; }
+.movement-row time { color: #99a39c; font-size: 8px; white-space: nowrap; }
+.movement-linked { background: #edf6ef; color: #39825a; border-radius: 12px; font-size: 7px; padding: 4px 6px; white-space: nowrap; }
+.payroll-notice { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; margin: -7px 0 15px; border: 1px solid #f0e1c7; background: #fff9ef; color: #846e4b; border-radius: 10px; font-size: 9px; line-height: 1.5; }
+.payroll-notice svg { color: #b78a4a; flex-shrink: 0; margin-top: 1px; }
+.payroll-notice strong { color: #75592f; }
+.salary-payment-summary { background: #f7f9f6; border: 1px solid #edf0ed; border-radius: 9px; padding: 11px; color: #34453a; font-size: 10px; font-weight: 700; }
+.salary-payment-summary small { display: block; color: #89958d; font-size: 8px; font-weight: 500; margin-top: 4px; }
+@media (max-width: 600px) {
+  .inventory-heading-actions { width: 100%; }
+  .inventory-heading-actions > button { flex: 1; justify-content: center; }
+  .inventory-table { min-width: 580px; }
+  .movement-row { gap: 7px; }
+  .movement-row time { display: none; }
+  .movement-linked { display: none; }
+  .inventory-search { width: 100%; }
+}
+.mobile-nav { display: none; }
+@media (max-width: 600px) {
+  .menu-button { display: none !important; }
+  .mobile-nav { position: fixed; z-index: 35; inset: auto 0 0; height: 58px; display: flex; justify-content: space-around; align-items: center; background: #fff; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -5px 18px #18342608; }
+  .mobile-nav a { min-width: 56px; height: 48px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; color: #87928b; text-decoration: none; font-size: 8px; }
+  .mobile-nav a.active { color: var(--green); font-weight: 700; }
+  .content { padding-bottom: 92px; }
+}
+.inventory-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.row-icon-button { width: 26px; height: 26px; display: inline-grid; place-items: center; border: 1px solid #e9ede9; border-radius: 7px; background: #fff; color: #76817a; }
+.row-icon-button:hover { color: var(--green); border-color: #bfd6c5; }
+.row-icon-button.archive:hover { color: #b05e46; border-color: #ebd2c9; }
+.salary-rate-history { border: 1px solid #edf0ed; border-radius: 9px; padding: 10px; background: #fbfcfa; }
+.salary-rate-history > strong { display: block; margin-bottom: 5px; color: #67766c; font-size: 9px; }
+.salary-rate-history > div { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; color: #87928b; font-size: 9px; }
+.auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 28px 16px; background: radial-gradient(circle at 15% 18%, #e7f2e9 0, transparent 31%), radial-gradient(circle at 85% 82%, #e9efe7 0, transparent 28%), #f6f8f5; }
+.auth-card { width: min(100%, 410px); padding: 30px; border: 1px solid #e8ede8; border-radius: 18px; background: #fff; box-shadow: 0 18px 60px #203b2d12; }
+.auth-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); margin-bottom: 34px; }
+.auth-brand > span:last-child { display: grid; gap: 2px; }
+.auth-brand strong { font-size: 17px; letter-spacing: -.5px; }
+.auth-brand small { color: #8b958e; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; }
+.auth-eyebrow { color: var(--green); font-size: 9px; letter-spacing: .14em; font-weight: 800; margin-bottom: 8px; }
+.auth-title { margin: 0; color: #1c2c23; font-size: 23px; letter-spacing: -.8px; }
+.auth-subtitle { margin: 8px 0 22px; color: #89958d; font-size: 11px; line-height: 1.6; }
+.auth-form { display: grid; gap: 14px; }
+.auth-form .form-control { height: 42px; font-size: 11px; }
+.auth-hint { margin: -5px 0 0; display: flex; align-items: center; gap: 5px; color: #75867a; font-size: 9px; }
+.auth-hint svg { color: var(--green); }
+.auth-submit { width: 100%; justify-content: center; height: 42px; margin-top: 4px; }
+.auth-switch { border-top: 1px solid #edf0ed; margin-top: 22px; padding-top: 16px; color: #87928b; font-size: 10px; text-align: center; }
+.auth-switch a { color: var(--green); font-weight: 700; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+.auth-security { margin: 17px 0 0; color: #a0aaa3; font-size: 8px; text-align: center; }
+.logout-button { margin-left: auto; width: 29px; height: 29px; display: grid; place-items: center; background: #fff; border: 1px solid #e7ece7; border-radius: 8px; color: #748078; }
+.logout-button:hover { color: #a25642; border-color: #e8d2ca; }
+@media (max-width: 600px) { .auth-card { padding: 24px 20px; } }
+.workspace-access-panel { margin-top: 22px; }
+.workspace-access-panel .panel-header .primary-button { white-space: nowrap; }
+.access-error { margin: 0 18px 14px; }
+.pending-invites { border-top: 1px solid #edf0ed; margin-top: 16px; padding-top: 17px; }
+.pending-invites > .panel-title { padding: 0 18px 10px; }
+.role-pill { display: inline-flex; align-items: center; width: fit-content; padding: 5px 8px; border: 1px solid #e8ede8; border-radius: 6px; color: #617169; background: #f8faf8; text-transform: capitalize; font-size: 9px; font-weight: 700; }
+.owner-role { color: #386b50; background: #eff7f0; border-color: #d9eadb; }
+.member-role-select { width: auto; min-width: 125px; height: 30px; padding: 0 25px 0 8px; font-size: 10px; }
+.access-toggle { border: 0; background: transparent; padding: 6px; font-size: 9px; font-weight: 700; }
+.access-toggle.revoke { color: #a14f3d; }
+.access-toggle.restore { color: #3c7750; }
+.access-role-note { display: grid; gap: 4px; margin: 16px 18px 18px; padding: 12px 14px; border-radius: 9px; background: #f6f8f6; color: #7d8981; font-size: 9px; line-height: 1.55; }
+.access-role-note strong { color: #35453c; font-size: 9px; }
+.invite-link-result { display: grid; gap: 10px; text-align: center; padding: 8px 2px 4px; }
+.invite-link-icon { justify-self: center; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #eef6ef; color: var(--green); }
+.invite-link-result > strong { color: #26372d; font-size: 13px; }
+.invite-link-result > span { color: #839087; font-size: 10px; line-height: 1.5; }
+.invite-link-result .form-field { text-align: left; }
+.invite-url-input { font-size: 10px !important; }
+.invite-copy-button { justify-content: center; }
+.invite-another { justify-self: center; }
+@media (max-width: 600px) { .workspace-access-panel .panel-header { align-items: flex-start; gap: 12px; } .workspace-access-panel .panel-header .primary-button { padding: 8px; } }
+.loan-repay-button { flex-shrink: 0; border: 1px solid #dce9de; border-radius: 7px; background: #f2f8f3; color: #247451; padding: 7px 9px; font-size: 8px; font-weight: 750; }
+.loan-repay-button:hover { border-color: #a8cdb1; background: #eaf4ee; }
+.loan-amount small + small { margin-top: 3px; }
+@media (max-width: 600px) { .loan-item { gap: 7px; padding: 9px; } .loan-amount { font-size: 9px; } .loan-repay-button { padding: 6px 7px; } }

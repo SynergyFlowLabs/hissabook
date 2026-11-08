@@ -103,10 +103,36 @@ This inventory covers the intended product, not an implementation. Priority labe
 | Backup and recovery | P0 | Operational requirement before relying on records. |
 | Offline transaction capture | P2 | Conflict and sync behavior require careful design. |
 
-## 9. Potential later modules (not assumed in scope)
+## 9. Inventory management (planned follow-on)
+| Feature | Priority | Notes |
+|---|---:|---|
+| Item catalogue | P1 | Item name, optional SKU/barcode, category, unit of measure, active status, and optional description. |
+| Record stock received | P1 | Quantity, date, source/vendor, unit and optional purchase cost/evidence; connect to a purchase transaction to prevent duplicate financial entries. |
+| Record stock sold, used, or issued | P1 | Quantity, date, reason/customer where relevant; stock movement is distinct from the money transaction. |
+| Returns and adjustments | P1 | Dated, attributable movement with reason; preserve history rather than overwriting counts. |
+| On-hand stock and movement history | P1 | Show current quantity by item and a ledger of receipts/issues/returns/adjustments. |
+| Low-stock threshold and alert | P1 | Per-item reorder point; no automated purchase order in the first inventory release. |
+| Stock count/reconciliation | P1 | Compare counted quantity to recorded quantity and record an approved adjustment. |
+| Multiple storage locations | P2 | Validate need and transfer semantics before implementation. |
+| Inventory valuation and cost of goods sold | P2 | Requires an explicit, reviewed valuation method and must not be presented as audited accounting. |
+| Expiry, batches, variants, serial numbers | P2 | Validate by target business type before adding complexity. |
+
+## 10. Employee and salary tracking (planned follow-on)
+| Feature | Priority | Notes |
+|---|---:|---|
+| Employee directory | P1 | Name, optional employee reference, role/job title, start/end dates, status, and contact details only where needed. |
+| Effective-dated pay rates | P1 | Monthly salary initially; retain prior rate and effective date when compensation changes. |
+| Salary periods | P1 | Define pay period and due date, amount due, and status (unpaid, partially paid, paid). |
+| Record salary payment | P1 | Date, amount, payment account/method, and reference; support partial payments and remaining payable. |
+| Salary expense and payable summaries | P1 | Clearly state the reporting basis and avoid double-counting salary accruals and payments. |
+| Employee-level access restrictions | P1 | Payroll/owner-authorized roles only; do not expose another employee's salary to ordinary workspace members. |
+| Employee advances | P2 | Link to a separately tracked advance/receivable and repayment history; do not silently net against salary. |
+| Hourly/daily wages, commissions, bonuses, deductions | P2 | Validate demand and local rules; show each component explicitly if supported. |
+| Payslip generation and payroll exports | P2 | Informational record only until reviewed for local requirements and privacy. |
+| Automated payroll calculation, statutory deductions, tax filing, or bank disbursement | Out of scope | Do not claim compliance or provide tax/legal advice; require separate professional and security review. |
+
+## 11. Other potential later modules
 - Invoicing and customer statements.
-- Inventory, purchasing, and cost of goods.
-- Payroll and employee advances.
 - Tax preparation integrations or accountant collaboration.
 - Budgeting, forecasts, and cash runway.
 - Branches, multiple legal entities, and consolidation.

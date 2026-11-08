@@ -1,6 +1,6 @@
 # Core User Flows — HisaabBook
 
-These are product-level flows for design and validation, not implementation instructions.
+These are product-level flows for design and validation, not implementation instructions. Inventory management and employee salary tracking are planned follow-on modules, not part of the current app implementation.
 
 ## 1. Create a business
 1. User chooses **Create business**.
@@ -52,6 +52,21 @@ These are product-level flows for design and validation, not implementation inst
 3. User selects export and confirms the scope and format.
 4. The export is produced only for a user with permission and includes enough context to interpret types and dates.
 
+## 8. Receive and track inventory
+1. An authorized member creates an item with a name, unit of measure, and optional SKU/category and low-stock threshold.
+2. On receiving stock, the member selects the item and records quantity, date, source/vendor, and optional unit cost/evidence.
+3. If the purchase is paid or payable, the member links the stock receipt to the corresponding business transaction so the same purchase is not counted twice.
+4. When stock is sold, used, issued, returned, or counted, the member records a dated movement and reason.
+5. The app shows the updated on-hand amount, movement history, and a low-stock warning where applicable. Negative quantities are blocked by default; any permitted override requires a reason.
+
+## 9. Track an employee salary period
+1. An owner or payroll-authorized user creates an employee profile with only the details needed to administer pay.
+2. The authorized user records an agreed monthly pay rate and its effective date; a new rate does not rewrite old salary periods.
+3. At the relevant pay period, the user creates a salary record with period dates, amount due, currency, and due date.
+4. The user records a full or partial payment with date, amount, account/method, and optional reference. If paid in parts, each payment remains visible and the outstanding amount is calculated.
+5. The salary summary shows amount due, amount paid, and remaining payable separately, without double-counting a salary obligation and its cash payment.
+6. Only owner/payroll-authorized roles can view employee-level salary details. The app does not claim to calculate statutory deductions or provide compliant payroll/tax advice.
+
 ## Questions to test in usability sessions
 - Do users distinguish “money invested by an owner” from a loan and from revenue?
 - Do the terms “owner withdrawal” and “drawing” make sense, or is another local-language term needed?
@@ -59,3 +74,5 @@ These are product-level flows for design and validation, not implementation inst
 - Do owners expect all members to see all transactions, and which records need restricted visibility?
 - What evidence do users commonly keep, and do they need comments, approval, or just an audit trail?
 - Which reports are most useful for regular owner discussions and accountant handoff?
+- Which products, units, returns, stock-count routines, and reorder signals matter most for the intended businesses?
+- Who should be able to view an individual employee's salary, and how do businesses handle partial pay, advances, and salary changes?
