@@ -1,6 +1,6 @@
 # Hisaabook
 
-A business bookkeeping and ownership-tracking product for solo founders and teams. Product planning documents are in [`docs/`](docs/).
+A business bookkeeping and ownership-tracking product for solo founders and teams. Product planning documents are in [`docs/`](docs/). Working agreements for humans and AI agents are in [`AGENTS.md`](AGENTS.md); agent skills from [skills.sh](https://skills.sh) are pinned in [`skills-lock.json`](skills-lock.json) and restored with `npx skills experimental_install`.
 
 ## Run locally
 
@@ -13,7 +13,7 @@ Open [http://localhost:3000](http://localhost:3000). Local development uses an i
 
 ## Current working slice
 
-- Next.js App Router dashboard with a responsive UI built using Tailwind CSS, Radix UI Dialog, Lucide icons, and Recharts.
+- Next.js App Router dashboard with a responsive UI built with shadcn/ui components (Tailwind CSS v4, Radix primitives), Lucide icons, and Recharts. The design system lives in `app/globals.css` (mint canvas, lime primary, deep-green panels) and follows a modern-fintech reference with circular quick actions, a dark hero balance card, and a floating pill navigation on mobile.
 - Owner account setup, credentials sign-in, hashed passwords, signed sessions, sign-out, and server-side workspace membership/role checks.
 - Owner-managed member invitations with expiring one-time acceptance links, role assignment, access revocation/reactivation, and audit events.
 - Local/demo SQLite storage and a Supabase PostgreSQL production backend for business accounts, owners, transactions, loans, inventory, team records, and audit events.

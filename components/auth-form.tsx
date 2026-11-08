@@ -1,13 +1,36 @@
 'use client';
 
-import { CSSProperties, FormEvent, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ArrowRight, Briefcase, Check } from 'lucide-react';
+import { ArrowRight, Briefcase, Check, ShieldCheck, UsersRound, BookOpenCheck } from 'lucide-react';
 import DemoLoginCard from '@/components/demo-login-card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-const authScreenStyle: CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '28px 16px', background: 'radial-gradient(circle at 15% 18%, #e7f2e9 0, transparent 31%), radial-gradient(circle at 85% 82%, #e9efe7 0, transparent 28%), #f6f8f5' };
-const authCardStyle: CSSProperties = { boxSizing: 'border-box', width: 'min(100%, 410px)', padding: 30, border: '1px solid #e8ede8', borderRadius: 18, background: '#fff', boxShadow: '0 18px 60px #203b2d12' };
+const asideCopy = {
+  login: {
+    eyebrow: 'WELCOME BACK',
+    title: 'Your business books, in balance.',
+    body: 'Pick up right where you left off — every balance, loan, share and salary obligation, exactly as you recorded it.',
+    points: [
+      'Owner-controlled access — add your bookkeeper, co-founder or accountant with the role they need.',
+      'Every record shows who recorded it. No mysteries at month-end.',
+      'Cash, loans and ownership tracked separately — the way your business actually works.',
+    ],
+  },
+  setup: {
+    eyebrow: 'FIRST-TIME SETUP',
+    title: 'Set up your business in minutes.',
+    body: 'Create the owner account, name your workspace, and start recording. You can invite your team later — start solo if you want.',
+    points: [
+      'Five minutes to your first entry — no credit card, no onboarding calls.',
+      'Works for solo founders and informal partnerships alike.',
+      'Your data stays in your private workspace. Always exportable, never locked in.',
+    ],
+  },
+} as const;
 
 export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
   const router = useRouter();
@@ -16,6 +39,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const aside = asideCopy[mode];
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setSaving(true); setError('');
@@ -38,21 +62,50 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
     }
   };
 
-  return <main className="auth-screen" style={authScreenStyle}><section className="auth-card" style={authCardStyle}>
-    <a href="/" className="auth-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#17241f', marginBottom: 34 }}><span className="brand-mark"><Briefcase size={19} /></span><span style={{ display: 'grid', gap: 2 }}><strong style={{ fontSize: 17, letterSpacing: '-.5px' }}>hisaabook</strong><small style={{ color: '#8b958e', fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em' }}>Business, in balance</small></span></a>
-    <div className="auth-eyebrow" style={{ color: '#176b50', fontSize: 9, letterSpacing: '.14em', fontWeight: 800, marginBottom: 8 }}>{mode === 'setup' ? 'FIRST-TIME SETUP' : 'YOUR BUSINESS BOOKS'}</div>
-    <h1 className="auth-title" style={{ margin: 0, color: '#1c2c23', fontSize: 23, letterSpacing: '-.8px' }}>{mode === 'setup' ? 'Create your owner account' : 'Welcome back'}</h1>
-    <p className="auth-subtitle" style={{ margin: '8px 0 22px', color: '#89958d', fontSize: 11, lineHeight: 1.6 }}>{mode === 'setup' ? 'Set up the first owner account for this Hisaabook workspace.' : 'Sign in to continue to your private business workspace.'}</p>
-    {mode === 'login' && <div style={{ marginBottom: 18 }}><DemoLoginCard compact /></div>}
-    <form onSubmit={submit} className="auth-form" style={{ display: 'grid', gap: 14 }}>
-      {mode === 'setup' && <label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Your name</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} required maxLength={100} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Areeba Khan" /></label>}
-      <label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Email address</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" /></label>
-      <label className="form-field" style={{ display: 'grid', gap: 6 }}><span className="form-label" style={{ color: '#58675e', fontSize: 9, fontWeight: 700 }}>Password</span><input className="form-control" style={{ boxSizing: 'border-box', width: '100%', height: 42, padding: '0 11px', border: '1px solid #e6ebe6', borderRadius: 8, background: '#fcfdfb', color: '#34453a', fontSize: 11 }} type="password" required minLength={mode === 'setup' ? 12 : 1} maxLength={128} autoComplete={mode === 'setup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'setup' ? 'At least 12 characters' : 'Your password'} /></label>
-      {mode === 'setup' && <p className="auth-hint" style={{ margin: '-5px 0 0', display: 'flex', alignItems: 'center', gap: 5, color: '#75867a', fontSize: 9 }}><Check size={12} /> Use 12 or more characters. Your password is stored as a salted hash.</p>}
-      {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary-button auth-submit" style={{ width: '100%', justifyContent: 'center', height: 42, marginTop: 4 }} disabled={saving}>{saving ? 'Please wait…' : mode === 'setup' ? <>Create account <ArrowRight size={14} /></> : <>Sign in <ArrowRight size={14} /></>}</button>
-    </form>
-    <div className="auth-switch" style={{ borderTop: '1px solid #edf0ed', marginTop: 22, paddingTop: 16, color: '#87928b', fontSize: 10, textAlign: 'center' }}>{mode === 'setup' ? <>Already set up? <a href="/login" style={{ color: '#176b50', fontWeight: 700, textDecoration: 'none' }}>Sign in</a></> : <>First time here? <a href="/setup" style={{ color: '#176b50', fontWeight: 700, textDecoration: 'none' }}>Set up the owner account</a></>}</div>
-    <p className="auth-security" style={{ margin: '17px 0 0', color: '#a0aaa3', fontSize: 8, textAlign: 'center' }}>Private workspace access · Your business records aren't public</p>
-  </section></main>;
+  return (
+    <main className="auth-screen">
+      {/* Brand aside (desktop) */}
+      <aside className="auth-aside" aria-hidden="true">
+        <a href="/" className="auth-brand" style={{ color: '#eef6ea', marginBottom: 0, position: 'relative', zIndex: 1 }}>
+          <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+          <span><strong style={{ color: '#eef6ea' }}>hisaabook</strong><small style={{ color: '#8fa889' }}>Business, in balance</small></span>
+        </a>
+        <div className="auth-aside-copy">
+          <div className="auth-eyebrow" style={{ color: 'var(--lime)' }}>{aside.eyebrow}</div>
+          <h1>{aside.title}</h1>
+          <p>{aside.body}</p>
+          <ul className="auth-aside-points">
+            {aside.points.map((point, i) => <li key={i}><Check size={15} strokeWidth={2.6} /><span>{point}</span></li>)}
+          </ul>
+        </div>
+        <div className="auth-aside-foot"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><UsersRound size={13} /> Built for Pakistan-first businesses</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><BookOpenCheck size={13} /> Bookkeeping, not accounting advice</span></div>
+      </aside>
+
+      {/* Form panel */}
+      <section className="auth-main">
+        <div className="auth-card">
+          <a href="/" className="auth-brand">
+            <span className="brand-mark"><Briefcase size={19} strokeWidth={2.2} /></span>
+            <span><strong>hisaabook</strong><small>Business, in balance</small></span>
+          </a>
+          <div className="auth-eyebrow">{mode === 'setup' ? 'First-time setup' : 'Your business books'}</div>
+          <h1 className="auth-title">{mode === 'setup' ? 'Create your owner account' : 'Welcome back'}</h1>
+          <p className="auth-subtitle">{mode === 'setup' ? 'Set up the first owner account for this Hisaabook workspace.' : 'Sign in to continue to your private business workspace.'}</p>
+          {mode === 'login' && <div style={{ marginBottom: 18 }}><DemoLoginCard compact /></div>}
+          <form onSubmit={submit} className="auth-form">
+            {mode === 'setup' && (
+              <div className="form-field"><Label htmlFor="name" className="form-label">Your name</Label><Input id="name" className="h-12 rounded-xl bg-[#fcfdfb]" required maxLength={100} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Areeba Khan" /></div>
+            )}
+            <div className="form-field"><Label htmlFor="email" className="form-label">Email address</Label><Input id="email" className="h-12 rounded-xl bg-[#fcfdfb]" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" /></div>
+            <div className="form-field"><Label htmlFor="password" className="form-label">Password</Label><Input id="password" className="h-12 rounded-xl bg-[#fcfdfb]" type="password" required minLength={mode === 'setup' ? 12 : 1} maxLength={128} autoComplete={mode === 'setup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'setup' ? 'At least 12 characters' : 'Your password'} /></div>
+            {mode === 'setup' && <p className="auth-hint" style={{ marginTop: -6 }}><Check size={12} /> Use 12 or more characters. Your password is stored as a salted hash.</p>}
+            {error && <div className="form-error" role="alert" style={{ marginTop: 0 }}>{error}</div>}
+            <Button type="submit" className="h-12 w-full rounded-full text-[13px] font-extrabold" disabled={saving}>{saving ? 'Please wait…' : mode === 'setup' ? <>Create account <ArrowRight size={15} /></> : <>Sign in <ArrowRight size={15} /></>}</Button>
+          </form>
+          <div className="auth-switch">{mode === 'setup' ? <>Already set up? <a href="/login">Sign in</a></> : <>First time here? <a href="/setup">Set up the owner account</a></>}</div>
+          <p className="auth-security"><ShieldCheck size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />Private workspace access · Your business records aren’t public</p>
+        </div>
+      </section>
+    </main>
+  );
 }

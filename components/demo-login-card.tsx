@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ArrowRight, FlaskConical } from 'lucide-react';
+import { ArrowRight, FlaskConical, ShieldCheck } from 'lucide-react';
 import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demo-account';
+import { Button } from '@/components/ui/button';
 
 export default function DemoLoginCard({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -31,17 +32,21 @@ export default function DemoLoginCard({ compact = false }: { compact?: boolean }
   };
 
   return (
-    <aside className={compact ? 'demo-login-card demo-login-card-compact' : 'demo-login-card'} aria-label="Public demo workspace">
-      <div className="demo-login-heading"><span className="demo-login-icon"><FlaskConical size={16} /></span><div><strong>Try the demo</strong><small>Explore a sample business workspace</small></div></div>
+    <aside className="demo-login-card" aria-label="Public demo workspace" style={compact ? { padding: 15, borderRadius: 18, boxShadow: 'none' } : undefined}>
+      <div className="demo-login-heading">
+        <span className="demo-login-icon"><FlaskConical size={17} /></span>
+        <div><strong>Try the live demo</strong><small>Sample workspace · Safa Studio</small></div>
+      </div>
       <div className="demo-login-credentials">
         <div><span>Email</span><code>{DEMO_EMAIL}</code></div>
         <div><span>Password</span><code>{DEMO_PASSWORD}</code></div>
       </div>
-      <p className="demo-login-notice">Shared and editable demo: changes are visible to other visitors. Don’t enter real information.</p>
-      {error && <div className="form-error demo-login-error" role="alert">{error}</div>}
-      <button className="primary-button demo-login-button" type="button" onClick={tryDemo} disabled={loading}>
+      {!compact && <p className="demo-login-notice">Shared and editable demo: changes are visible to other visitors. Don’t enter real information.</p>}
+      {error && <div className="form-error demo-login-error" role="alert" style={{ marginTop: 11 }}>{error}</div>}
+      <Button className="mt-3 h-11 w-full rounded-full text-[12px] font-extrabold" type="button" onClick={tryDemo} disabled={loading}>
         {loading ? 'Opening demo…' : <>Try demo now <ArrowRight size={15} /></>}
-      </button>
+      </Button>
+      <p className="demo-login-notice" style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center', marginTop: 9 }}><ShieldCheck size={11} /> No sign-up. No real data.</p>
     </aside>
   );
 }
