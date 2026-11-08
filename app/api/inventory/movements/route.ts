@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
       if (unitCost !== null && unitCost > 0 && accountId) {
         const totalCost = Math.round(quantity * unitCost);
         const transactionResult = await db.prepare(`INSERT INTO transactions
-          (workspace_id, account_id, type, amount, description, category, counterparty, note, transaction_date, status)
-          VALUES (?, ?, 'EXPENSE', ?, ?, 'Inventory purchases', ?, ?, ?, 'CLEARED')`)
-          .run(workspaceId, accountId, totalCost, `Inventory purchase · ${item.name}`, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
+          (workspace_id, account_id, type, amount, description, category, counterparty, note, transaction_date, status, created_by)
+          VALUES (?, ?, 'EXPENSE', ?, ?, 'Inventory purchases', ?, ?, ?, 'CLEARED', ?)`)
+          .run(workspaceId, accountId, totalCost, `Inventory purchase · ${item.name}`, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`, access.member.name);
         transactionId = Number(transactionResult.lastInsertRowid);
-        await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
-          .run(workspaceId, transactionId, 'INVENTORY_PURCHASE_RECORDED', JSON.stringify({ itemId, quantity, unitCost, totalCost }));
+        await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, ?, ?, ?, ?)')
+          .run(workspaceId, transactionId, 'INVENTORY_PURCHASE_RECORDED', JSON.stringify({ itemId, quantity, unitCost, totalCost }), access.member.name);
       }
       await db.prepare(`INSERT INTO inventory_movements
         (workspace_id, item_id, transaction_id, type, quantity_delta, unit_cost, counterparty, note, movement_date)

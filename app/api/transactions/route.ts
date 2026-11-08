@@ -12,7 +12,7 @@ const activitySource = `
   SELECT t.id, t.description AS title, t.category, t.transaction_date AS date,
     t.amount, t.type AS kind, a.name AS account, t.account_id AS accountId,
     destination.name AS destinationAccount, t.destination_account_id AS destinationAccountId,
-    t.status, t.counterparty, t.note
+    t.status, t.counterparty, t.note, t.created_by AS createdBy
   FROM transactions t JOIN accounts a ON a.id = t.account_id
   LEFT JOIN accounts destination ON destination.id = t.destination_account_id AND destination.workspace_id = t.workspace_id
   WHERE t.workspace_id = ?
@@ -23,7 +23,7 @@ const activitySource = `
     lr.transaction_date AS date, lr.principal_amount AS amount,
     CASE WHEN l.direction = 'PAYABLE' THEN 'LOAN_REPAYMENT_OUT' ELSE 'LOAN_REPAYMENT_IN' END AS kind,
     a.name AS account, lr.account_id AS accountId, NULL AS destinationAccount, NULL AS destinationAccountId,
-    'CLEARED' AS status, l.counterparty, lr.note
+    'CLEARED' AS status, l.counterparty, lr.note, lr.created_by AS createdBy
   FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id JOIN accounts a ON a.id = lr.account_id
   WHERE lr.workspace_id = ?`;
 
@@ -54,6 +54,7 @@ type ActivityRow = {
   status: string;
   counterparty: string;
   note: string;
+  createdBy: string;
 };
 
 function isValidDate(value: string) {
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
   const search = (params.get('q') ?? '').trim().slice(0, 120);
   const kind = (params.get('kind') ?? '').toUpperCase();
   const category = (params.get('category') ?? '').trim().slice(0, 80);
+  const creator = (params.get('creator') ?? '').trim().slice(0, 120);
   const status = (params.get('status') ?? '').toUpperCase();
   const accountId = params.get('accountId');
   const from = params.get('from') ?? '';
@@ -95,11 +97,12 @@ export async function GET(request: NextRequest) {
   const filterValues: unknown[] = [];
   if (search) {
     const pattern = `%${search.toLocaleLowerCase()}%`;
-    conditions.push("LOWER(title || ' ' || category || ' ' || account || ' ' || COALESCE(\"destinationAccount\", '') || ' ' || counterparty || ' ' || note) LIKE ?");
+    conditions.push("LOWER(title || ' ' || category || ' ' || account || ' ' || COALESCE(\"destinationAccount\", '') || ' ' || counterparty || ' ' || note || ' ' || \"createdBy\") LIKE ?");
     filterValues.push(pattern);
   }
   if (kind) { conditions.push('kind = ?'); filterValues.push(kind); }
   if (category) { conditions.push('category = ?'); filterValues.push(category); }
+  if (creator) { conditions.push('\"createdBy\" = ?'); filterValues.push(creator); }
   if (status) { conditions.push('status = ?'); filterValues.push(status); }
   if (accountId) {
     conditions.push('(\"accountId\" = ? OR \"destinationAccountId\" = ?)');
@@ -121,8 +124,8 @@ export async function GET(request: NextRequest) {
       const rows = await db.prepare(`SELECT * FROM (${activitySource}) activity${whereSql}
         ORDER BY substr(date, 1, 10) DESC, id DESC LIMIT ?`)
         .all(workspaceId, workspaceId, ...filterValues, maxExportRows + 1) as ActivityRow[];
-      const headers = ['ID', 'Date', 'Type', 'Description', 'Category', 'Amount (PKR)', 'Account', 'Destination account', 'Status', 'Counterparty', 'Note'];
-      const body = rows.map((row) => [row.id, row.date, row.kind, row.title, row.category, row.amount, row.account, row.destinationAccount, row.status, row.counterparty, row.note]
+      const headers = ['ID', 'Date', 'Type', 'Description', 'Category', 'Amount (PKR)', 'Account', 'Destination account', 'Status', 'Counterparty', 'Note', 'Recorded by'];
+      const body = rows.map((row) => [row.id, row.date, row.kind, row.title, row.category, row.amount, row.account, row.destinationAccount, row.status, row.counterparty, row.note, row.createdBy]
         .map(csvCell).join(','));
       const file = `\uFEFF${[headers.map(csvCell).join(','), ...body].join('\r\n')}`;
       return new NextResponse(file, {
@@ -149,7 +152,11 @@ export async function GET(request: NextRequest) {
       UNION SELECT DISTINCT CASE WHEN l.direction = 'PAYABLE' THEN 'Loan repayment' ELSE 'Loan collection' END AS category
       FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id WHERE lr.workspace_id = ?
     ) activity_categories WHERE category <> '' ORDER BY category`).all(workspaceId, workspaceId);
-    return NextResponse.json({ transactions, accounts, categories: categories.map((row) => (row as { category: string }).category), total, limit, offset, hasMore }, { headers: { 'Cache-Control': 'private, no-store' } });
+    const creators = await db.prepare(`SELECT creator FROM (
+      SELECT DISTINCT created_by AS creator FROM transactions WHERE workspace_id = ?
+      UNION SELECT DISTINCT created_by AS creator FROM loan_repayments WHERE workspace_id = ?
+    ) activity_creators WHERE creator <> '' ORDER BY creator`).all(workspaceId, workspaceId);
+    return NextResponse.json({ transactions, accounts, categories: categories.map((row) => (row as { category: string }).category), creators: creators.map((row) => (row as { creator: string }).creator), total, limit, offset, hasMore }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Failed to load transaction ledger', error);
     return NextResponse.json({ error: 'Could not load the business activity. Please try again.' }, { status: 500 });
@@ -206,12 +213,12 @@ export async function POST(request: NextRequest) {
       }
 
       const transactionResult = await db.prepare(`INSERT INTO transactions
-        (workspace_id, account_id, destination_account_id, loan_id, type, amount, description, category, counterparty, note, transaction_date, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CLEARED')`)
-        .run(workspaceId, accountId, destinationAccountId, loanId, type, amount, description, category.slice(0, 80), counterparty, body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
+        (workspace_id, account_id, destination_account_id, loan_id, type, amount, description, category, counterparty, note, transaction_date, status, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CLEARED', ?)`)
+        .run(workspaceId, accountId, destinationAccountId, loanId, type, amount, description, category.slice(0, 80), counterparty, body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`, access.member.name);
       const transactionId = Number(transactionResult.lastInsertRowid);
-      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details) VALUES (?, ?, ?, ?)')
-        .run(workspaceId, transactionId, 'TRANSACTION_CREATED', JSON.stringify({ type, amount, description }));
+      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, ?, ?, ?, ?)')
+        .run(workspaceId, transactionId, 'TRANSACTION_CREATED', JSON.stringify({ type, amount, description }), access.member.name);
       return transactionId;
     });
 
