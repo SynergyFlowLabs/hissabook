@@ -8,6 +8,6 @@ export const dynamic = 'force-dynamic';
 export default async function SetupPage() {
   const session = await auth();
   if (session?.user) redirect('/');
-  if (isSetupComplete()) redirect('/login');
+  if (await isSetupComplete()) redirect('/login');
   return <AuthForm mode="setup" />;
 }

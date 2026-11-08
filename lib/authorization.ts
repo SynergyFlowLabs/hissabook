@@ -10,7 +10,7 @@ export const ROLE = {
   PAYROLL: 'PAYROLL',
 } as const;
 
-export type WorkspaceMember = NonNullable<ReturnType<typeof getWorkspaceMember>>;
+export type WorkspaceMember = NonNullable<Awaited<ReturnType<typeof getWorkspaceMember>>>;
 
 type AuthorizationResult =
   | { member: WorkspaceMember; response: null }
@@ -22,7 +22,7 @@ export async function requireWorkspaceMember(roles?: string[]): Promise<Authoriz
   if (!Number.isSafeInteger(userId) || userId <= 0) {
     return { member: null, response: NextResponse.json({ error: 'Sign in to access this business.' }, { status: 401 }) };
   }
-  const member = getWorkspaceMember(userId);
+  const member = await getWorkspaceMember(userId);
   if (!member) return { member: null, response: NextResponse.json({ error: 'You do not have access to this business.' }, { status: 403 }) };
   if (roles && !roles.includes(member.role)) {
     return { member: null, response: NextResponse.json({ error: 'Your workspace role does not allow this action.' }, { status: 403 }) };

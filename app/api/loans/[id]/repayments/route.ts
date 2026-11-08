@@ -32,40 +32,40 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!Number.isSafeInteger(accountId) || accountId <= 0) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
   if (!isValidDate(transactionDate)) return NextResponse.json({ error: 'Enter a valid repayment date.' }, { status: 400 });
 
-  const workspaceId = ensureDemoWorkspace();
-  const loan = db.prepare(`SELECT id, direction, name, counterparty, outstanding FROM loans WHERE id = ? AND workspace_id = ?`).get(loanId, workspaceId) as
+  const workspaceId = await ensureDemoWorkspace();
+  const loan = await db.prepare(`SELECT id, direction, name, counterparty, outstanding FROM loans WHERE id = ? AND workspace_id = ?`).get(loanId, workspaceId) as
     { id: number; direction: 'PAYABLE' | 'RECEIVABLE'; name: string; counterparty: string; outstanding: number } | undefined;
   if (!loan) return NextResponse.json({ error: 'Loan not found in this business.' }, { status: 404 });
   if (loan.outstanding <= 0) return NextResponse.json({ error: 'This loan is already settled.' }, { status: 409 });
   if (principalAmount > loan.outstanding) return NextResponse.json({ error: `Principal repayment cannot exceed the remaining ${loan.outstanding} PKR.` }, { status: 400 });
-  const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
+  const account = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
   if (!account) return NextResponse.json({ error: 'The selected account was not found in this business.' }, { status: 400 });
 
   try {
-    const saveRepayment = db.transaction(() => {
-      const updated = db.prepare('UPDATE loans SET outstanding = outstanding - ? WHERE id = ? AND workspace_id = ? AND outstanding >= ?')
+    const saveRepayment = db.transaction(async () => {
+      const updated = await db.prepare('UPDATE loans SET outstanding = outstanding - ? WHERE id = ? AND workspace_id = ? AND outstanding >= ?')
         .run(principalAmount, loanId, workspaceId, principalAmount);
       if (updated.changes !== 1) throw new Error('REPAYMENT_EXCEEDS_BALANCE');
-      const repaymentId = Number(db.prepare(`INSERT INTO loan_repayments
+      const repaymentId = Number((await db.prepare(`INSERT INTO loan_repayments
         (workspace_id, loan_id, account_id, principal_amount, fee_amount, fee_description, transaction_date, note, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(workspaceId, loanId, accountId, principalAmount, feeAmount, feeDescription, `${transactionDate}T12:00:00.000Z`, note, access.member.name).lastInsertRowid);
+        .run(workspaceId, loanId, accountId, principalAmount, feeAmount, feeDescription, `${transactionDate}T12:00:00.000Z`, note, access.member.name)).lastInsertRowid);
       let feeTransactionId: number | null = null;
       if (feeAmount > 0) {
         const feeType = loan.direction === 'PAYABLE' ? 'EXPENSE' : 'INCOME';
         const feeLabel = loan.direction === 'PAYABLE' ? 'Loan interest & fees' : 'Loan interest received';
-        const result = db.prepare(`INSERT INTO transactions
+        const result = await db.prepare(`INSERT INTO transactions
           (workspace_id, account_id, loan_id, type, amount, description, category, counterparty, note, transaction_date, created_by)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
           .run(workspaceId, accountId, loanId, feeType, feeAmount, `${feeDescription} · ${loan.name}`.slice(0, 160), feeLabel, loan.counterparty, `Related to loan repayment #${repaymentId}`, `${transactionDate}T12:00:00.000Z`, access.member.name);
         feeTransactionId = Number(result.lastInsertRowid);
       }
-      db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, ?, ?, ?, ?)')
+      await db.prepare('INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, ?, ?, ?, ?)')
         .run(workspaceId, feeTransactionId, 'LOAN_REPAYMENT_RECORDED', JSON.stringify({ repaymentId, loanId, direction: loan.direction, principalAmount, feeAmount, outstandingAfter: loan.outstanding - principalAmount }), access.member.name);
       return repaymentId;
     });
-    const repaymentId = saveRepayment();
-    return NextResponse.json({ ...getDashboardData(), createdRepaymentId: repaymentId }, { status: 201 });
+    const repaymentId = await saveRepayment();
+    return NextResponse.json({ ...await getDashboardData(), createdRepaymentId: repaymentId }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'REPAYMENT_EXCEEDS_BALANCE') return NextResponse.json({ error: 'The repayment exceeds the remaining loan balance.' }, { status: 409 });
     console.error('Failed to record loan repayment', error);

@@ -1,18 +1,15 @@
 import Database from 'better-sqlite3';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import postgres, { type Sql, type TransactionSql } from 'postgres';
 
+const databaseUrl = process.env.DATABASE_URL;
 const databasePath = process.env.DATABASE_PATH ?? join(process.cwd(), 'data', 'hisaabook.sqlite');
-mkdirSync(dirname(databasePath), { recursive: true });
-
-type GlobalWithDatabase = typeof globalThis & { hisaabookDb?: Database.Database };
-const globalForDatabase = globalThis as GlobalWithDatabase;
-
-function createDatabase() {
-  const db = new Database(databasePath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.exec(`
+if (process.env.VERCEL_ENV === 'production' && !databaseUrl) {
+  throw new Error('DATABASE_URL is required for production deployments.');
+}
+const schemaSql = `
     CREATE TABLE IF NOT EXISTS workspaces (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       slug TEXT NOT NULL UNIQUE,
@@ -219,13 +216,137 @@ function createDatabase() {
     CREATE INDEX IF NOT EXISTS loan_repayments_loan_date_idx ON loan_repayments(loan_id, transaction_date DESC);
     CREATE INDEX IF NOT EXISTS inventory_movements_item_date_idx ON inventory_movements(item_id, movement_date DESC);
     CREATE INDEX IF NOT EXISTS employees_workspace_idx ON employees(workspace_id, active, name);
-    CREATE INDEX IF NOT EXISTS salary_periods_employee_date_idx ON salary_periods(employee_id, period_start DESC);
-  `);
+    CREATE INDEX IF NOT EXISTS salary_periods_employee_date_idx ON salary_periods(employee_id, period_start DESC);`;
+
+type GlobalWithDatabase = typeof globalThis & {
+  hisaabookSqlite?: Database.Database;
+  hisaabookPostgres?: Sql;
+};
+const globalForDatabase = globalThis as GlobalWithDatabase;
+const postgresClient = databaseUrl
+  ? globalForDatabase.hisaabookPostgres ?? postgres(databaseUrl, {
+      max: 1,
+      prepare: false,
+      max_pipeline: 1,
+      connect_timeout: 10,
+      idle_timeout: 20,
+      ssl: 'require',
+      types: {
+        bigint: {
+          to: 20,
+          from: [20],
+          serialize: (value: number | bigint) => String(value),
+          parse: Number,
+        },
+      },
+    })
+  : null;
+if (postgresClient && process.env.NODE_ENV !== 'production') globalForDatabase.hisaabookPostgres = postgresClient;
+
+const postgresTransactionContext = new AsyncLocalStorage<TransactionSql>();
+const sqliteTransactionContext = new AsyncLocalStorage<boolean>();
+let sqliteQueue: Promise<void> = Promise.resolve();
+
+function createSqliteDatabase() {
+  mkdirSync(dirname(databasePath), { recursive: true });
+  const db = globalForDatabase.hisaabookSqlite ?? new Database(databasePath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  db.exec(schemaSql);
+  if (process.env.NODE_ENV !== 'production') globalForDatabase.hisaabookSqlite = db;
   return db;
 }
 
-export const db = globalForDatabase.hisaabookDb ?? createDatabase();
-if (process.env.NODE_ENV !== 'production') globalForDatabase.hisaabookDb = db;
+const sqliteDatabase = postgresClient ? null : createSqliteDatabase();
+
+function acquireSqliteLock() {
+  let release!: () => void;
+  const previous = sqliteQueue;
+  sqliteQueue = new Promise<void>((resolve) => { release = resolve; });
+  return previous.then(() => release);
+}
+
+async function withSqliteLock<T>(operation: () => T | Promise<T>): Promise<T> {
+  const release = await acquireSqliteLock();
+  try { return await operation(); } finally { release(); }
+}
+
+function toPostgresSql(statement: string, returningId = false) {
+  let text = statement
+    .replace(/\bAS\s+([A-Za-z_][A-Za-z0-9_]*)/g, (match, name: string) => /[A-Z]/.test(name) ? `AS "${name}"` : match)
+    .replace(/\s+COLLATE\s+NOCASE/gi, '')
+    .replace(/\bCURRENT_TIMESTAMP\b/g, 'CURRENT_TIMESTAMP::text');
+  if (returningId && /^\s*INSERT\b/i.test(text) && !/\bRETURNING\b/i.test(text)) {
+    text = text.trim().replace(/;$/, '') + ' RETURNING id';
+  }
+  let parameter = 0;
+  return text.replace(/\?/g, () => `$${++parameter}`);
+}
+
+// PostgreSQL schema is applied from supabase/migrations; runtime requests do not execute DDL.
+const postgresReady: Promise<void> = Promise.resolve();
+
+async function executePostgres(statement: string, parameters: unknown[] = [], returningId = false) {
+  await postgresReady;
+  const client = postgresTransactionContext.getStore() ?? postgresClient;
+  if (!client) throw new Error('DATABASE_NOT_CONFIGURED');
+  const text = toPostgresSql(statement, returningId);
+  return client.unsafe(text, parameters as never[]);
+}
+
+function executeSqlite<T>(operation: () => T): Promise<T> {
+  if (sqliteTransactionContext.getStore()) return Promise.resolve(operation());
+  return withSqliteLock(operation);
+}
+
+type RunResult = { changes: number; lastInsertRowid: number | bigint };
+type PreparedQuery = {
+  get: (...parameters: unknown[]) => Promise<unknown>;
+  all: (...parameters: unknown[]) => Promise<unknown[]>;
+  run: (...parameters: unknown[]) => Promise<RunResult>;
+};
+
+export const db = {
+  prepare(statement: string): PreparedQuery {
+    return {
+      get: async (...parameters) => postgresClient
+        ? (await executePostgres(statement, parameters))[0]
+        : executeSqlite(() => sqliteDatabase!.prepare(statement).get(...parameters)),
+      all: async (...parameters) => postgresClient
+        ? [...await executePostgres(statement, parameters)]
+        : executeSqlite(() => sqliteDatabase!.prepare(statement).all(...parameters)),
+      run: async (...parameters) => {
+        if (!postgresClient) return executeSqlite(() => sqliteDatabase!.prepare(statement).run(...parameters));
+        const result = await executePostgres(statement, parameters, true);
+        return { changes: result.count ?? result.length, lastInsertRowid: result[0]?.id ?? 0 };
+      },
+    };
+  },
+  async exec(statement: string) {
+    if (!postgresClient) return executeSqlite(() => sqliteDatabase!.exec(statement));
+    const statements = statement.split(';').map((part) => part.trim()).filter(Boolean);
+    for (const part of statements) await executePostgres(part);
+  },
+  transaction<T>(callback: () => T | Promise<T>) {
+    return async () => {
+      if (postgresClient) {
+        await postgresReady;
+        return postgresClient.begin((transaction) => postgresTransactionContext.run(transaction, callback));
+      }
+      return withSqliteLock(async () => {
+        sqliteDatabase!.exec('BEGIN IMMEDIATE');
+        try {
+          const value = await sqliteTransactionContext.run(true, callback);
+          sqliteDatabase!.exec('COMMIT');
+          return value;
+        } catch (error) {
+          sqliteDatabase!.exec('ROLLBACK');
+          throw error;
+        }
+      });
+    };
+  },
+};
 
 function dayOffset(daysAgo: number) {
   const date = new Date();
@@ -233,236 +354,248 @@ function dayOffset(daysAgo: number) {
   return date.toISOString();
 }
 
-export function ensureDemoWorkspace() {
-  const exists = db.prepare('SELECT id FROM workspaces WHERE slug = ?').get('safa-studio') as { id: number } | undefined;
+export async function ensureDemoWorkspace() {
+  if (postgresClient) {
+    await db.prepare(`INSERT INTO workspaces (slug, name, business_type, currency)
+      VALUES (?, ?, ?, ?) ON CONFLICT (slug) DO NOTHING`).run('hisaabook', 'My Business', 'Business', 'PKR');
+    const workspace = await db.prepare('SELECT id FROM workspaces WHERE slug = ?').get('hisaabook') as { id: number } | undefined;
+    if (!workspace) throw new Error('WORKSPACE_INITIALIZATION_FAILED');
+    await db.prepare(`INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT (workspace_id, name) DO NOTHING`).run(workspace.id, 'Cash in hand', 'CASH', 'PKR', 0);
+    return Number(workspace.id);
+  }
+
+  const exists = await db.prepare('SELECT id FROM workspaces WHERE slug = ?').get('safa-studio') as { id: number } | undefined;
   if (exists) return exists.id;
 
-  const seed = db.transaction(() => {
-    const workspaceResult = db.prepare('INSERT INTO workspaces (slug, name, business_type, currency) VALUES (?, ?, ?, ?)').run('safa-studio', 'Safa Studio', 'Creative agency', 'PKR');
+  const seed = db.transaction(async () => {
+    const workspaceResult = await db.prepare('INSERT INTO workspaces (slug, name, business_type, currency) VALUES (?, ?, ?, ?)').run('safa-studio', 'Safa Studio', 'Creative agency', 'PKR');
     const workspaceId = Number(workspaceResult.lastInsertRowid);
-    const bank = Number(db.prepare('INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance) VALUES (?, ?, ?, ?, ?)').run(workspaceId, 'Business bank', 'BANK', 'PKR', 383250).lastInsertRowid);
-    const cash = Number(db.prepare('INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance) VALUES (?, ?, ?, ?, ?)').run(workspaceId, 'Cash in hand', 'CASH', 'PKR', 0).lastInsertRowid);
+    const bank = Number((await db.prepare('INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance) VALUES (?, ?, ?, ?, ?)').run(workspaceId, 'Business bank', 'BANK', 'PKR', 383250)).lastInsertRowid);
+    const cash = Number((await db.prepare('INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance) VALUES (?, ?, ?, ?, ?)').run(workspaceId, 'Cash in hand', 'CASH', 'PKR', 0)).lastInsertRowid);
 
     const owner = db.prepare('INSERT INTO owners (workspace_id, name, role, share, effective_at) VALUES (?, ?, ?, ?, ?)');
-    owner.run(workspaceId, 'Areeba Khan', 'Business owner', 45, dayOffset(90));
-    owner.run(workspaceId, 'Hamza Malik', 'Partner', 35, dayOffset(90));
-    owner.run(workspaceId, 'Sara Ahmed', 'Partner', 20, dayOffset(90));
+    await owner.run(workspaceId, 'Areeba Khan', 'Business owner', 45, dayOffset(90));
+    await owner.run(workspaceId, 'Hamza Malik', 'Partner', 35, dayOffset(90));
+    await owner.run(workspaceId, 'Sara Ahmed', 'Partner', 20, dayOffset(90));
 
     const loan = db.prepare('INSERT INTO loans (workspace_id, direction, name, counterparty, principal, outstanding, due_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    loan.run(workspaceId, 'PAYABLE', 'Short-term business loan', 'Fariha', 50000, 50000, dayOffset(-37).slice(0, 10));
-    loan.run(workspaceId, 'RECEIVABLE', 'Advance to vendor', 'Print House', 25000, 25000, dayOffset(-11).slice(0, 10));
+    await loan.run(workspaceId, 'PAYABLE', 'Short-term business loan', 'Fariha', 50000, 50000, dayOffset(-37).slice(0, 10));
+    await loan.run(workspaceId, 'RECEIVABLE', 'Advance to vendor', 'Print House', 25000, 25000, dayOffset(-11).slice(0, 10));
 
     const insertTransaction = db.prepare(`INSERT INTO transactions
       (workspace_id, account_id, type, amount, description, category, transaction_date, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    insertTransaction.run(workspaceId, bank, 'INCOME', 85000, 'Website project', 'Client payment', dayOffset(0), 'CLEARED');
-    insertTransaction.run(workspaceId, bank, 'EXPENSE', 32000, 'Studio rent', 'Rent & utilities', dayOffset(0), 'CLEARED');
-    insertTransaction.run(workspaceId, cash, 'CONTRIBUTION', 50000, 'Hamza · Capital', 'Owner contribution', dayOffset(1), 'CLEARED');
-    insertTransaction.run(workspaceId, bank, 'EXPENSE', 12500, 'Software subscriptions', 'Tools & software', dayOffset(2), 'PENDING');
+    await insertTransaction.run(workspaceId, bank, 'INCOME', 85000, 'Website project', 'Client payment', dayOffset(0), 'CLEARED');
+    await insertTransaction.run(workspaceId, bank, 'EXPENSE', 32000, 'Studio rent', 'Rent & utilities', dayOffset(0), 'CLEARED');
+    await insertTransaction.run(workspaceId, cash, 'CONTRIBUTION', 50000, 'Hamza · Capital', 'Owner contribution', dayOffset(1), 'CLEARED');
+    await insertTransaction.run(workspaceId, bank, 'EXPENSE', 12500, 'Software subscriptions', 'Tools & software', dayOffset(2), 'PENDING');
     return workspaceId;
   });
 
-  return seed();
+  return await seed();
 }
 
-export function isSetupComplete() {
-  return (db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count > 0;
+export async function isSetupComplete() {
+  return (await db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count > 0;
 }
 
-export function createInitialOwner(name: string, email: string, passwordHash: string) {
-  const workspaceId = ensureDemoWorkspace();
-  const createOwner = db.transaction(() => {
-    const count = (db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count;
+export async function createInitialOwner(name: string, email: string, passwordHash: string) {
+  const workspaceId = await ensureDemoWorkspace();
+  const createOwner = db.transaction(async () => {
+    const count = (await db.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number }).count;
     if (count > 0) throw new Error('SETUP_ALREADY_COMPLETE');
-    const userId = Number(db.prepare('INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)').run(email, name, passwordHash).lastInsertRowid);
-    db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'OWNER');
-    db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+    const userId = Number((await db.prepare('INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)').run(email, name, passwordHash)).lastInsertRowid);
+    await db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'OWNER');
+    await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
       .run(workspaceId, 'OWNER_ACCOUNT_CREATED', JSON.stringify({ userId, email }), name);
     return userId;
   });
-  return createOwner();
+  return await createOwner();
 }
 
-export function getWorkspaceMember(userId: number) {
-  const workspaceId = ensureDemoWorkspace();
-  return db.prepare(`SELECT wm.id, wm.workspace_id AS workspaceId, wm.user_id AS userId, wm.role, u.email, u.display_name AS name
+export async function getWorkspaceMember(userId: number) {
+  const workspaceId = await ensureDemoWorkspace();
+  return await db.prepare(`SELECT wm.id, wm.workspace_id AS workspaceId, wm.user_id AS userId, wm.role, u.email, u.display_name AS name
     FROM workspace_members wm JOIN users u ON u.id = wm.user_id
     WHERE wm.user_id = ? AND wm.workspace_id = ? AND wm.active = 1 AND u.active = 1 LIMIT 1`).get(userId, workspaceId) as
     { id: number; workspaceId: number; userId: number; role: string; email: string; name: string } | undefined;
 }
 
-export function getWorkspaceAccessData() {
-  const workspaceId = ensureDemoWorkspace();
-  const members = db.prepare(`SELECT wm.id, wm.user_id AS userId, u.display_name AS name, u.email, wm.role, wm.active, wm.created_at AS joinedAt
+export async function getWorkspaceAccessData() {
+  const workspaceId = await ensureDemoWorkspace();
+  const members = await db.prepare(`SELECT wm.id, wm.user_id AS userId, u.display_name AS name, u.email, wm.role, wm.active, wm.created_at AS joinedAt
     FROM workspace_members wm JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? ORDER BY wm.role = 'OWNER' DESC, u.display_name COLLATE NOCASE`).all(workspaceId);
-  const invitations = db.prepare(`SELECT id, email, display_name AS name, role, expires_at AS expiresAt, created_at AS createdAt
+  const invitations = await db.prepare(`SELECT id, email, display_name AS name, role, expires_at AS expiresAt, created_at AS createdAt
     FROM workspace_invitations WHERE workspace_id = ? AND accepted_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC`).all(workspaceId);
   return { members, invitations };
 }
 
-export function createWorkspaceInvitation(input: { email: string; name: string; role: string; tokenHash: string; expiresAt: string; createdBy: number; actor: string }) {
-  const workspaceId = ensureDemoWorkspace();
-  return db.transaction(() => {
-    const existingMember = db.prepare(`SELECT wm.id FROM workspace_members wm JOIN users u ON u.id = wm.user_id
+export async function createWorkspaceInvitation(input: { email: string; name: string; role: string; tokenHash: string; expiresAt: string; createdBy: number; actor: string }) {
+  const workspaceId = await ensureDemoWorkspace();
+  return db.transaction(async () => {
+    const existingMember = await db.prepare(`SELECT wm.id FROM workspace_members wm JOIN users u ON u.id = wm.user_id
       WHERE wm.workspace_id = ? AND u.email = ?`).get(workspaceId, input.email);
     if (existingMember) throw new Error('ALREADY_A_MEMBER');
-    const existingInvitation = db.prepare(`SELECT id, expires_at AS expiresAt FROM workspace_invitations
+    const existingInvitation = await db.prepare(`SELECT id, expires_at AS expiresAt FROM workspace_invitations
       WHERE workspace_id = ? AND email = ? AND accepted_at IS NULL AND revoked_at IS NULL ORDER BY id DESC LIMIT 1`).get(workspaceId, input.email) as { id: number; expiresAt: string } | undefined;
     if (existingInvitation && new Date(existingInvitation.expiresAt).getTime() > Date.now()) throw new Error('INVITATION_ALREADY_PENDING');
-    if (existingInvitation) db.prepare('UPDATE workspace_invitations SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(existingInvitation.id);
-    const result = db.prepare(`INSERT INTO workspace_invitations (workspace_id, email, display_name, role, token_hash, expires_at, created_by)
+    if (existingInvitation) await db.prepare('UPDATE workspace_invitations SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(existingInvitation.id);
+    const result = await db.prepare(`INSERT INTO workspace_invitations (workspace_id, email, display_name, role, token_hash, expires_at, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)`).run(workspaceId, input.email, input.name, input.role, input.tokenHash, input.expiresAt, input.createdBy);
-    db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+    await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
       .run(workspaceId, 'MEMBER_INVITED', JSON.stringify({ email: input.email, role: input.role }), input.actor);
     return Number(result.lastInsertRowid);
   })();
 }
 
-export function getInvitationByHash(tokenHash: string) {
-  return db.prepare(`SELECT i.id, i.workspace_id AS workspaceId, i.email, i.display_name AS name, i.role,
+export async function getInvitationByHash(tokenHash: string) {
+  return await db.prepare(`SELECT i.id, i.workspace_id AS workspaceId, i.email, i.display_name AS name, i.role,
       i.expires_at AS expiresAt, i.accepted_at AS acceptedAt, i.revoked_at AS revokedAt, w.name AS workspaceName
     FROM workspace_invitations i JOIN workspaces w ON w.id = i.workspace_id WHERE i.token_hash = ? LIMIT 1`).get(tokenHash) as
     { id: number; workspaceId: number; email: string; name: string; role: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; workspaceName: string } | undefined;
 }
 
-export function getCredentialRecord(email: string) {
-  return db.prepare('SELECT id, email, display_name AS name, password_hash AS passwordHash FROM users WHERE email = ? AND active = 1')
+export async function getCredentialRecord(email: string) {
+  return await db.prepare('SELECT id, email, display_name AS name, password_hash AS passwordHash FROM users WHERE email = ? AND active = 1')
     .get(email) as { id: number; email: string; name: string; passwordHash: string } | undefined;
 }
 
 export function acceptWorkspaceInvitation(tokenHash: string, passwordHash: string) {
-  return db.transaction(() => {
-    const invite = getInvitationByHash(tokenHash);
+  return db.transaction(async () => {
+    const invite = await getInvitationByHash(tokenHash);
     if (!invite || invite.acceptedAt || invite.revokedAt || new Date(invite.expiresAt).getTime() <= Date.now()) throw new Error('INVITATION_INVALID');
-    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(invite.email) as { id: number } | undefined;
+    const user = await db.prepare('SELECT id FROM users WHERE email = ?').get(invite.email) as { id: number } | undefined;
     let userId: number;
     if (user) {
       userId = user.id;
-      const existing = db.prepare('SELECT id, active FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(invite.workspaceId, userId) as { id: number; active: number } | undefined;
+      const existing = await db.prepare('SELECT id, active FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(invite.workspaceId, userId) as { id: number; active: number } | undefined;
       if (existing?.active) throw new Error('ALREADY_A_MEMBER');
-      if (existing) db.prepare('UPDATE workspace_members SET role = ?, active = 1 WHERE id = ?').run(invite.role, existing.id);
-      else db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspaceId, userId, invite.role);
+      if (existing) await db.prepare('UPDATE workspace_members SET role = ?, active = 1 WHERE id = ?').run(invite.role, existing.id);
+      else await db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspaceId, userId, invite.role);
     } else {
-      userId = Number(db.prepare('INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)').run(invite.email, invite.name, passwordHash).lastInsertRowid);
-      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspaceId, userId, invite.role);
+      userId = Number((await db.prepare('INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)').run(invite.email, invite.name, passwordHash)).lastInsertRowid);
+      await db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspaceId, userId, invite.role);
     }
-    const accepted = db.prepare(`UPDATE workspace_invitations SET accepted_at = CURRENT_TIMESTAMP
+    const accepted = await db.prepare(`UPDATE workspace_invitations SET accepted_at = CURRENT_TIMESTAMP
       WHERE id = ? AND accepted_at IS NULL AND revoked_at IS NULL`).run(invite.id);
     if (accepted.changes !== 1) throw new Error('INVITATION_INVALID');
-    db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+    await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
       .run(invite.workspaceId, 'MEMBER_JOINED', JSON.stringify({ userId, email: invite.email, role: invite.role }), invite.name);
     return { userId, email: invite.email };
   })();
 }
 
-export function updateWorkspaceMember(memberId: number, input: { role?: string; active?: boolean }, actor: string) {
-  const workspaceId = ensureDemoWorkspace();
-  return db.transaction(() => {
-    const member = db.prepare('SELECT id, role, active FROM workspace_members WHERE id = ? AND workspace_id = ?').get(memberId, workspaceId) as { id: number; role: string; active: number } | undefined;
+export async function updateWorkspaceMember(memberId: number, input: { role?: string; active?: boolean }, actor: string) {
+  const workspaceId = await ensureDemoWorkspace();
+  return db.transaction(async () => {
+    const member = await db.prepare('SELECT id, role, active FROM workspace_members WHERE id = ? AND workspace_id = ?').get(memberId, workspaceId) as { id: number; role: string; active: number } | undefined;
     if (!member) throw new Error('MEMBER_NOT_FOUND');
     if (member.role === 'OWNER') throw new Error('OWNER_ACCESS_PROTECTED');
     const role = input.role ?? member.role;
     const active = input.active === undefined ? member.active : Number(input.active);
-    db.prepare('UPDATE workspace_members SET role = ?, active = ? WHERE id = ?').run(role, active, memberId);
-    db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+    await db.prepare('UPDATE workspace_members SET role = ?, active = ? WHERE id = ?').run(role, active, memberId);
+    await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
       .run(workspaceId, active ? 'MEMBER_ACCESS_UPDATED' : 'MEMBER_ACCESS_REVOKED', JSON.stringify({ memberId, role, active }), actor);
-    return getWorkspaceAccessData();
+    return await getWorkspaceAccessData();
   })();
 }
 
-export function revokeWorkspaceInvitation(invitationId: number, actor: string) {
-  const workspaceId = ensureDemoWorkspace();
-  const result = db.prepare(`UPDATE workspace_invitations SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ? AND accepted_at IS NULL AND revoked_at IS NULL`).run(invitationId, workspaceId);
-  if (result.changes) db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+export async function revokeWorkspaceInvitation(invitationId: number, actor: string) {
+  const workspaceId = await ensureDemoWorkspace();
+  const result = await db.prepare(`UPDATE workspace_invitations SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ? AND accepted_at IS NULL AND revoked_at IS NULL`).run(invitationId, workspaceId);
+  if (result.changes) await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
     .run(workspaceId, 'INVITATION_REVOKED', JSON.stringify({ invitationId }), actor);
   return result.changes > 0;
 }
 
-export function ensureDemoModuleData(workspaceId = ensureDemoWorkspace()) {
-  const seedModules = db.transaction(() => {
-    const itemCount = (db.prepare('SELECT COUNT(*) AS count FROM inventory_items WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+export async function ensureDemoModuleData(workspaceId?: number) {
+  workspaceId = workspaceId ?? await ensureDemoWorkspace();
+  if (postgresClient) return;
+  const seedModules = db.transaction(async () => {
+    const itemCount = (await db.prepare('SELECT COUNT(*) AS count FROM inventory_items WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
     if (itemCount === 0) {
       const item = db.prepare('INSERT INTO inventory_items (workspace_id, name, sku, category, unit, reorder_level) VALUES (?, ?, ?, ?, ?, ?)');
-      const sketchbooks = Number(item.run(workspaceId, 'Branded sketchbooks', 'SK-001', 'Studio merchandise', 'pcs', 40).lastInsertRowid);
-      const paper = Number(item.run(workspaceId, 'A3 photo paper', 'PP-A3', 'Print supplies', 'sheets', 50).lastInsertRowid);
-      const toteBags = Number(item.run(workspaceId, 'Canvas tote bags', 'TB-014', 'Studio merchandise', 'pcs', 20).lastInsertRowid);
+      const sketchbooks = Number((await item.run(workspaceId, 'Branded sketchbooks', 'SK-001', 'Studio merchandise', 'pcs', 40)).lastInsertRowid);
+      const paper = Number((await item.run(workspaceId, 'A3 photo paper', 'PP-A3', 'Print supplies', 'sheets', 50)).lastInsertRowid);
+      const toteBags = Number((await item.run(workspaceId, 'Canvas tote bags', 'TB-014', 'Studio merchandise', 'pcs', 20)).lastInsertRowid);
       const movement = db.prepare(`INSERT INTO inventory_movements (workspace_id, item_id, type, quantity_delta, movement_date, note)
         VALUES (?, ?, ?, ?, ?, ?)`);
-      movement.run(workspaceId, sketchbooks, 'RECEIPT', 180, dayOffset(20), 'Opening demo stock');
-      movement.run(workspaceId, sketchbooks, 'ISSUE', -35, dayOffset(3), 'Client welcome packs');
-      movement.run(workspaceId, paper, 'RECEIPT', 50, dayOffset(25), 'Opening demo stock');
-      movement.run(workspaceId, paper, 'ISSUE', -18, dayOffset(1), 'Print production');
-      movement.run(workspaceId, toteBags, 'RECEIPT', 80, dayOffset(18), 'Opening demo stock');
-      movement.run(workspaceId, toteBags, 'ISSUE', -8, dayOffset(4), 'Event merchandise');
+      await movement.run(workspaceId, sketchbooks, 'RECEIPT', 180, dayOffset(20), 'Opening demo stock');
+      await movement.run(workspaceId, sketchbooks, 'ISSUE', -35, dayOffset(3), 'Client welcome packs');
+      await movement.run(workspaceId, paper, 'RECEIPT', 50, dayOffset(25), 'Opening demo stock');
+      await movement.run(workspaceId, paper, 'ISSUE', -18, dayOffset(1), 'Print production');
+      await movement.run(workspaceId, toteBags, 'RECEIPT', 80, dayOffset(18), 'Opening demo stock');
+      await movement.run(workspaceId, toteBags, 'ISSUE', -8, dayOffset(4), 'Event merchandise');
     }
 
-    const employeeCount = (db.prepare('SELECT COUNT(*) AS count FROM employees WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+    const employeeCount = (await db.prepare('SELECT COUNT(*) AS count FROM employees WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
     if (employeeCount === 0) {
       const today = new Date();
       const periodStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10);
       const periodEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
       const dueDate = `${periodStart.slice(0, 7)}-10`;
       const employee = db.prepare('INSERT INTO employees (workspace_id, name, job_title, employee_ref, start_date) VALUES (?, ?, ?, ?, ?)');
-      const designer = Number(employee.run(workspaceId, 'Noor Ahmed', 'Graphic designer', 'EMP-014', dayOffset(210).slice(0, 10)).lastInsertRowid);
-      const assistant = Number(employee.run(workspaceId, 'Bilal Raza', 'Studio assistant', 'EMP-021', dayOffset(150).slice(0, 10)).lastInsertRowid);
+      const designer = Number((await employee.run(workspaceId, 'Noor Ahmed', 'Graphic designer', 'EMP-014', dayOffset(210).slice(0, 10))).lastInsertRowid);
+      const assistant = Number((await employee.run(workspaceId, 'Bilal Raza', 'Studio assistant', 'EMP-021', dayOffset(150).slice(0, 10))).lastInsertRowid);
       const rate = db.prepare('INSERT INTO salary_rates (employee_id, amount, currency, effective_from) VALUES (?, ?, ?, ?)');
-      const designerRate = Number(rate.run(designer, 85000, 'PKR', periodStart).lastInsertRowid);
-      const assistantRate = Number(rate.run(assistant, 55000, 'PKR', periodStart).lastInsertRowid);
+      const designerRate = Number((await rate.run(designer, 85000, 'PKR', periodStart)).lastInsertRowid);
+      const assistantRate = Number((await rate.run(assistant, 55000, 'PKR', periodStart)).lastInsertRowid);
       const salaryPeriod = db.prepare(`INSERT INTO salary_periods
         (workspace_id, employee_id, salary_rate_id, period_start, period_end, due_date, amount_due, currency, note)
         VALUES (?, ?, ?, ?, ?, ?, ?, 'PKR', 'Demo salary period')`);
-      salaryPeriod.run(workspaceId, designer, designerRate, periodStart, periodEnd, dueDate, 85000);
-      salaryPeriod.run(workspaceId, assistant, assistantRate, periodStart, periodEnd, dueDate, 55000);
+      await salaryPeriod.run(workspaceId, designer, designerRate, periodStart, periodEnd, dueDate, 85000);
+      await salaryPeriod.run(workspaceId, assistant, assistantRate, periodStart, periodEnd, dueDate, 55000);
     }
   });
-  seedModules();
+  await seedModules();
 }
 
-export function getInventoryData() {
-  const workspaceId = ensureDemoWorkspace();
-  ensureDemoModuleData(workspaceId);
-  const workspace = db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
-  const items = db.prepare(`SELECT i.id, i.name, i.sku, i.category, i.unit, i.reorder_level AS reorderLevel, i.active,
+export async function getInventoryData() {
+  const workspaceId = await ensureDemoWorkspace();
+  await ensureDemoModuleData(workspaceId);
+  const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
+  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+  const items = await db.prepare(`SELECT i.id, i.name, i.sku, i.category, i.unit, i.reorder_level AS reorderLevel, i.active,
     COALESCE(SUM(m.quantity_delta), 0) AS stockOnHand,
     CASE WHEN COALESCE(SUM(m.quantity_delta), 0) <= i.reorder_level THEN 1 ELSE 0 END AS lowStock
     FROM inventory_items i LEFT JOIN inventory_movements m ON m.item_id = i.id
     WHERE i.workspace_id = ? AND i.active = 1 GROUP BY i.id ORDER BY i.name COLLATE NOCASE`).all(workspaceId);
-  const movements = db.prepare(`SELECT m.id, m.item_id AS itemId, i.name AS itemName, i.unit, m.type,
+  const movements = await db.prepare(`SELECT m.id, m.item_id AS itemId, i.name AS itemName, i.unit, m.type,
     m.quantity_delta AS quantityDelta, m.unit_cost AS unitCost, m.counterparty, m.note,
     m.movement_date AS date, m.transaction_id AS transactionId
     FROM inventory_movements m JOIN inventory_items i ON i.id = m.item_id
     WHERE m.workspace_id = ? ORDER BY substr(m.movement_date, 1, 10) DESC, m.id DESC LIMIT 30`).all(workspaceId);
-  const totals = db.prepare(`SELECT COUNT(*) AS totalItems,
-    SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) AS activeItems FROM inventory_items WHERE workspace_id = ?`).get(workspaceId) as { totalItems: number; activeItems: number };
+  const totals = await db.prepare(`SELECT COUNT(*) AS totalItems,
+    COALESCE(SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END), 0) AS activeItems FROM inventory_items WHERE workspace_id = ?`).get(workspaceId) as { totalItems: number; activeItems: number };
   const lowStock = (items as Array<{ lowStock: number }>).filter((item) => item.lowStock).length;
   return { workspace, accounts, items, movements, summary: { ...totals, lowStock } };
 }
 
-export function getTeamData() {
-  const workspaceId = ensureDemoWorkspace();
-  ensureDemoModuleData(workspaceId);
-  const workspace = db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+export async function getTeamData() {
+  const workspaceId = await ensureDemoWorkspace();
+  await ensureDemoModuleData(workspaceId);
+  const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
+  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
   const today = new Date().toISOString().slice(0, 10);
-  const employeeRows = db.prepare(`SELECT e.id, e.name, e.job_title AS jobTitle, e.employee_ref AS employeeRef,
+  const employeeRows = await db.prepare(`SELECT e.id, e.name, e.job_title AS jobTitle, e.employee_ref AS employeeRef,
     e.start_date AS startDate, e.end_date AS endDate, e.active,
     current_rate.amount AS currentSalary, current_rate.currency AS currency, current_rate.effective_from AS rateEffectiveFrom
     FROM employees e LEFT JOIN salary_rates current_rate ON current_rate.id = (
       SELECT r.id FROM salary_rates r WHERE r.employee_id = e.id AND r.effective_from <= ? ORDER BY r.effective_from DESC LIMIT 1
     ) WHERE e.workspace_id = ? ORDER BY e.active DESC, e.name COLLATE NOCASE`).all(today, workspaceId) as Array<Record<string, unknown> & { id: number; active: number }>;
-  const salaryRates = db.prepare(`SELECT r.id, r.employee_id AS employeeId, r.amount, r.currency, r.effective_from AS effectiveFrom
+  const salaryRates = await db.prepare(`SELECT r.id, r.employee_id AS employeeId, r.amount, r.currency, r.effective_from AS effectiveFrom
     FROM salary_rates r JOIN employees e ON e.id = r.employee_id WHERE e.workspace_id = ? ORDER BY r.effective_from DESC`).all(workspaceId) as Array<{ id: number; employeeId: number; amount: number; currency: string; effectiveFrom: string }>;
   const ratesByEmployee = new Map<number, typeof salaryRates>();
   for (const rate of salaryRates) ratesByEmployee.set(rate.employeeId, [...(ratesByEmployee.get(rate.employeeId) ?? []), rate]);
   const employees = employeeRows.map((employee) => ({ ...employee, salaryRates: ratesByEmployee.get(employee.id) ?? [] }));
-  const periods = db.prepare(`SELECT p.id, p.employee_id AS employeeId, e.name AS employeeName, e.job_title AS jobTitle,
+  const periods = await db.prepare(`SELECT p.id, p.employee_id AS employeeId, e.name AS employeeName, e.job_title AS jobTitle,
     p.period_start AS periodStart, p.period_end AS periodEnd, p.due_date AS dueDate, p.amount_due AS amountDue,
     p.currency, p.note, COALESCE(SUM(sp.amount), 0) AS amountPaid
     FROM salary_periods p JOIN employees e ON e.id = p.employee_id
     LEFT JOIN salary_payments sp ON sp.salary_period_id = p.id
-    WHERE p.workspace_id = ? GROUP BY p.id ORDER BY p.period_start DESC, p.due_date ASC LIMIT 30`).all(workspaceId) as Array<Record<string, string | number> & { periodStart: string; dueDate: string; amountDue: number; amountPaid: number }>;
-  const payments = db.prepare(`SELECT sp.id, sp.salary_period_id AS salaryPeriodId, sp.transaction_id AS transactionId,
+    WHERE p.workspace_id = ? GROUP BY p.id, e.name, e.job_title ORDER BY p.period_start DESC, p.due_date ASC LIMIT 30`).all(workspaceId) as Array<Record<string, string | number> & { periodStart: string; dueDate: string; amountDue: number; amountPaid: number }>;
+  const payments = await db.prepare(`SELECT sp.id, sp.salary_period_id AS salaryPeriodId, sp.transaction_id AS transactionId,
     sp.amount, sp.paid_at AS paidAt, sp.note, t.account_id AS accountId, a.name AS accountName
     FROM salary_payments sp JOIN salary_periods p ON p.id = sp.salary_period_id
     JOIN transactions t ON t.id = sp.transaction_id JOIN accounts a ON a.id = t.account_id
@@ -478,7 +611,7 @@ export function getTeamData() {
   const monthStartDate = `${currentMonth}-01`;
   const nextMonthDate = new Date(Date.UTC(new Date(today).getUTCFullYear(), new Date(today).getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
   const currentSalaryDue = normalizedPeriods.filter((period) => String(period.periodStart).startsWith(currentMonth)).reduce((sum, period) => sum + Number(period.balance), 0);
-  const paidThisMonth = (db.prepare(`SELECT COALESCE(SUM(amount), 0) AS total FROM salary_payments
+  const paidThisMonth = (await db.prepare(`SELECT COALESCE(SUM(amount), 0) AS total FROM salary_payments
     WHERE paid_at >= ? AND paid_at < ?`).get(monthStartDate, nextMonthDate) as { total: number }).total;
   return {
     workspace, accounts, employees, periods: normalizedPeriods, payments,
@@ -505,10 +638,10 @@ export type DashboardTransaction = {
   note: string;
 };
 
-export function getDashboardData() {
-  const workspaceId = ensureDemoWorkspace();
-  const workspace = db.prepare('SELECT id, name, business_type AS businessType, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency, a.opening_balance AS openingBalance,
+export async function getDashboardData() {
+  const workspaceId = await ensureDemoWorkspace();
+  const workspace = await db.prepare('SELECT id, name, business_type AS businessType, currency FROM workspaces WHERE id = ?').get(workspaceId);
+  const accounts = await db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency, a.opening_balance AS openingBalance,
     a.opening_balance + COALESCE((SELECT SUM(CASE
       WHEN t.type IN ('INCOME', 'CONTRIBUTION', 'LOAN_RECEIVED') THEN t.amount
       WHEN t.type IN ('EXPENSE', 'WITHDRAWAL', 'LOAN_GIVEN') THEN -t.amount
@@ -518,7 +651,7 @@ export function getDashboardData() {
       + COALESCE((SELECT SUM(CASE WHEN l.direction = 'PAYABLE' THEN -lr.principal_amount WHEN l.direction = 'RECEIVABLE' THEN lr.principal_amount ELSE 0 END)
         FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id WHERE lr.workspace_id = a.workspace_id AND lr.account_id = a.id), 0) AS balance
     FROM accounts a WHERE a.workspace_id = ? ORDER BY a.id`).all(workspaceId);
-  const transactions = db.prepare(`SELECT * FROM (
+  const transactions = await db.prepare(`SELECT * FROM (
     SELECT t.id, t.description AS title, t.category, t.transaction_date AS date,
       t.amount, t.type AS kind, a.name AS account, destination.name AS destinationAccount,
       t.status, t.counterparty, t.note
@@ -535,8 +668,8 @@ export function getDashboardData() {
     FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id JOIN accounts a ON a.id = lr.account_id
     WHERE lr.workspace_id = ?
   ) activity ORDER BY substr(date, 1, 10) DESC, id DESC LIMIT 30`).all(workspaceId, workspaceId) as DashboardTransaction[];
-  const owners = db.prepare('SELECT id, name, role, share, effective_at AS effectiveAt FROM owners WHERE workspace_id = ? ORDER BY id').all(workspaceId);
-  const loans = db.prepare(`SELECT l.id, l.direction, l.name, l.counterparty, l.principal, l.outstanding, l.due_at AS dueAt,
+  const owners = await db.prepare('SELECT id, name, role, share, effective_at AS effectiveAt FROM owners WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+  const loans = await db.prepare(`SELECT l.id, l.direction, l.name, l.counterparty, l.principal, l.outstanding, l.due_at AS dueAt,
       COALESCE(SUM(r.principal_amount), 0) AS repaidAmount, COUNT(r.id) AS repaymentCount,
       MAX(r.transaction_date) AS lastRepaymentAt
     FROM loans l LEFT JOIN loan_repayments r ON r.loan_id = l.id
@@ -545,7 +678,7 @@ export function getDashboardData() {
   const now = new Date();
   const startThisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
   const startLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString();
-  const totals = db.prepare(`SELECT
+  const totals = await db.prepare(`SELECT
     COALESCE(SUM(CASE WHEN type = 'INCOME' AND transaction_date >= ? THEN amount ELSE 0 END), 0) AS incomeThisMonth,
     COALESCE(SUM(CASE WHEN type = 'EXPENSE' AND transaction_date >= ? THEN amount ELSE 0 END), 0) AS expensesThisMonth,
     COALESCE(SUM(CASE WHEN type = 'INCOME' AND transaction_date >= ? AND transaction_date < ? THEN amount ELSE 0 END), 0) AS incomeLastMonth,
@@ -555,7 +688,7 @@ export function getDashboardData() {
   const chartStart = new Date();
   chartStart.setDate(chartStart.getDate() - 89);
   chartStart.setHours(0, 0, 0, 0);
-  const daily = db.prepare(`SELECT substr(transaction_date, 1, 10) AS day,
+  const daily = await db.prepare(`SELECT substr(transaction_date, 1, 10) AS day,
     SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) AS income,
     SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) AS expenses
     FROM transactions WHERE workspace_id = ? AND status = 'CLEARED' AND type IN ('INCOME', 'EXPENSE') AND transaction_date >= ?

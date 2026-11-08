@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const access = await requireWorkspaceMember([ROLE.OWNER]);
   if (access.response) return access.response;
-  return NextResponse.json(getWorkspaceAccessData());
+  return NextResponse.json(await getWorkspaceAccessData());
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const token = createInvitationToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const id = createWorkspaceInvitation({ email, name, role, tokenHash: hashInvitationToken(token), expiresAt, createdBy: access.member.userId, actor: access.member.name });
+    const id = await createWorkspaceInvitation({ email, name, role, tokenHash: hashInvitationToken(token), expiresAt, createdBy: access.member.userId, actor: access.member.name });
     return NextResponse.json({ id, token, expiresAt }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'ALREADY_A_MEMBER') return NextResponse.json({ error: 'This person already has a workspace membership. Update or reactivate them from the member list.' }, { status: 409 });
