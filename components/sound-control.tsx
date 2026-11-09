@@ -53,7 +53,7 @@ export default function SoundControl({ className = '' }: { className?: string })
       <button
         type="button"
         className="ghost-icon-button"
-        aria-label={state.enabled ? 'Sounds on — open sound settings' : 'Sounds off — open sound settings'}
+        aria-label={state.enabled ? 'Sounds on: open sound settings' : 'Sounds off: open sound settings'}
         aria-expanded={open}
         aria-haspopup="dialog"
         title="Sounds & haptics"

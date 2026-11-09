@@ -10,8 +10,8 @@
   --card-soft: #f4f6f0;
   --ink: #15231b;
   --ink-soft: #3c4a41;
-  --muted: #66766c;
-  --faint: #93a196;
+  --muted: #4f5e54;
+  --faint: #5a6a60;
   --line: #e2e7de;
   --line-strong: #d3dacf;
 
@@ -776,13 +776,6 @@ button:disabled { cursor: not-allowed; }
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .6);
 }
-.glass-tile {
-  background: var(--glass-surface);
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: 22px;
-}
 .glass-menu {
   background: var(--glass-menu-surface);
   backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
@@ -799,7 +792,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* focus-visible stays unmistakably visible on glass */
-.glass:focus-visible, .glass-chip:focus-visible, .glass-tile:focus-visible, .glass-menu:focus-visible {
+.glass:focus-visible, .glass-chip:focus-visible, .glass-menu:focus-visible {
   outline: none; box-shadow: var(--glass-shadow), 0 0 0 3px var(--lime);
 }
 
@@ -829,15 +822,15 @@ button:disabled { cursor: not-allowed; }
 /* Accessibility fallbacks                                              */
 /* ------------------------------------------------------------------ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog { background: rgb(255 255 255 / .97); }
+  .glass, .glass-chip, .glass-menu, .glass-dialog { background: rgb(255 255 255 / .97); }
   .glass-deep, .mobile-nav { background: rgb(18 29 23 / .97); }
   [data-sileo-toast] { background: rgb(18 29 23 / .97) !important; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog, .mobile-nav, [data-sileo-toast] {
+  .glass, .glass-chip, .glass-menu, .glass-dialog, .mobile-nav, [data-sileo-toast] {
     backdrop-filter: none; -webkit-backdrop-filter: none;
   }
-  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog { background: #f7faf5; }
+  .glass, .glass-chip, .glass-menu, .glass-dialog { background: #f7faf5; }
   .glass-deep, .mobile-nav { background: #14211a; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1011,3 +1004,15 @@ button, [role="button"], .mobile-nav a, .quick-action, .loan-action,
 button, [role="button"] { transition: transform .12s ease; }
 button:active, [role="button"]:active { transform: scale(.97); }
 .mobile-nav a:active, .quick-action:active { transform: scale(.94); }
+
+/* ------------------------------------------------------------------ */
+/* Coarse-pointer hit areas (WCAG 2.5.5 / mobile-native / R-03)        */
+/* 44px minimum where the control sits under a thumb                   */
+/* ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .icon-row-button { width: 44px; height: 44px; }
+  .ghost-icon-button { width: 44px; height: 44px; }
+  .access-toggle { min-height: 44px; padding: 10px 13px; }
+  .push-toggle { height: 44px; padding: 0 20px; }
+  .notif-trigger { min-width: 44px; min-height: 44px; }
+}

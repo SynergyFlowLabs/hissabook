@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
-    name: 'Hisaabook — Business, in balance',
+    name: 'Hisaabook: Business, in balance',
     short_name: 'Hisaabook',
     description:
       'A clearer way to manage your business money, together. Cash, loans, owners, stock and team records in one shared, attributable ledger.',

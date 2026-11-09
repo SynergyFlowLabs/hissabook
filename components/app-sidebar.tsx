@@ -85,7 +85,7 @@ export default function AppSidebar({
         <div className="sidebar-spacer" />
         <div className="help-card">
           <div className="help-title">Invite your accountant</div>
-          <div className="help-copy">Give them view access — no passwords shared, access can be revoked anytime.</div>
+          <div className="help-copy">Give them view access. No passwords shared, and access can be revoked anytime.</div>
           <a href="/#owners" className="help-link">Manage workspace access <ArrowRight size={11} /></a>
         </div>
         <div className="user-profile">
