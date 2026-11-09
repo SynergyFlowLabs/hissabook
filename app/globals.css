@@ -188,8 +188,8 @@ button:disabled { cursor: not-allowed; }
 .topbar {
   height: calc(60px + env(safe-area-inset-top, 0px)); display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; padding-top: env(safe-area-inset-top, 0px); gap: 14px; position: sticky; top: 0; z-index: 15;
-  background: color-mix(in srgb, var(--canvas) 82%, transparent); backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--canvas) 80%, transparent); backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
 }
 @media (min-width: 901px) { .topbar { height: 72px; padding: 0 22px; padding-top: 0; } }
 @media (min-width: 1181px) { .topbar { padding: 0 34px; } }
@@ -743,14 +743,18 @@ button:disabled { cursor: not-allowed; }
 /* iOS-style glass material (PR: motion + glass)                        */
 /* ------------------------------------------------------------------ */
 :root {
-  --glass-surface: linear-gradient(165deg, rgb(255 255 255 / .82), rgb(255 255 255 / .58));
-  --glass-surface-deep: linear-gradient(165deg, rgb(29 47 38 / .72), rgb(16 27 21 / .78));
-  --glass-chip: rgb(255 255 255 / .55);
-  --glass-border: rgb(255 255 255 / .68);
-  --glass-border-deep: rgb(255 255 255 / .12);
-  --glass-blur: blur(20px) saturate(1.65);
-  --glass-shadow: 0 18px 48px rgb(13 26 19 / .22), inset 0 1px 0 rgb(255 255 255 / .65);
-  --glass-shadow-deep: 0 22px 60px rgb(6 12 9 / .42), inset 0 1px 0 rgb(255 255 255 / .12);
+  /* iOS "Frosted" material — content behind must become an unreadable wash.
+     Tint is intentionally heavy; the blur finishes the job. */
+  --glass-surface: linear-gradient(168deg, rgb(255 255 255 / .92), rgb(246 251 243 / .84));
+  --glass-surface-deep: linear-gradient(165deg, rgb(29 47 38 / .78), rgb(16 27 21 / .82));
+  --glass-menu-surface: linear-gradient(170deg, rgb(255 255 255 / .97), rgb(247 251 244 / .93));
+  --glass-chip: rgb(255 255 255 / .72);
+  --glass-border: rgb(255 255 255 / .78);
+  --glass-border-deep: rgb(255 255 255 / .14);
+  --glass-blur: blur(30px) saturate(1.85) brightness(1.02);
+  --glass-blur-heavy: blur(42px) saturate(2) brightness(1.02);
+  --glass-shadow: 0 18px 48px rgb(13 26 19 / .24), inset 0 1px 0 rgb(255 255 255 / .8);
+  --glass-shadow-deep: 0 22px 60px rgb(6 12 9 / .46), inset 0 1px 0 rgb(255 255 255 / .12);
   --lime-glow: 0 0 0 1px rgb(201 242 79 / .5), 0 8px 28px rgb(201 242 79 / .22);
 }
 
@@ -768,7 +772,7 @@ button:disabled { cursor: not-allowed; }
 }
 .glass-chip {
   background: var(--glass-chip);
-  backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .6);
 }
@@ -780,18 +784,18 @@ button:disabled { cursor: not-allowed; }
   border-radius: 22px;
 }
 .glass-menu {
-  background: var(--glass-surface);
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  background: var(--glass-menu-surface);
+  backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 24px 60px rgb(13 26 19 / .3), inset 0 1px 0 rgb(255 255 255 / .9);
   border-radius: 18px;
 }
 /* dialog content renders as a light frosted sheet */
 .glass-dialog {
-  background: linear-gradient(168deg, rgb(255 255 255 / .92), rgb(246 250 243 / .86));
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  background: linear-gradient(168deg, rgb(255 255 255 / .96), rgb(247 251 244 / .92));
+  backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 28px 80px rgb(13 26 19 / .34), inset 0 1px 0 rgb(255 255 255 / .9);
 }
 
 /* focus-visible stays unmistakably visible on glass */
@@ -813,7 +817,7 @@ button:disabled { cursor: not-allowed; }
   --sileo-duration: 560ms;
 }
 [data-sileo-toast] {
-  backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(30px) saturate(1.9); -webkit-backdrop-filter: blur(30px) saturate(1.9);
   border-radius: 20px !important;
   border: 1px solid rgb(255 255 255 / .10) !important;
   box-shadow: 0 22px 60px rgb(4 10 7 / .5), inset 0 1px 0 rgb(255 255 255 / .10) !important;
