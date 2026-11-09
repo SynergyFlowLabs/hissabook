@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Briefcase,
-  Check, Eye, EyeOff, HandCoins, Landmark, MoreHorizontal, Plus,
+  Check, Eye, EyeOff, HandCoins, Landmark, MoreHorizontal, Plus, Smartphone,
   Search, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Wallet,
 } from 'lucide-react';
 import {
@@ -22,7 +22,6 @@ import { formatPKR, greetingFor } from '@/lib/format';
 import { primeWorkspaceContext } from '@/lib/use-workspace-context';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import DashboardSkeleton from '@/components/dashboard-skeleton';
-import AccountsDialog from '@/components/accounts-dialog';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -127,7 +126,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [hideBalance, setHideBalance] = useState(false);
-  const [accountsOpen, setAccountsOpen] = useState(false);
   const [kind, setKind] = useState<TransactionKind>('Expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -480,15 +478,18 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card accounts-panel xl:col-span-5" id="accounts">
               <div className="card-header-row">
                 <div><div className="card-title">Where your money is</div><div className="card-subtitle">Recorded balance across business accounts</div></div>
-                <Button variant="ghost" size="icon" className="rounded-full text-[var(--muted)]" aria-label="Manage accounts" onClick={() => setAccountsOpen(true)}><MoreHorizontal size={17} /></Button>
+                <Link href="/accounts" className="icon-row-button" aria-label="Manage accounts" title="Manage accounts"><MoreHorizontal size={17} /></Link>
               </div>
               <div className="mt-4 flex items-end justify-between gap-3">
                 <div><div className="text-[10px] font-bold uppercase tracking-[.1em] text-[var(--faint)]">Total recorded</div><div className="mt-1 text-[26px] font-extrabold leading-none tracking-[-1px] tabular-nums">{hidden(data.summary.cashBalance)}</div></div>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--lime-soft)] px-3 py-1.5 text-[9px] font-extrabold text-[#57721f]"><Wallet size={11} /> {data.accounts.length} accounts</span>
               </div>
               <div className="balance-track" aria-hidden="true"><span style={{ width: `${data.summary.cashBalance > 0 ? Math.max(3, Math.min(100, data.accounts.reduce((max, account) => Math.max(max, account.balance), 0) / data.summary.cashBalance * 100)) : 0}%` }} /></div>
-              <div>{data.accounts.map((account) => <div className="account-row" key={account.id}><div className="account-left"><span className="account-icon">{account.type === 'BANK' ? <Landmark size={16} /> : <Wallet size={16} />}</span><span><div className="account-name">{account.name}</div><div className="account-kind">{account.type === 'BANK' ? 'Bank account' : account.type === 'MOBILE_WALLET' ? 'Mobile wallet' : 'Cash account'} · {account.currency}</div></span></div><span className="account-value">{hidden(account.balance)}</span></div>)}</div>
-              <Link className="text-link" style={{ marginTop: 13 }} href="/transactions">Account activity <ArrowRight size={12} /></Link>
+              <div>{data.accounts.map((account) => <div className="account-row" key={account.id}><div className="account-left"><span className="account-icon">{account.type === 'BANK' ? <Landmark size={16} /> : account.type === 'MOBILE' ? <Smartphone size={16} /> : <Wallet size={16} />}</span><span><div className="account-name">{account.name}</div><div className="account-kind">{account.type === 'BANK' ? 'Bank account' : account.type === 'MOBILE' ? 'Mobile wallet' : 'Cash account'} · {account.currency}</div></span></div><span className="account-value">{hidden(account.balance)}</span></div>)}</div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1" style={{ marginTop: 13 }}>
+                <Link className="text-link" href="/accounts">Manage accounts <ArrowRight size={12} /></Link>
+                <Link className="text-link" href="/transactions">Account activity <ArrowRight size={12} /></Link>
+              </div>
             </div>
           </section>
 
@@ -561,20 +562,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
         </div>
       </main>
 
-      {/* Add transaction dialog */}
-      <AccountsDialog
-        open={accountsOpen}
-        onOpenChange={setAccountsOpen}
-        accounts={data.accounts.map((account) => ({ id: account.id, name: account.name, type: account.type, balance: account.balance }))}
-        canManage={['OWNER', 'ADMIN'].includes(userRole)}
-        onSaved={(payload) => {
-          // The API returns the recalculated book, so the panel behind the dialog
-          // updates in place instead of waiting for a reload.
-          setData(payload as DashboardData);
-          writeCache(DASHBOARD_CACHE, payload as DashboardData);
-        }}
-      />
-
+      {/* Account management is its own screen: /accounts */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>

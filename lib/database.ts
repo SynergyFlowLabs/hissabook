@@ -970,18 +970,91 @@ export type DashboardTransaction = {
   note: string;
 };
 
-export async function getDashboardData(selectedWorkspaceId?: number) {
-  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
-  const workspace = await db.prepare('SELECT id, name, business_type AS businessType, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = await db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency, a.opening_balance AS openingBalance,
-    a.opening_balance + COALESCE((SELECT SUM(CASE
+/**
+ * The running-balance expression for one account.
+ *
+ * Kept in exactly one place because the accounts page and the dashboard panel
+ * must never disagree about how much money is in an account: an opening balance,
+ * plus cleared ledger movement in either direction, plus loan repayments paid
+ * from or collected into it.
+ */
+const ACCOUNT_BALANCE_SQL = `a.opening_balance + COALESCE((SELECT SUM(CASE
       WHEN t.type IN ('INCOME', 'CONTRIBUTION', 'LOAN_RECEIVED') THEN t.amount
       WHEN t.type IN ('EXPENSE', 'WITHDRAWAL', 'LOAN_GIVEN') THEN -t.amount
       WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
       WHEN t.type = 'TRANSFER' AND t.destination_account_id = a.id THEN t.amount
       ELSE 0 END) FROM transactions t WHERE t.workspace_id = a.workspace_id AND t.status = 'CLEARED' AND (t.account_id = a.id OR t.destination_account_id = a.id)), 0)
       + COALESCE((SELECT SUM(CASE WHEN l.direction = 'PAYABLE' THEN -lr.principal_amount WHEN l.direction = 'RECEIVABLE' THEN lr.principal_amount ELSE 0 END)
-        FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id WHERE lr.workspace_id = a.workspace_id AND lr.account_id = a.id), 0) AS balance
+        FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id WHERE lr.workspace_id = a.workspace_id AND lr.account_id = a.id), 0)`;
+
+export type AccountRow = {
+  id: number;
+  name: string;
+  type: string;
+  currency: string;
+  openingBalance: number;
+  balance: number;
+  /** Cleared ledger entries that touch this account, in either direction. */
+  entryCount: number;
+  /** Whether the account is frozen from deletion because history references it. */
+  hasHistory: boolean;
+  createdAt: string;
+};
+
+/**
+ * Every account with its balance and enough context to decide what may be done
+ * to it. `hasHistory` is computed here rather than in the UI so the page and the
+ * API cannot disagree about whether a delete is allowed.
+ */
+export async function getAccountsData(selectedWorkspaceId?: number): Promise<{
+  accounts: AccountRow[];
+  total: number;
+  workspace: { name: string; businessType: string; currency: string };
+}> {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
+  const workspace = await db
+    .prepare('SELECT name, business_type AS businessType, currency FROM workspaces WHERE id = ?')
+    .get(workspaceId) as { name: string; businessType: string; currency: string };
+
+  const rows = await db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency,
+    a.opening_balance AS openingBalance, ${ACCOUNT_BALANCE_SQL} AS balance,
+    a.created_at AS createdAt,
+    (SELECT COUNT(*) FROM transactions t WHERE t.workspace_id = a.workspace_id AND (t.account_id = a.id OR t.destination_account_id = a.id))
+      + (SELECT COUNT(*) FROM loan_repayments lr WHERE lr.workspace_id = a.workspace_id AND lr.account_id = a.id) AS entryCount
+    FROM accounts a WHERE a.workspace_id = ? AND a.is_system = 0 ORDER BY a.id`).all(workspaceId) as Array<Record<string, unknown>>;
+
+  const accounts: AccountRow[] = rows.map((row) => {
+    const entryCount = Number(row.entryCount ?? 0);
+    return {
+      id: Number(row.id),
+      name: String(row.name),
+      type: String(row.type),
+      currency: String(row.currency ?? 'PKR'),
+      openingBalance: Number(row.openingBalance ?? 0),
+      balance: Number(row.balance ?? 0),
+      entryCount,
+      // Matches the DELETE rule exactly: only ledger entries freeze an account.
+      // An opening balance alone does not, and pretending it does would make
+      // the page refuse a removal the API would happily perform.
+      hasHistory: entryCount > 0,
+      createdAt: String(row.createdAt ?? ''),
+    };
+  });
+
+  return {
+    accounts,
+    total: accounts.reduce((sum, account) => sum + account.balance, 0),
+    workspace,
+  };
+}
+
+export async function getDashboardData(selectedWorkspaceId?: number) {
+  const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
+  const workspace = await db.prepare('SELECT id, name, business_type AS businessType, currency FROM workspaces WHERE id = ?').get(workspaceId);
+  // Balance comes from the one shared expression so the accounts page and this
+  // panel can never report different numbers for the same account.
+  const accounts = await db.prepare(`SELECT a.id, a.name, a.account_type AS type, a.currency, a.opening_balance AS openingBalance,
+    ${ACCOUNT_BALANCE_SQL} AS balance
     FROM accounts a WHERE a.workspace_id = ? AND a.is_system = 0 ORDER BY a.id`).all(workspaceId);
   const transactions = await db.prepare(`SELECT * FROM (
     SELECT t.id, t.description AS title, t.category, t.transaction_date AS date,
