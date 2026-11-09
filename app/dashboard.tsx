@@ -7,7 +7,7 @@ import {
   Search, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Wallet,
 } from 'lucide-react';
 import {
-  Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const [data, setData] = useState<DashboardData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState<Period>('30 days');
+  const [heroRange, setHeroRange] = useState<Period>('30 days');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -155,6 +156,24 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const periodDays = period === '7 days' ? 7 : period === '30 days' ? 30 : 90;
   const chartData: ChartPoint[] = data?.chart.slice(-periodDays) ?? [];
   const maxIncome = Math.max(0, ...chartData.map((point) => point.income));
+  // Hero curve: running net movement (cleared income minus cleared expenses) over
+  // the selected range. Chosen over daily in/out and over cumulative in/out after
+  // rendering both against the demo data: a business books a handful of entries a
+  // month, so a daily line is flat with spikes, and cumulative in/out draws two
+  // staircases that merely restate the bar chart card below. Net movement shows
+  // real shape, crosses zero honestly, and is the right context for a balance.
+  const heroDays = heroRange === '7 days' ? 7 : heroRange === '30 days' ? 30 : 90;
+  const heroWindow: ChartPoint[] = data?.chart.slice(-heroDays) ?? [];
+  let netRun = 0;
+  const heroSpark = heroWindow.map((point) => {
+    netRun += point.income - point.expenses;
+    return { day: point.day, net: netRun };
+  });
+  const heroLabel = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+  const heroSparkLabel = heroSpark.length
+    ? `${heroLabel(heroSpark[0].day)} to ${heroLabel(heroSpark[heroSpark.length - 1].day)}`
+    : 'No cleared activity yet';
+  const heroNet = heroSpark.length ? heroSpark[heroSpark.length - 1].net : 0;
   const isOutgoing = kind === 'Expense' || kind === 'Withdrawal' || kind === 'Loan given';
 
   const openDialog = (preset: TransactionKind) => () => {
@@ -273,24 +292,75 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
               </div>
               <div className="hero-amount-row">
                 <div className="hero-amount"><small>PKR</small><AnimatedAmount value={hideBalance ? 0 : Math.abs(data.summary.cashBalance)} format={(n) => hideBalance ? '••••••' : Math.abs(n).toLocaleString('en-PK')} /></div>
-                <button onClick={() => setHideBalance((value) => !value)} aria-label={hideBalance ? 'Show balance' : 'Hide balance'} style={{ background: '#ffffff14', border: '1px solid #ffffff1f', color: '#cfe0c9', borderRadius: 999, width: 40, height: 40, display: 'grid', placeItems: 'center', flex: 0 }}>{hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                <button className="hero-reveal" onClick={() => setHideBalance((value) => !value)} aria-label={hideBalance ? 'Show balance' : 'Hide balance'}>{hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               <div className="hero-meta">Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'} · {data.workspace.businessType || 'Business'} · Cleared records only</div>
+
+              {/* Range switch mirrors the reference cards: the balance is the
+                  headline, the movement curve underneath it is the context. */}
+              <div className="hero-range" role="group" aria-label="Chart range">
+                {(['7 days', '30 days', '90 days'] as const).map((item) => (
+                  <button
+                    key={item}
+                    className={heroRange === item ? 'active' : ''}
+                    aria-pressed={heroRange === item}
+                    onClick={() => setHeroRange(item)}
+                  >{item.replace(' days', 'd')}</button>
+                ))}
+              </div>
+
+              {/* The curve is decorative for assistive tech: the same facts are
+                  stated in text directly below it (range, net total, month figures). */}
+              <div className="hero-chart" aria-hidden="true" role="presentation">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={heroSpark} margin={{ top: 8, right: 2, left: 2, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="hero-spark-fill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#c9f24f" stopOpacity={0.30} />
+                        <stop offset="100%" stopColor="#c9f24f" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="day" hide />
+                    {/* A running net can go negative, so the domain spans both
+                        sides of zero and the zero line is drawn explicitly. */}
+                    <YAxis hide domain={['auto', 'auto']} />
+                    <ReferenceLine y={0} stroke="#ffffff26" strokeWidth={1} />
+                    <Tooltip
+                      cursor={{ stroke: '#ffffff22', strokeWidth: 1 }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const point = payload[0].payload as { day: string; net: number };
+                        return (
+                          <div className="chart-tooltip">
+                            <div className="chart-tooltip-label">{new Date(`${point.day}T12:00:00`).toLocaleDateString('en-PK', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                            <div className="chart-tooltip-value" style={{ color: point.net >= 0 ? '#c9f24f' : '#ffb4a1' }}>
+                              Net {hideBalance ? 'PKR ••••••' : `${point.net < 0 ? '−' : '+'}${formatPKR(Math.abs(point.net * 1000))}`}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area type="monotone" dataKey="net" stroke="#c9f24f" strokeWidth={2.4} fill="url(#hero-spark-fill)" activeDot={{ r: 4, fill: '#c9f24f', stroke: '#16241d', strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="hero-chart-foot">
+                <span className="hero-chart-range">{heroSparkLabel}</span>
+                <span className={`hero-chart-net ${heroNet < 0 ? 'down' : 'up'}`}>
+                  Net {hideBalance ? 'PKR ••••••' : `${heroNet < 0 ? '−' : '+'}${formatPKR(Math.abs(heroNet * 1000))}`}
+                </span>
+              </div>
+
+              {/* The two figures the reference cards put under the curve. */}
               <div className="hero-chips">
                 <div className="hero-chip">
                   <div className="hero-chip-label"><ArrowDownLeft size={11} /> Income this month</div>
                   <div className="hero-chip-value"><AnimatedAmount value={data.summary.incomeThisMonth} format={hidden} /></div>
-                  <div className="hero-chip-sub">Recorded cleared income</div>
                 </div>
                 <div className="hero-chip">
                   <div className="hero-chip-label"><ArrowUpRight size={11} /> Spent this month</div>
                   <div className="hero-chip-value"><AnimatedAmount value={data.summary.expensesThisMonth} format={hidden} /></div>
-                  <div className="hero-chip-sub">Recorded cleared expenses</div>
                 </div>
-              </div>
-              <div className="hero-foot">
-                <div className="account-stack" aria-hidden="true">{data.accounts.slice(0, 4).map((account) => <span key={account.id} className="account-dot">{initials(account.name)}</span>)}</div>
-                <div className="hero-foot-note">Your books update themselves: every cleared entry, repayment and transfer rolls up here automatically.</div>
               </div>
             </div>
 

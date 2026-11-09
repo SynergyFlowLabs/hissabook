@@ -293,20 +293,54 @@ button:disabled { cursor: not-allowed; }
 .hero-chip { background: #24382c; border: 1px solid #ffffff1a; border-radius: 17px; padding: 11px 14px; min-width: 0; overflow: hidden; }
 .hero-chip-label { display: flex; align-items: center; gap: 6px; color: #a9bba4; font-size: 9.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; min-width: 0; }
 .hero-chip-label > svg { flex: 0 0 auto; }
-.hero-chip-value { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -.4px; margin-top: 5px; font-variant-numeric: tabular-nums; color: #f2f9ee; }
-.hero-chip-sub { color: #8fa88d; font-size: 9px; margin-top: 2px; }
+.hero-chip-value { font-family: var(--font-display); font-size: 17px; font-weight: 400; letter-spacing: -.4px; margin-top: 5px; font-variant-numeric: tabular-nums; color: #f2f9ee; }
 .hero-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; border-radius: 999px; padding: 3px 7px; margin-left: 6px; vertical-align: 1px; }
 .hero-trend.up { color: #c3f47a; background: #c9f24f1f; }
 .hero-trend.down { color: #ffb4a1; background: #ff8f6e14; }
 
-.hero-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: auto; padding-top: 16px; position: relative; z-index: 1; border-top: 1px solid #ffffff12; }
-.account-stack { display: flex; align-items: center; }
-.account-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #24382c; color: #d8ead3; border: 2px solid var(--deep); font-size: 9px; font-weight: 800; margin-left: -8px; }
-.account-dot:first-child { margin-left: 0; }
-/* The note is explanatory only. At phone widths it wrapped to four lines and
-   pushed into the panel edge, so it holds one tidy column under the avatars. */
-.hero-foot-note { color: #94a894; font-size: 9px; line-height: 1.5; max-width: 230px; }
-@media (max-width: 560px) { .hero-foot { align-items: flex-start; gap: 10px; } .hero-foot-note { flex: 1 1 100%; max-width: none; } }
+/* Reveal control: a quiet icon disc that reads as a control, not a badge. */
+.hero-reveal {
+  width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 999px; background: #ffffff14; border: 1px solid #ffffff1f; color: #cfe0c9;
+  transition: background .16s ease, border-color .16s ease;
+}
+@media (hover: hover) and (pointer: fine) { .hero-reveal:hover { background: #ffffff22; border-color: #ffffff33; } }
+
+/* Range switch, borrowed from the reference cards: three quiet pills on a
+   recessed track, the active one lifted. Sits above the curve it controls. */
+.hero-range {
+  display: inline-flex; gap: 2px; align-self: flex-start; margin-top: 16px;
+  padding: 3px; border-radius: 999px; background: #ffffff0f; border: 1px solid #ffffff17;
+  position: relative; z-index: 1;
+}
+.hero-range button {
+  border: 0; background: transparent; color: #a9bba4; cursor: pointer;
+  font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase;
+  min-height: 30px; padding: 0 13px; border-radius: 999px;
+  transition: background .16s ease, color .16s ease;
+}
+.hero-range button.active { background: #c9f24f; color: #1b2a10; box-shadow: 0 4px 14px rgb(201 242 79 / .28); }
+@media (hover: hover) and (pointer: fine) { .hero-range button:not(.active):hover { color: #e7f3e2; } }
+@media (pointer: coarse) { .hero-range button { min-height: 40px; padding: 0 15px; } }
+
+/* The curve is context, not the headline: it never takes more than a third of
+   the card's height, and it clips to the card so no path can bleed sideways. */
+.hero-chart { height: 92px; margin: 6px -4px 0; position: relative; z-index: 1; min-width: 0; }
+.hero-chart .recharts-surface { overflow: visible; }
+.hero-chart-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap;
+  margin-top: 2px; color: #8fa88d; font-size: 9.5px; font-weight: 700;
+  position: relative; z-index: 1; letter-spacing: .01em;
+}
+.hero-chart-range { white-space: nowrap; }
+.hero-chart-net { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 800; }
+.hero-chart-net.up { color: #c3f47a; }
+.hero-chart-net.down { color: #ffb4a1; }
+/* The panel clips its decoration, so a tooltip that follows the cursor gets cut
+   at the top edge. Recharts positions within the chart box; keeping it compact
+   and letting the wrapper overflow visibly is enough at 92px tall. */
+.hero-chart .chart-tooltip { font-size: 10px; padding: 7px 9px; }
+.hero-chart .chart-tooltip-label { font-size: 9px; margin-bottom: 3px; }
 
 /* ------------------------------------------------------------------ */
 /* Quick actions (circular, reference pattern)                          */
@@ -316,7 +350,10 @@ button:disabled { cursor: not-allowed; }
    the 8px inset keeps the glow on the first circle from being cut. */
 .quick-actions {
   display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px;
-  scrollbar-width: none; scroll-snap-type: x proximity; touch-action: pan-y;
+  scrollbar-width: none; scroll-snap-type: x proximity;
+  /* `pan-y` here forbade the browser from claiming horizontal pans, so the row
+     could not be swiped on a phone. Allow both axes and let the scroller decide. */
+  touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
   /* Explicit zero: the six circles are ~506px of min-content, and an `auto`
      track or flex item happily grows to that, which is what pushed the whole
@@ -451,16 +488,21 @@ button:disabled { cursor: not-allowed; }
 .empty-state { text-align: center; color: var(--muted); font-size: 11px; padding: 30px 16px; }
 
 /* bottom pill nav (mobile) — the reference pattern */
+/* Centred with inset + margin, not translate. A translate centres it around a
+   point outside its own box, and once `overflow-x` is set the element becomes a
+   scroll container clipped to a shrunk width, which pushed the last item off the
+   right edge on /team. Laying it out with left/right insets keeps every item
+   inside the viewport at any width. */
 .mobile-nav {
-  display: flex; position: fixed; z-index: 40; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
-  align-items: center; gap: 2px; background: var(--deep-2);
-  padding: 7px; border-radius: 999px; box-shadow: 0 18px 44px rgb(6 12 9 / .38); border: 1px solid rgb(255 255 255 / .10); max-width: calc(100vw - 24px);
-  overflow-x: auto; scrollbar-width: none;
+  display: flex; position: fixed; z-index: 40; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 10px; right: 10px; margin-inline: auto; width: fit-content;
+  align-items: center; justify-content: center; gap: 1px; background: var(--deep-2);
+  padding: 6px; border-radius: 999px; box-shadow: 0 18px 44px rgb(6 12 9 / .38); border: 1px solid rgb(255 255 255 / .10);
 }
-.mobile-nav::-webkit-scrollbar { display: none; }
 .mobile-nav a {
   position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4; text-decoration: none;
-  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 8px 14px; transition: color .2s ease; min-height: 46px; min-width: 58px; isolation: isolate;
+  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 7px 10px; transition: color .2s ease;
+  min-height: 46px; min-width: 52px; flex: 1 1 auto; isolation: isolate;
 }
 /* The pill is absolutely positioned decoration; the earlier `a > *` rule
    matched it too and re-relative-positioned it, which stacked the pill under
@@ -473,6 +515,74 @@ button:disabled { cursor: not-allowed; }
   background: linear-gradient(160deg, #d6ff5e, var(--lime) 70%); box-shadow: 0 4px 16px rgb(201 242 79 / .35), inset 0 1px 0 #ffffffaa;
 }
 @media (min-width: 901px) { .mobile-nav { display: none; } }
+/* On a 320px phone six items cannot hold their 52px floor. Give back padding and
+   the label of the least-used item rather than letting anything squash or clip. */
+@media (max-width: 389px) {
+  .mobile-nav { left: 6px; right: 6px; padding: 5px; gap: 0; }
+  .mobile-nav a, .mobile-nav-menu { padding: 7px 7px; min-width: 44px; }
+  .mobile-nav-menu span { display: none; }
+  .notif-nav-btn { padding: 7px 7px; min-width: 44px; }
+}
+
+/* Menu trigger: same footprint as a nav item so the row still reads as one pill. */
+.mobile-nav-menu {
+  position: relative; display: grid; justify-items: center; gap: 2px; flex: 1 1 auto;
+  border: 0; background: transparent; color: #b8cbb4; font-family: inherit;
+  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 7px 10px;
+  min-height: 46px; min-width: 52px; cursor: pointer; transition: color .2s ease;
+}
+@media (hover: hover) and (pointer: fine) { .mobile-nav-menu:hover { color: #e7f3e2; } }
+.mobile-nav-menu.active { color: var(--lime); }
+
+/* Mobile menu sheet: bottom-anchored, scrolls internally, clears the pill. */
+.mmenu-scrim { position: fixed; inset: 0; z-index: 60; background: rgb(6 12 9 / .55); }
+.mmenu {
+  position: fixed; z-index: 61; left: 10px; right: 10px;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  max-height: min(76dvh, 620px); display: flex; flex-direction: column;
+  background: var(--card); border-radius: 24px; border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+@media (min-width: 901px) { .mmenu, .mmenu-scrim { display: none; } }
+.mmenu-head {
+  display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--line); flex: 0 0 auto; background: var(--card-soft);
+}
+.mmenu-avatar {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 14px; display: grid; place-items: center;
+  background: var(--lime-soft); color: #5a7a1d; font-size: 13px; font-weight: 800;
+}
+.mmenu-who { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mmenu-name { font-size: 13px; font-weight: 800; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mmenu-role { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mmenu-type { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.mmenu-close {
+  flex: 0 0 auto; min-height: 40px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
+  font-size: 11px; font-weight: 750; font-family: inherit; cursor: pointer;
+}
+.mmenu-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 6px 8px 10px; }
+.mmenu-group { padding-top: 8px; }
+.mmenu-label { color: var(--faint); text-transform: uppercase; letter-spacing: .14em; font-size: 9px; font-weight: 800; padding: 8px 12px 6px; }
+.mmenu-link {
+  display: flex; align-items: center; gap: 11px; min-height: 48px; padding: 0 12px;
+  border-radius: 14px; color: var(--ink-soft); text-decoration: none;
+  font-size: 12.5px; font-weight: 700;
+}
+.mmenu-link > span:first-of-type { flex: 1; }
+.mmenu-link.active { background: var(--lime-soft); color: #3f5a15; }
+@media (hover: hover) and (pointer: fine) { .mmenu-link:hover { background: var(--card-soft); } }
+.mmenu-chevron { color: var(--faint); flex: 0 0 auto; }
+.mmenu-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line); flex: 0 0 auto; background: var(--card-soft);
+}
+.mmenu-signout {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid #ecc9bd; background: #fdece7; color: #a4452c;
+  font-size: 11.5px; font-weight: 800; font-family: inherit; cursor: pointer;
+}
 
 /* footer note */
 .footer-note { color: var(--faint); font-size: 10px; text-align: center; margin: 26px auto 0; max-width: 560px; line-height: 1.7; }
