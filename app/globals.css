@@ -143,7 +143,7 @@ button:disabled { cursor: not-allowed; }
   border: 0; border-radius: 18px; padding: 11px 12px; margin: 0 2px 20px; text-align: left;
   transition: transform .18s ease, box-shadow .18s ease; box-shadow: var(--shadow-md);
 }
-.workspace-switcher:hover { transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .workspace-switcher:hover {  transform: translateY(-1px);  } }
 .workspace-avatar {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border-radius: 12px; background: var(--lime); color: var(--lime-foreground);
@@ -160,7 +160,7 @@ button:disabled { cursor: not-allowed; }
   height: 42px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
   transition: background .16s ease, color .16s ease;
 }
-.nav-link:hover { color: var(--ink); background: var(--card-soft); }
+@media (hover: hover) and (pointer: fine) { .nav-link:hover {  color: var(--ink); background: var(--card-soft);  } }
 .nav-link.active { color: #f4f9ef; background: var(--deep); font-weight: 700; box-shadow: var(--shadow-md); }
 .nav-link.active svg { color: var(--lime); }
 .nav-badge { margin-left: auto; font-size: 9px; background: var(--lime); padding: 3px 8px; border-radius: 999px; color: var(--lime-foreground); font-weight: 800; }
@@ -226,7 +226,7 @@ button:disabled { cursor: not-allowed; }
   box-shadow: var(--shadow-lime), inset 0 1.5px 0 #ffffffa0; transition: transform .18s ease, box-shadow .18s ease;
   letter-spacing: -0.1px; white-space: nowrap;
 }
-.lime-button:hover { transform: translateY(-1.5px); box-shadow: 0 16px 36px rgba(174, 224, 77, 0.55), inset 0 1.5px 0 #ffffffa0; }
+@media (hover: hover) and (pointer: fine) { .lime-button:hover {  transform: translateY(-1.5px); box-shadow: 0 16px 36px rgba(174, 224, 77, 0.55), inset 0 1.5px 0 #ffffffa0;  } }
 .lime-button:active { transform: translateY(0); }
 
 .dark-button {
@@ -234,17 +234,17 @@ button:disabled { cursor: not-allowed; }
   border: 0; border-radius: 999px; color: #f0f7ec; font-size: 13px; font-weight: 750;
   background: var(--deep); box-shadow: var(--shadow-md); transition: transform .18s ease, background .18s ease; white-space: nowrap;
 }
-.dark-button:hover { background: var(--deep-2); transform: translateY(-1.5px); }
+@media (hover: hover) and (pointer: fine) { .dark-button:hover {  background: var(--deep-2); transform: translateY(-1.5px);  } }
 
 .ghost-pill {
   display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px;
   border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
   border-radius: 999px; font-size: 11px; font-weight: 700; text-decoration: none; transition: border-color .15s ease, color .15s ease;
 }
-.ghost-pill:hover { border-color: var(--lime-strong); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .ghost-pill:hover {  border-color: var(--lime-strong); color: var(--ink);  } }
 
 .text-link { color: var(--positive); font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-.text-link:hover { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) { .text-link:hover {  text-decoration: underline;  } }
 
 /* ------------------------------------------------------------------ */
 /* Hero balance panel (dark wallet card)                                */
@@ -293,20 +293,20 @@ button:disabled { cursor: not-allowed; }
 /* ------------------------------------------------------------------ */
 /* Quick actions (circular, reference pattern)                          */
 /* ------------------------------------------------------------------ */
-.quick-actions { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.quick-actions { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-snap-type: x proximity; touch-action: pan-y; }
 .quick-actions > * { scroll-snap-align: start; }
 .quick-actions::-webkit-scrollbar { display: none; }
 .quick-action {
   display: grid; justify-items: center; gap: 9px; border: 0; background: transparent;
   min-width: 76px; padding: 2px 2px 6px; border-radius: 18px; transition: transform .16s ease;
 }
-.quick-action:hover { transform: translateY(-2px); }
+@media (hover: hover) and (pointer: fine) { .quick-action:hover {  transform: translateY(-2px);  } }
 .quick-action-icon {
   width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
   background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line);
   transition: background .16s ease, box-shadow .16s ease;
 }
-.quick-action:hover .quick-action-icon { box-shadow: var(--shadow-md), inset 0 0 0 1px var(--line-strong); }
+@media (hover: hover) and (pointer: fine) { .quick-action:hover .quick-action-icon {  box-shadow: var(--shadow-md), inset 0 0 0 1px var(--line-strong);  } }
 .quick-action.primary .quick-action-icon {
   background: linear-gradient(160deg, #d4fa6f, var(--lime) 55%, #a9e44b); color: var(--lime-foreground);
   box-shadow: var(--shadow-lime), inset 0 1.5px 0 #ffffffa0;
@@ -374,7 +374,7 @@ button:disabled { cursor: not-allowed; }
   display: flex; align-items: center; gap: 12px; padding: 12px 10px; border-radius: 18px;
   transition: background .14s ease; text-decoration: none; color: inherit;
 }
-.txn-row:hover { background: var(--card-soft); }
+@media (hover: hover) and (pointer: fine) { .txn-row:hover {  background: var(--card-soft);  } }
 .txn-icon { width: 42px; height: 42px; border-radius: 16px; display: grid; place-items: center; flex: 0 0 auto; }
 .txn-icon.income { background: var(--positive-soft); color: var(--positive); }
 .txn-icon.expense { background: var(--negative-soft); color: var(--negative); }
@@ -402,7 +402,7 @@ button:disabled { cursor: not-allowed; }
 /* loans */
 .loan-list { display: grid; gap: 2px; margin-top: 6px; }
 .loan-item { display: flex; align-items: center; gap: 12px; padding: 13px 10px; border-radius: 18px; transition: background .14s ease; }
-.loan-item:hover { background: var(--card-soft); }
+@media (hover: hover) and (pointer: fine) { .loan-item:hover {  background: var(--card-soft);  } }
 .loan-icon { width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; background: var(--negative-soft); color: var(--negative); flex: 0 0 auto; }
 .loan-icon.receivable { background: var(--positive-soft); color: var(--positive); }
 .loan-name { font-size: 11.5px; font-weight: 750; }
@@ -414,7 +414,7 @@ button:disabled { cursor: not-allowed; }
   background: var(--lime); color: var(--lime-foreground); font-size: 10px; font-weight: 800;
   box-shadow: inset 0 1px 0 #ffffffa0; transition: transform .15s ease;
 }
-.loan-action:hover { transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .loan-action:hover {  transform: translateY(-1px);  } }
 .loan-action.collect { background: var(--deep); color: var(--lime); }
 
 .empty-state { text-align: center; color: var(--muted); font-size: 11px; padding: 30px 16px; }
@@ -492,9 +492,9 @@ button:disabled { cursor: not-allowed; }
 .owner-role { color: #3f6d17; background: var(--lime-soft); border-color: #d9ecb4; }
 .access-toggle { border: 0; background: transparent; padding: 6px 8px; font-size: 9px; font-weight: 800; border-radius: 999px; }
 .access-toggle.revoke { color: #a14f3d; }
-.access-toggle.revoke:hover { background: var(--negative-soft); }
+@media (hover: hover) and (pointer: fine) { .access-toggle.revoke:hover {  background: var(--negative-soft);  } }
 .access-toggle.restore { color: var(--positive); }
-.access-toggle.restore:hover { background: var(--positive-soft); }
+@media (hover: hover) and (pointer: fine) { .access-toggle.restore:hover {  background: var(--positive-soft);  } }
 
 /* ------------------------------------------------------------------ */
 /* Landing page                                                        */
@@ -550,7 +550,7 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 701px) { .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1181px) { .feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .feature-card { background: var(--card); border-radius: 22px; border: 1px solid #ffffff; box-shadow: var(--shadow-md); padding: 19px; display: grid; gap: 12px; align-content: start; transition: transform .2s ease; }
-.feature-card:hover { transform: translateY(-3px); }
+@media (hover: hover) and (pointer: fine) { .feature-card:hover {  transform: translateY(-3px);  } }
 .feature-icon { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; }
 .feature-card h3 { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: -.2px; }
 .feature-card p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
@@ -635,7 +635,7 @@ button:disabled { cursor: not-allowed; }
   border-radius: 999px; border: 1px solid var(--line-strong); background: #fff; color: var(--ink-soft);
   font-size: 11px; font-weight: 750; text-decoration: none; transition: border-color .16s ease, color .16s ease; white-space: nowrap;
 }
-.subtle-button:hover { border-color: var(--ink); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .subtle-button:hover {  border-color: var(--ink); color: var(--ink);  } }
 .subtle-button:disabled { opacity: .45; }
 
 .currency-badge { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--lime-soft); color: #57721f; border: 1px solid #dcebba; font-size: 9px; font-weight: 800; letter-spacing: .09em; }
@@ -661,14 +661,14 @@ button:disabled { cursor: not-allowed; }
   width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--line);
   background: #fff; color: var(--ink-soft); border-radius: 10px; transition: .15s ease;
 }
-.icon-row-button:hover { border-color: var(--line-strong); color: var(--ink); background: var(--card-soft); }
-.icon-row-button.archive:hover { color: var(--negative); border-color: #ecc9bd; background: var(--negative-soft); }
+@media (hover: hover) and (pointer: fine) { .icon-row-button:hover {  border-color: var(--line-strong); color: var(--ink); background: var(--card-soft);  } }
+@media (hover: hover) and (pointer: fine) { .icon-row-button.archive:hover {  color: var(--negative); border-color: #ecc9bd; background: var(--negative-soft);  } }
 .row-actions { display: flex; align-items: center; gap: 7px; }
 
 /* movement / payment rows */
 .movement-list { display: grid; gap: 2px; margin-top: 12px; }
 .movement-row { display: flex; align-items: center; gap: 12px; padding: 11px 10px; border-radius: 16px; transition: background .14s ease; }
-.movement-row:hover { background: var(--card-soft); }
+@media (hover: hover) and (pointer: fine) { .movement-row:hover {  background: var(--card-soft);  } }
 .movement-icon { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; flex: 0 0 auto; }
 .movement-icon.in { background: var(--positive-soft); color: var(--positive); }
 .movement-icon.out { background: var(--negative-soft); color: var(--negative); }
@@ -851,7 +851,7 @@ button:disabled { cursor: not-allowed; }
   color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer;
   transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
 }
-.ghost-icon-button:hover { color: var(--ink); background: rgb(13 26 19 / .06); }
+@media (hover: hover) and (pointer: fine) { .ghost-icon-button:hover {  color: var(--ink); background: rgb(13 26 19 / .06);  } }
 .ghost-icon-button:active { transform: scale(.94); }
 
 /* sounds popover */
@@ -890,7 +890,7 @@ button:disabled { cursor: not-allowed; }
   font-size: 8px; font-weight: 700; border-radius: 999px; padding: 8px 15px; min-height: 46px; min-width: 60px;
   font-family: inherit; transition: color .2s ease; isolation: isolate;
 }
-.notif-nav-btn:hover { color: #e7f3e2; }
+@media (hover: hover) and (pointer: fine) { .notif-nav-btn:hover {  color: #e7f3e2;  } }
 .notif-nav-btn .notif-badge { top: 2px; right: 6px; border-color: transparent; box-shadow: 0 0 0 2px rgb(16 27 21 / .85); }
 .notif-nav-label { font-size: 8px; letter-spacing: .02em; }
 
@@ -917,7 +917,7 @@ button:disabled { cursor: not-allowed; }
   border: 1px solid var(--line-strong); background: #fff; font-size: 9.5px; font-weight: 700; color: var(--ink-soft);
   cursor: pointer; transition: border-color .15s ease, color .15s ease; font-family: inherit; white-space: nowrap;
 }
-.notif-markall:hover:not(:disabled) { border-color: var(--lime-strong); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .notif-markall:hover:not(:disabled) {  border-color: var(--lime-strong); color: var(--ink);  } }
 .notif-markall:disabled { opacity: .4; cursor: default; }
 
 .notif-list { overflow-y: auto; padding: 8px; overscroll-behavior: contain; }
@@ -927,7 +927,7 @@ button:disabled { cursor: not-allowed; }
   padding: 10px; border-radius: 16px; border: 1px solid transparent; background: transparent; cursor: pointer;
   transition: background .15s ease, border-color .15s ease; font-family: inherit;
 }
-.notif-item:hover { background: rgb(13 26 19 / .05); }
+@media (hover: hover) and (pointer: fine) { .notif-item:hover {  background: rgb(13 26 19 / .05);  } }
 .notif-item.unread { background: rgb(201 242 79 / .17); border-color: rgb(165 216 63 / .45); }
 .notif-item.unread::before { content: ''; position: absolute; left: 3px; top: 12px; bottom: 12px; width: 3px; border-radius: 999px; background: var(--lime-strong); }
 .notif-icon { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--deep); color: var(--lime); }
@@ -970,7 +970,7 @@ button:disabled { cursor: not-allowed; }
   background: var(--lime); color: var(--lime-foreground); font-size: 10px; font-weight: 800; cursor: pointer;
   transition: transform .15s ease, box-shadow .15s ease; font-family: inherit; box-shadow: var(--lime-glow);
 }
-.push-toggle:hover { transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .push-toggle:hover {  transform: translateY(-1px);  } }
 .push-toggle:active { transform: scale(.96); }
 .push-toggle.off { background: #fff; color: var(--ink-soft); border-color: var(--line-strong); box-shadow: none; font-weight: 700; }
 .push-working { display: inline-flex; gap: 6px; align-items: center; font-size: 9.5px; color: var(--muted); flex: 0 0 auto; }
@@ -984,3 +984,23 @@ button:disabled { cursor: not-allowed; }
 .push-ios-steps li { display: flex; gap: 7px; align-items: center; font-size: 9px; color: var(--ink-soft); }
 .push-ios-steps svg { color: var(--lime-strong); flex: 0 0 auto; }
 .push-ios-steps strong { font-weight: 800; }
+
+
+/* ------------------------------------------------------------------ */
+/* Native-feel baseline (mobile-native skill)                           */
+/* ------------------------------------------------------------------ */
+html { overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+body { overscroll-behavior: none; }
+
+/* Controls never select/callout on long-press; content stays selectable */
+button, [role="button"], .mobile-nav a, .quick-action, .loan-action,
+.icon-row-button, .notif-nav-btn, .notif-trigger, .push-toggle, .push-toggle *,
+.access-toggle, .ghost-icon-button, .notif-markall, .notif-item {
+  touch-action: manipulation;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+
+/* iOS zooms the page on <16px inputs; keep design on desktop, fix touch */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
