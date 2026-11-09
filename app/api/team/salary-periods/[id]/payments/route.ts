@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (amount > remaining) return NextResponse.json({ error: `Payment is more than the remaining salary due (${remaining.toLocaleString()} PKR).` }, { status: 400 });
 
     const recordPayment = db.transaction(async () => {
-      const description = `Salary payment · ${period.employeeName} (${period.periodStart} – ${period.periodEnd})`;
+      const description = `Salary payment · ${period.employeeName} (${period.periodStart} to ${period.periodEnd})`;
       const transactionResult = await db.prepare(`INSERT INTO transactions
         (workspace_id, account_id, type, amount, description, category, note, transaction_date, status, created_by)
         VALUES (?, ?, 'EXPENSE', ?, ?, 'Salaries & wages', ?, ?, 'CLEARED', ?)`)

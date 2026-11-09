@@ -110,3 +110,34 @@ schema-wise.** It is not "fully live" data-wise, though — see below.
 - Distribution preview builds: requires at least one partner with a share change
   and a non-zero basis for the period; those inputs exist, so the preview's
   queries should resolve ✅ (by SQL). Not executed.
+
+
+## 4. Follow-up (2026-11-09, after the PR #17 deploy)
+
+The first visit to `/login` on the new deployment did run the partner seed, so
+finding 1 was the "never executed" case, not a data error. It then exposed a
+second, worse defect:
+
+- **The demo seed ran twice.** Workspace 2 now has every entry duplicated
+  (two `EXPENSE_PAID` 18,500 rows, two `CASH_WITHDRAWAL` 25,000 rows, two
+  `ADVANCE_REIMBURSED` 10,000 rows) and **two POSTED distributions for the same
+  October period** (`#1` and `#2`, both 46,000 residual 45/35/20, eleven seconds
+  apart). Cause: `seedPartnerDemoIfEmpty` guarded on a `COUNT(*)` of
+  `partner_entries` and then inserted, which is read-then-write. On SQLite the
+  write queue hides that; on Postgres two lambdas rendering `/login` at once both
+  saw zero rows. Nothing about the data is a schema error, the numbers are just
+  doubled.
+- Fixes shipped in this branch (no production writes): a `seed_claims` table with
+  a `(workspace_id, kind)` primary key that a seed must insert into before it
+  seeds (the loser of a race fails on the key and stops, a failed seed releases
+  its claim), a partial unique index allowing one `POSTED` distribution per
+  workspace period as a database backstop, and a friendly 400 instead of a 500
+  when that index rejects a race. Verified locally: 20 concurrent first visits to
+  `/login` on a fresh database produce exactly 6 partner entries, 1 distribution,
+  1 clearing account, 3 inventory items, 2 employees, 2 salary periods.
+- **Still needs the owner's decision (nothing applied):** production workspace 2
+  holds the duplicated rows and the double October distribution. The clean path is
+  to void distribution #2, and remove the duplicate partner entries (the seed's
+  demo-only rows) so the demo shows one of each; that is a write to the public demo
+  workspace and needs an explicit go-ahead. Applying the new migration is also
+  pending approval.

@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
 
   if (!type || !allowedTypes.has(type)) return NextResponse.json({ error: 'Choose a supported transaction type.' }, { status: 400 });
   if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: 'Amount must be a positive whole number of PKR.' }, { status: 400 });
-  if (!description || description.length > 160) return NextResponse.json({ error: 'Add a description of 1–160 characters.' }, { status: 400 });
+  if (!description || description.length > 160) return NextResponse.json({ error: 'Add a description of 1 to 160 characters.' }, { status: 400 });
   if (!Number.isSafeInteger(accountId)) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
   if (!isValidDate(date)) return NextResponse.json({ error: 'Enter a valid transaction date.' }, { status: 400 });
   if (type === 'TRANSFER' && (!destinationAccountId || destinationAccountId === accountId)) {
