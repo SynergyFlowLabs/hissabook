@@ -25,7 +25,7 @@ const manageLinks = [
   { label: 'Inventory', href: '/inventory', icon: Boxes, key: 'inventory' },
   { label: 'Team & salaries', href: '/team', icon: UsersRound, key: 'team' },
   { label: 'Partners', href: '/partners', icon: UsersRound, key: 'partners' },
-  { label: 'Reports', href: '/#reports', icon: FileText, key: 'reports' },
+  { label: 'Reports', href: '/reports', icon: FileText, key: 'reports' },
 ];
 
 const mobileLinks = [

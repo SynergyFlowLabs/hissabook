@@ -33,6 +33,11 @@ type DashboardData = {
   loans: Array<{ id: number; direction: string; name: string; counterparty: string; principal: number; outstanding: number; dueAt: string | null; repaidAmount: number; repaymentCount: number; lastRepaymentAt: string | null }>;
   summary: { cashBalance: number; incomeThisMonth: number; expensesThisMonth: number; incomeLastMonth: number; expensesLastMonth: number; outstandingLoans: number; activeLoans: number };
   chart: Array<{ day: string; income: number; expenses: number }>;
+  reportSnapshot?: {
+    label: string; income: number; expenses: number; net: number;
+    topExpenses: Array<{ label: string; amount: number }>;
+    excludedCount: number; pendingCount: number; pendingAmount: number;
+  } | null;
 };
 
 type ChartPoint = { day: string; income: number; expenses: number };
@@ -439,6 +444,21 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             </div>
             {data.loans.length ? <div className="loan-list">{data.loans.map((loan) => <div className="loan-item" key={loan.id}><span className={`loan-icon ${loan.direction === 'RECEIVABLE' ? 'receivable' : ''}`}>{loan.direction === 'RECEIVABLE' ? <ArrowUpRight size={17} /> : <ArrowDownLeft size={17} />}</span><span style={{ minWidth: 0 }}><div className="loan-name">{loan.name}</div><div className="loan-due">{loan.direction === 'PAYABLE' ? 'Owed to' : 'Owed by'} {loan.counterparty || 'Unspecified'} · Due {shortDate(loan.dueAt)}</div></span><span className="loan-amount">{hidden(loan.outstanding)}<small>{loan.outstanding === 0 ? 'Settled' : loan.direction === 'PAYABLE' ? 'Payable' : 'Receivable'} · {hidden(loan.repaidAmount)} repaid</small></span>{loan.outstanding > 0 && canEdit(userRole) && <button className={`loan-action ${loan.direction === 'RECEIVABLE' ? 'collect' : ''}`} onClick={() => openRepayment(loan)}>{loan.direction === 'PAYABLE' ? 'Repay' : 'Collect'}</button>}</div>)}</div> : <div className="empty-state">No outstanding loans or dues recorded.</div>}
           </section>
+          {data.reportSnapshot ? (
+            <section className="soft-card" style={{ marginTop: 14 }} aria-label="This month explained">
+              <div className="card-header-row">
+                <div><div className="card-title">This month, explained</div><div className="card-subtitle">{data.reportSnapshot.label} · same counting rules as the reports screen</div></div>
+                <a className="text-link" href="/reports">Open reports <ArrowRight size={12} /></a>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 12 }}>
+                <div><div className="stat-label">Cleared income</div><div className="stat-value" style={{ marginTop: 4 }}>{hidden(data.reportSnapshot.income)}</div></div>
+                <div><div className="stat-label">Cleared expenses</div><div className="stat-value" style={{ marginTop: 4 }}>{hidden(data.reportSnapshot.expenses)}</div></div>
+                <div><div className="stat-label">Income minus expenses</div><div className="stat-value" style={{ marginTop: 4, color: data.reportSnapshot.net < 0 ? 'var(--negative)' : 'var(--positive)' }}>{data.reportSnapshot.net < 0 ? '−' : ''}{hidden(Math.abs(data.reportSnapshot.net))}</div></div>
+              </div>
+              {data.reportSnapshot.topExpenses.length ? <div className="card-subtitle" style={{ marginTop: 12 }}>Biggest expenses: {data.reportSnapshot.topExpenses.map((row) => `${row.label} (${hidden(row.amount)})`).join(', ')}</div> : null}
+              <div className="card-subtitle" style={{ marginTop: 6 }}>{data.reportSnapshot.excludedCount} {data.reportSnapshot.excludedCount === 1 ? 'record was' : 'records were'} left out of income and expenses (transfers, owner money, loan principal, pending or voided rows).{data.reportSnapshot.pendingCount > 0 ? ` ${data.reportSnapshot.pendingCount} pending worth ${hidden(data.reportSnapshot.pendingAmount)} will count once cleared.` : ''}</div>
+            </section>
+          ) : null}
           <p className="footer-note" id="about">Hisaabook keeps your business records clear. For bookkeeping reference only, not legal, tax, or accounting advice.</p>
         </div>
       </main>
