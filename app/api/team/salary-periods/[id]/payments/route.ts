@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getTeamData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification, money } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .run(workspaceId, transactionId, 'SALARY_PAYMENT_RECORDED', JSON.stringify({ periodId, employeeId: period.employeeId, amount }), access.member.name);
     });
     await recordPayment();
+    await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'salary', title: 'Salary paid', body: `${period.employeeName} · ${money(amount)}`, href: '/team' });
     return NextResponse.json(await getTeamData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     console.error('Failed to record salary payment', error);

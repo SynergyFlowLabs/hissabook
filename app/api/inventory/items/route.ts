@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getInventoryData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +25,7 @@ export async function POST(request: NextRequest) {
     await db.prepare(`INSERT INTO inventory_items (workspace_id, name, sku, category, unit, reorder_level)
       VALUES (?, ?, ?, ?, ?, ?)`)
       .run(workspaceId, name, body.sku?.trim().slice(0, 40) || '', body.category?.trim().slice(0, 60) || 'General', unit, reorderLevel);
+    await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'inventory', title: 'Inventory item added', body: name, href: '/inventory' });
     return NextResponse.json(await getInventoryData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {

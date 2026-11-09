@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getDashboardData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification, money } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +67,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return repaymentId;
     });
     const repaymentId = await saveRepayment();
+    await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'loan',
+      title: loan.direction === 'PAYABLE' ? 'Loan repayment recorded' : 'Loan collection recorded',
+      body: `${money(principalAmount)} · outstanding ${money(Math.max(0, loan.outstanding - principalAmount))}${loan.counterparty ? ` · ${loan.counterparty}` : ''}`,
+      href: '/#loans' });
     return NextResponse.json({ ...await getDashboardData(access.member.workspaceId), createdRepaymentId: repaymentId }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'REPAYMENT_EXCEEDS_BALANCE') return NextResponse.json({ error: 'The repayment exceeds the remaining loan balance.' }, { status: 409 });

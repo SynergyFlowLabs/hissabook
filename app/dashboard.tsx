@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Briefcase,
+  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Briefcase,
   Check, Eye, EyeOff, HandCoins, Landmark, MoreHorizontal, Plus,
   Search, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Wallet,
 } from 'lucide-react';
@@ -238,7 +238,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           <div className="top-actions">
             {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-44 rounded-full bg-white text-xs sm:w-52" />}
             <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
-            <Button variant="outline" size="icon" className="relative rounded-full bg-white" aria-label="Notifications" onClick={() => toast.info('You’re all caught up.', 'New ledger activity will appear here.')}><Bell size={16} /></Button>
           </div>
         </header>
 

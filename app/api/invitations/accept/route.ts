@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { acceptWorkspaceInvitation, getCredentialRecord, getInvitationByHash } from '@/lib/database';
 import { hashPassword, verifyPassword } from '@/lib/passwords';
 import { hashInvitationToken } from '@/lib/invitation-tokens';
+import { createWorkspaceNotification } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest) {
   if (existing && !verifyPassword(password, existing.passwordHash)) return NextResponse.json({ error: 'This email already has an account. Enter its current password to accept the invitation.' }, { status: 401 });
   try {
     const result = await acceptWorkspaceInvitation(tokenHash, existing?.passwordHash ?? hashPassword(password));
+    await createWorkspaceNotification({ workspaceId: invite.workspaceId, actorUserId: null, kind: 'member', title: 'New member joined', body: `${result.email} · ${invite.role}`, href: '/' });
     return NextResponse.json({ ok: true, email: result.email }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'INVITATION_INVALID') return NextResponse.json({ error: 'This invitation link is invalid, expired, or has already been used.' }, { status: 400 });

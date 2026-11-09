@@ -9,6 +9,10 @@ import { signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import SoundControl from '@/components/sound-control';
+import NotificationButton from '@/components/notification-button';
+import NotificationPanel from '@/components/notification-panel';
+import { useNotifications } from '@/lib/use-notifications';
+import { useState } from 'react';
 
 const workspaceLinks = [
   { label: 'Overview', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
@@ -46,6 +50,9 @@ export default function AppSidebar({
   current: string;
   loanCount?: number;
 }) {
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notif = useNotifications();
+  const toggleNotif = () => setNotifOpen((open) => !open);
   const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const canViewTeam = ['OWNER', 'ADMIN', 'PAYROLL'].includes(userRole);
   const roleLabel: Record<string, string> = { OWNER: 'Owner', ADMIN: 'Admin', BOOKKEEPER: 'Bookkeeper', VIEWER: 'Viewer', PAYROLL: 'Payroll' };
@@ -84,7 +91,8 @@ export default function AppSidebar({
         <div className="user-profile">
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>
           <div className="profile-meta"><div className="profile-name">{userName}</div><div className="profile-role">{roleLabel[userRole] ?? 'Member'}</div></div>
-          <SoundControl className="ml-auto" />
+          <NotificationButton variant="sidebar" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
+          <SoundControl />
           <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => signOut({ redirectTo: '/login' })}><LogOut size={16} /></Button>
         </div>
       </aside>
@@ -98,7 +106,17 @@ export default function AppSidebar({
             </a>
           );
         })}
+        <NotificationButton variant="nav" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
       </nav>
+      <NotificationPanel
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        items={notif.items}
+        unreadCount={notif.unreadCount}
+        loading={notif.loading}
+        onMarkRead={notif.markRead}
+        onMarkAllRead={notif.markAllRead}
+      />
     </>
   );
 }
