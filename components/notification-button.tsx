@@ -3,14 +3,18 @@
 import { motion } from 'motion/react';
 import { Bell } from 'lucide-react';
 
-/** Bell trigger with animated unread badge. `variant` switches chrome: sidebar (desktop) or in-pill nav slot (mobile). */
+/**
+ * Bell trigger with animated unread badge. `variant` switches chrome: sidebar
+ * (desktop footer), `nav` (the old bottom-pill slot), or `topbar` (the mobile
+ * topbar, right of search, which is where the pill used to send people).
+ */
 export default function NotificationButton({
   variant,
   unreadCount,
   open,
   onToggle,
 }: {
-  variant: 'sidebar' | 'nav';
+  variant: 'sidebar' | 'nav' | 'topbar';
   unreadCount: number;
   open: boolean;
   onToggle: () => void;
@@ -41,6 +45,23 @@ export default function NotificationButton({
       >
         <Bell size={17} strokeWidth={2} />
         <span className="notif-nav-label">Alerts</span>
+        {badge}
+      </button>
+    );
+  }
+
+  if (variant === 'topbar') {
+    return (
+      <button
+        type="button"
+        id="notif-topbar-trigger"
+        className="notif-topbar-btn"
+        aria-label={label}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={onToggle}
+      >
+        <Bell size={17} strokeWidth={2} />
         {badge}
       </button>
     );

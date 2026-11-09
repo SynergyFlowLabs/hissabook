@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { readCache, writeCache } from '@/lib/route-cache';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, Wallet } from 'lucide-react';
-import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,13 @@ const dateLabel = (date: string) => new Date(`${date.slice(0, 10)}T12:00:00`).to
 const monthStart = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10); };
 const monthEnd = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10); };
 
+/** Cached across navigation so returning to Team paints instantly. */
+const TEAM_CACHE = 'team';
+
 export default function TeamClient({ userName, role }: { userName: string; role: string }) {
-  const [data, setData] = useState<TeamData | null>(null);
+  // Seeded from the cache so returning to this screen paints the last payload
+  // instead of the full-screen "Loading team records" state.
+  const [data, setData] = useState<TeamData | null>(() => readCache<TeamData>(TEAM_CACHE));
   const [accessData, setAccessData] = useState<WorkspaceAccess | null>(null);
   const [accessError, setAccessError] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -68,7 +74,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
     const response = await fetch('/api/team', { cache: 'no-store' });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not load employee and salary records.');
-    setData(result as TeamData);
+    setData(result as TeamData); writeCache(TEAM_CACHE, result as TeamData);
     if (result.employees[0]) setSelectedEmployee((current: string) => current || String(result.employees[0].id));
     if (result.accounts[0]) setPaymentAccount((current: string) => current || String(result.accounts[0].id));
   };
@@ -99,14 +105,14 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const response = await fetch(`/api/team/employees/${employee.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !employee.active }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || `Could not ${action.toLowerCase()} employee.`);
-      setData(result as TeamData);
+      setData(result as TeamData); writeCache(TEAM_CACHE, result as TeamData);
       const revert = employee.active; // undo restores the pre-action state
       toast.withUndo(revert ? 'Employee archived' : 'Employee reactivated', () => {
         void (async () => {
           try {
             const revertResponse = await fetch(`/api/team/employees/${employee.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: revert }) });
             const revertResult = await revertResponse.json();
-            if (revertResponse.ok) { setData(revertResult as TeamData); toast.success(revert ? 'Employee reactivated' : 'Employee archived'); }
+            if (revertResponse.ok) { setData(revertResult as TeamData); writeCache(TEAM_CACHE, revertResult as TeamData); toast.success(revert ? 'Employee reactivated' : 'Employee archived'); }
             else toast.error('Could not undo that change.', revertResult.error);
           } catch { toast.error('Could not undo that change.'); }
         })();
@@ -179,7 +185,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not save this record.');
-      setData(result as TeamData); setDialogOpen(false);
+      setData(result as TeamData); writeCache(TEAM_CACHE, result as TeamData); setDialogOpen(false);
       if (dialogMode === 'employee' || dialogMode === 'employeeEdit') { setEmployeeName(''); setJobTitle(''); setEmployeeRef(''); setMonthlySalary(''); setEditingEmployeeId(null); }
       if (dialogMode === 'payment') {
         toast.salaryPaid('Salary paid', 'Payment posted to the ledger and marked against the period.');
@@ -198,11 +204,10 @@ export default function TeamClient({ userName, role }: { userName: string; role:
 
   return (
     <div className="app-shell" id="overview">
-      <AppSidebar workspaceName={data.workspace.name} businessType="Team & payroll records" userName={userName} userRole={role} current="team" />
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Team & salaries</strong></div>
-          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span></div>
+          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Team & salaries</strong></div>
+          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">
           <section className="page-heading">

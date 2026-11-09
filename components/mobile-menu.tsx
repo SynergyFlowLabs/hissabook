@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { clearCache } from '@/lib/route-cache';
+import { resetWorkspaceContext } from '@/lib/use-workspace-context';
 import {
   ArrowLeftRight, Boxes, ChevronRight, FileText, HandCoins, LayoutDashboard,
   LogOut, UserRound, UsersRound, Wallet,
@@ -81,7 +84,7 @@ export default function MobileMenu({
       <div className="mmenu-group">
         <div className="mmenu-label">{title}</div>
         {visible.map(({ label, href, icon: Icon, key }) => (
-          <a
+          <Link
             key={key}
             href={href}
             className={`mmenu-link ${key === current ? 'active' : ''}`}
@@ -92,7 +95,7 @@ export default function MobileMenu({
             <span>{label}</span>
             {key === 'loans' && loanCount > 0 && <span className="nav-badge">{loanCount}</span>}
             <ChevronRight size={15} className="mmenu-chevron" aria-hidden="true" />
-          </a>
+          </Link>
         ))}
       </div>
     );
@@ -142,7 +145,7 @@ export default function MobileMenu({
               <button
                 type="button"
                 className="mmenu-signout"
-                onClick={() => { onClose(); void signOut({ redirectTo: '/login' }); }}
+                onClick={() => { onClose(); clearCache(); resetWorkspaceContext(); void signOut({ redirectTo: '/login' }); }}
               >
                 <LogOut size={16} /> Sign out
               </button>

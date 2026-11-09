@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
+import { readCache, writeCache } from '@/lib/route-cache';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Download, HandCoins, History, LogOut, PieChart, Plus, Printer,
   SlidersHorizontal, Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
 } from 'lucide-react';
-import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -137,8 +138,13 @@ const ENTRY_LABEL: Record<string, string> = {
 };
 const FRONT_CATEGORIES = ['General', 'Sales & services', 'Rent & utilities', 'Tools & software', 'Travel & transport', 'Inventory & stock', 'Marketing & ads', 'Salaries & wages'];
 
+/** Cached across navigation so returning to Partners paints instantly. */
+const PARTNERS_CACHE = 'partners';
+
 export default function PartnersClient({ userName, role }: { userName: string; role: string }) {
-  const [data, setData] = useState<Overview | null>(null);
+  // Seeded from the cache: every mutation on this screen ends in `load()`, which
+  // rewrites it, so the snapshot can never be older than the last save.
+  const [data, setData] = useState<Overview | null>(() => readCache<Overview>(PARTNERS_CACHE));
   const [loadError, setLoadError] = useState('');
   const canManage = role === 'OWNER' || role === 'ADMIN';
   const canEdit = canManage || role === 'BOOKKEEPER';
@@ -147,7 +153,9 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     try {
       const response = await fetch('/api/partners', { cache: 'no-store' });
       if (!response.ok) throw new Error();
-      setData(await response.json() as Overview);
+      const next = await response.json() as Overview;
+      setData(next);
+      writeCache(PARTNERS_CACHE, next);
       setLoadError('');
     } catch {
       setLoadError('Partner records could not be loaded. Please refresh.');
@@ -678,21 +686,20 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   })();
 
   if (loadError) {
-    return (<div className="app-shell" id="overview"><AppSidebar workspaceName="Hisaabook" businessType="Partners" userName={userName} userRole={role} current="partners" />
+    return (<div className="app-shell" id="overview">
       <main className="main-area"><div className="content"><div className="empty-state" role="alert">{loadError}</div></div></main></div>);
   }
   if (!data) {
-    return (<div className="app-shell" id="overview"><AppSidebar workspaceName="Hisaabook" businessType="Partners" userName={userName} userRole={role} current="partners" />
+    return (<div className="app-shell" id="overview">
       <main className="main-area"><div className="content"><div className="empty-state">Loading partner records…</div></div></main></div>);
   }
 
   return (
     <div className="app-shell" id="overview">
-      <AppSidebar workspaceName={data.workspace.name} businessType="Ownership & partner money" userName={userName} userRole={role} current="partners" />
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Partners & shares</strong></div>
-          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span></div>
+          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Partners & shares</strong></div>
+          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">
           <section className="page-heading">

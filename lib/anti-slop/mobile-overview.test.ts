@@ -139,13 +139,14 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(rule).toContain('margin-inline: auto');
   });
 
-  it('leaves room for six items on a 320px phone', async () => {
+  it('leaves room for five items on a 320px phone', async () => {
     const css = await read('app/globals.css');
-    const narrow = css.slice(css.indexOf('@media (max-width: 389px)'), css.indexOf('/* Menu trigger'));
+    const narrow = css.slice(css.indexOf('@media (max-width: 359px)'), css.indexOf('/* Menu trigger'));
     expect(narrow).toContain('.mobile-nav a, .mobile-nav-menu');
     expect(narrow).toContain('min-width: 44px');
-    // The least-used label gives way first, so the icons and hit areas stay.
-    expect(narrow).toContain('.mobile-nav-menu span { display: none; }');
+    // The bell moved to the topbar, so the pill is five items again and every
+    // one of them keeps its label even on a 320px phone.
+    expect(narrow).not.toContain('display: none');
   });
 
   it('does not re-position the active pill with the generic child rule', async () => {
@@ -155,6 +156,158 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(css).toContain('.mobile-nav a > *:not(.mobile-nav-pill)');
     const pill = css.slice(css.indexOf('.mobile-nav-pill {'), css.indexOf('.mobile-nav-pill {') + 200);
     expect(pill).toContain('position: absolute;');
+  });
+});
+
+describe('the notification bell lives in the topbar, right of search', () => {
+  it('is portalled into a slot every screen renders next to its search control', async () => {
+    const portal = await read('components/topbar-notif-portal.tsx');
+    expect(portal).toContain("document.querySelector<HTMLElement>('.topbar-notif-slot')");
+    expect(portal).toContain('createPortal');
+    expect(portal).toContain('variant="topbar"');
+
+    // Every screen with a topbar must carry the slot, or the bell silently
+    // disappears from that screen.
+    for (const screen of [
+      'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
+      'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
+      'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
+    ]) {
+      expect({ screen, slot: (await read(screen)).includes('topbar-notif-slot') }).toEqual({ screen, slot: true });
+    }
+  });
+
+  it('is no longer in the bottom pill', async () => {
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).not.toContain('variant="nav"');
+    // The sidebar keeps its own trigger for desktop, and the portal is mounted
+    // once so there is still a single polling loop and a single panel.
+    expect(sidebar).toContain('variant="sidebar"');
+    expect(sidebar.match(/<TopbarNotifPortal/g)?.length).toBe(1);
+    expect(sidebar.match(/<NotificationPanel/g)?.length).toBe(1);
+  });
+
+  it('is a 44px target under a thumb and a plain circle beside search', async () => {
+    const css = await read('app/globals.css');
+    const block = css.slice(css.indexOf('.notif-topbar-btn {'), css.indexOf('.notif-scrim {'));
+    expect(block).toMatch(/@media \(pointer: coarse\) \{ \.notif-topbar-btn \{ width: 44px; height: 44px; \} \}/);
+    expect(block).toMatch(/@media \(min-width: 901px\) \{ \.notif-topbar-btn \{ display: none; \} \}/);
+    // Badge ring matches the white circle rather than the old sidebar card.
+    expect(block).toContain('.notif-topbar-btn .notif-badge { top: -4px; right: -4px; border-color: var(--card); }');
+  });
+});
+
+describe('navigation is client-side, not a full page reload', () => {
+  const screens = [
+    'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
+    'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
+    'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
+    'components/app-sidebar.tsx', 'components/mobile-menu.tsx',
+  ];
+
+  it('never uses a bare anchor for an internal route', async () => {
+    // A raw <a href="/x"> makes the browser throw the document away and fetch a
+    // new one: new HTML, new JS parse, new hydration, then a client fetch for
+    // the data. That is the "every page takes ages to load" report. next/link
+    // turns it into a client transition.
+    for (const screen of screens) {
+      const source = await read(screen);
+      const anchors = source.match(/<a\b[^>]*>/g) ?? [];
+      const internal = anchors.filter((tag) => /href="\/(?:#|$|transactions|partners|reports|inventory|team)/.test(tag));
+      expect({ screen, internal }).toEqual({ screen, internal: [] });
+    }
+  });
+
+  it('keeps full loads only where a full load is correct', async () => {
+    // Auth surfaces must not be client transitions: signing in or out has to
+    // re-read the session on the server, and a cached authenticated shell must
+    // never be reused. CSV links must reach the download, not the router.
+    // So the surviving raw anchors are exactly these, and nothing else.
+    const allowed = [
+      'app/invite/[token]/page.tsx', 'components/auth-form.tsx',
+      'components/invite-accept-form.tsx', 'app/partners/partners-client.tsx',
+    ];
+    for (const file of allowed) {
+      const anchors = (await read(file)).match(/<a\s[^>]*href="[^"]*"/g) ?? [];
+      const internal = anchors.filter((tag) => /href="\/(?:#|$|login|transactions|partners|reports|inventory|team)/.test(tag));
+      const suspicious = internal.filter((tag) => !/format=csv/.test(tag) && !/href="\/(?:login)?"/.test(tag));
+      expect({ file, suspicious }).toEqual({ file, suspicious: [] });
+    }
+  });
+
+  it('keeps the shell mounted once, in the root layout', async () => {
+    const layout = await read('app/layout.tsx');
+    expect(layout).toContain('<AppShell');
+    expect(layout).toContain("from '@/components/app-shell'");
+    // No screen may mount the shell itself, or it unmounts on navigation again.
+    for (const screen of screens) {
+      expect({ screen, shell: (await read(screen)).includes('<AppSidebar') }).toEqual({ screen, shell: false });
+    }
+  });
+
+  it('derives the active nav item from the route, not from page props', async () => {
+    const shell = await read('components/app-shell.tsx');
+    expect(shell).toContain('usePathname()');
+    expect(shell).toContain("['/transactions', 'transactions']");
+    expect(shell).toContain("['/reports', 'reports']");
+    // Unauthenticated routes must not render the authenticated shell.
+    expect(shell).toContain("'/login'");
+    expect(shell).toContain("'/setup'");
+    expect(shell).toContain("'/invite'");
+  });
+
+  it('re-resolves the notification slot when the page changes', async () => {
+    // The shell outlives the page now, so the slot it portals into is rebuilt on
+    // every navigation. A one-shot lookup made the bell disappear from the topbar
+    // after the first tap, undoing tranche D.
+    const portal = await read('components/topbar-notif-portal.tsx');
+    expect(portal).toContain('usePathname()');
+    expect(portal).toContain('[pathname]');
+    expect(portal).toContain('MutationObserver');
+  });
+
+  it('keeps per-visitor payloads out of the server module scope', async () => {
+    // The screen cache is module state inside client components that are also
+    // server-rendered. Without the `window` guard a warm Node process would hand
+    // one visitor the previous visitor's ledger. This assertion is a privacy
+    // guard, not a style one.
+    const cache = await read('lib/route-cache.ts');
+    expect(cache).toContain("typeof window === 'undefined'");
+    expect(cache.match(/typeof window === 'undefined'/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
+  it('drops cached payloads and identity on sign-out', async () => {
+    // Both caches outlive the session in browser memory; a second account on the
+    // same device must not paint the first account's books or loan badge.
+    for (const surface of ['components/app-sidebar.tsx', 'components/mobile-menu.tsx']) {
+      const source = await read(surface);
+      expect({ surface, clearsCache: source.includes('clearCache()') }).toEqual({ surface, clearsCache: true });
+      expect({ surface, resetsIdentity: source.includes('resetWorkspaceContext()') }).toEqual({ surface, resetsIdentity: true });
+    }
+  });
+
+  it('does not blank the whole screen on a return visit', async () => {
+    // Each of these used to start at `null`, so a client-side return replaced the
+    // page with a full-screen loader while it refetched bytes the browser had.
+    const cached = [
+      ['app/dashboard.tsx', 'readCache<DashboardData>(DASHBOARD_CACHE)'],
+      ['app/team/team-client.tsx', 'readCache<TeamData>(TEAM_CACHE)'],
+      ['app/inventory/inventory-client.tsx', 'readCache<InventoryData>(INVENTORY_CACHE)'],
+      ['app/partners/partners-client.tsx', 'readCache<Overview>(PARTNERS_CACHE)'],
+    ] as const;
+    for (const [screen, seed] of cached) {
+      const source = await read(screen);
+      expect({ screen, seeded: source.includes(seed) }).toEqual({ screen, seeded: true });
+    }
+  });
+
+  it('fetches only a small context for the shell, never the ledger', async () => {
+    const context = await read('lib/use-workspace-context.ts');
+    expect(context).toContain("fetch('/api/workspace/context'");
+    // One shared module instance survives route changes, so the shell does not
+    // re-request identity on every navigation.
+    expect(context).toContain('useSyncExternalStore');
+    expect(context).toContain('started');
   });
 });
 

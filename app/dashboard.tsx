@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Briefcase,
@@ -9,7 +10,6 @@ import {
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AnimatedAmount from '@/components/animated-amount';
 import { formatPKR, greetingFor } from '@/lib/format';
+import { primeWorkspaceContext } from '@/lib/use-workspace-context';
+import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -106,8 +108,14 @@ function percentChange(current: number, previous: number) {
 
 const canEdit = (role: string) => ['OWNER', 'ADMIN', 'BOOKKEEPER'].includes(role);
 
+/** Cached across navigation so returning to Overview paints instantly. */
+const DASHBOARD_CACHE = 'dashboard';
+
 export default function Dashboard({ userName, userRole }: { userName: string; userRole: string }) {
-  const [data, setData] = useState<DashboardData | null>(null);
+  // Seed from the last payload instead of `null`: a client-side return to
+  // Overview used to remount this component and show the full-screen loader
+  // while it refetched data the browser already had.
+  const [data, setData] = useState<DashboardData | null>(() => readCache<DashboardData>(DASHBOARD_CACHE));
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState<Period>('30 days');
   const [heroRange, setHeroRange] = useState<Period>('30 days');
@@ -146,6 +154,16 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       })
       .then((result) => {
         setData(result);
+        writeCache(DASHBOARD_CACHE, result);
+        // The shell lives in the root layout; seed it from the payload we just
+        // loaded so the sidebar does not issue its own probe on first paint.
+        primeWorkspaceContext({
+          userName,
+          workspaceName: result.workspace.name,
+          businessType: result.workspace.businessType,
+          role: userRole,
+          loanCount: result.loans.filter((loan) => Number(loan.outstanding) > 0).length,
+        });
         if (result.accounts[0]) { setAccountId(String(result.accounts[0].id)); setRepaymentAccount(String(result.accounts[0].id)); }
         if (result.accounts[1]) setDestinationAccountId(String(result.accounts[1].id));
       })
@@ -203,6 +221,9 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? 'Could not save this transaction.');
       setData(result as DashboardData);
+      // The POST returns the recalculated book; keep the cache in step so coming
+      // back to Overview cannot show the pre-edit totals.
+      writeCache(DASHBOARD_CACHE, result as DashboardData);
       setDialogOpen(false); resetTransactionForm();
       toast.ledger('Saved to ledger', 'Transaction recorded and posted to your books.');
       maybePrimePushAfterLedgerSave(() => {
@@ -238,7 +259,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not record the loan repayment.');
-      setData(result as DashboardData); setRepaymentOpen(false); setRepaymentLoan(null);
+      setData(result as DashboardData); writeCache(DASHBOARD_CACHE, result as DashboardData); setRepaymentOpen(false); setRepaymentLoan(null);
       toast.ledger(repaymentLoan.direction === 'PAYABLE' ? 'Repayment recorded' : 'Collection recorded', 'The outstanding balance has been updated.');
     } catch (error) { sounds.error(); setRepaymentError(error instanceof Error ? error.message : 'Could not record the loan repayment.'); }
     finally { setRepaymentSaving(false); }
@@ -263,13 +284,14 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
 
   return (
     <div className="app-shell" id="overview">
-      <AppSidebar workspaceName={data.workspace.name} businessType={data.workspace.businessType} userName={userName} userRole={userRole} current="overview" loanCount={data.loans.length} />
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Overview</strong></div>
           <div className="top-actions">
             {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-36 min-w-0 flex-1 rounded-full bg-white text-xs sm:w-52 sm:flex-none" />}
             <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
+            {/* Bell is portalled in here by TopbarNotifPortal, right of search. */}
+            <span className="topbar-notif-slot" />
           </div>
         </header>
 
@@ -385,7 +407,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
                 {canEdit(userRole) && (
                   <button className="quick-action dark" onClick={openDialog('Transfer')} role="listitem"><span className="quick-action-icon"><ArrowLeftRight size={20} /></span><span>Transfer</span></button>
                 )}
-                <a className="quick-action" href="/transactions" role="listitem"><span className="quick-action-icon"><Search size={20} /></span><span>Find entry</span></a>
+                <Link className="quick-action" href="/transactions" role="listitem"><span className="quick-action-icon"><Search size={20} /></span><span>Find entry</span></Link>
               </div>
               <div className="rounded-2xl bg-[var(--card-soft)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
                 <strong className="mb-1 flex items-center gap-1.5 text-[12px] text-[var(--ink)]"><ShieldCheck size={14} className="text-[var(--positive)]" /> Shared, transparent records</strong>
@@ -457,7 +479,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
               </div>
               <div className="balance-track" aria-hidden="true"><span style={{ width: `${data.summary.cashBalance > 0 ? Math.max(3, Math.min(100, data.accounts.reduce((max, account) => Math.max(max, account.balance), 0) / data.summary.cashBalance * 100)) : 0}%` }} /></div>
               <div>{data.accounts.map((account) => <div className="account-row" key={account.id}><div className="account-left"><span className="account-icon">{account.type === 'BANK' ? <Landmark size={16} /> : <Wallet size={16} />}</span><span><div className="account-name">{account.name}</div><div className="account-kind">{account.type === 'BANK' ? 'Bank account' : account.type === 'MOBILE_WALLET' ? 'Mobile wallet' : 'Cash account'} · {account.currency}</div></span></div><span className="account-value">{hidden(account.balance)}</span></div>)}</div>
-              <a className="text-link" style={{ marginTop: 13 }} href="/transactions">Account activity <ArrowRight size={12} /></a>
+              <Link className="text-link" style={{ marginTop: 13 }} href="/transactions">Account activity <ArrowRight size={12} /></Link>
             </div>
           </section>
 
@@ -467,8 +489,8 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
               <div className="card-header-row">
                 <div><div className="card-title">Recent transactions</div><div className="card-subtitle">Your latest saved business activity</div></div>
                 <div className="flex items-center gap-2">
-                  <a className="ghost-pill" href="/transactions">Filter</a>
-                  <a className="text-link" href="/transactions">See all <ArrowRight size={12} /></a>
+                  <Link className="ghost-pill" href="/transactions">Filter</Link>
+                  <Link className="text-link" href="/transactions">See all <ArrowRight size={12} /></Link>
                 </div>
               </div>
               <div style={{ marginTop: 10 }}>
@@ -496,7 +518,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card owners-panel xl:col-span-5" id="owners">
               <div className="card-header-row">
                 <div><div className="card-title">Ownership overview</div><div className="card-subtitle">Recorded shares in {data.workspace.name}</div></div>
-            <a className="text-link" href="/partners">Partners & shares <ArrowRight size={12} /></a>
+            <Link className="text-link" href="/partners">Partners & shares <ArrowRight size={12} /></Link>
               </div>
               <div style={{ marginTop: 8 }}>{data.owners.map((owner) => { const position = data.partnerPositions?.[owner.id]; return <div className="owner-row" key={owner.id}><div className="owner-avatar">{initials(owner.name)}</div><div className="owner-info"><div className="owner-name">{owner.name}{owner.name.trim().toLowerCase() === userName.trim().toLowerCase() && <span className="ml-1.5 text-[8px] font-bold uppercase tracking-wide text-[var(--faint)]">· You</span>}</div><div className="owner-bar"><span style={{ width: `${Math.min(100, Number(owner.share) || 0)}%` }} /></div>{position && <div className="owner-position">{position.settleable >= 0 ? `${hidden(position.settleable)} due to partner` : `${hidden(-position.settleable)} overdrawn`}</div>}</div><div className="owner-share">{Number(owner.share).toLocaleString('en-PK')}%</div></div>; })}</div>
               <div className="owner-note"><ShieldCheck size={14} className="mt-0.5 shrink-0" /><span>Shares are recorded as agreed by your team. Contributions and ownership are tracked separately.</span></div>
@@ -515,7 +537,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <section className="soft-card" style={{ marginTop: 14 }} aria-label="This month explained">
               <div className="card-header-row">
                 <div><div className="card-title">This month, explained</div><div className="card-subtitle">{data.reportSnapshot.label} · same counting rules as the reports screen</div></div>
-                <a className="text-link" href="/reports">Open reports <ArrowRight size={12} /></a>
+                <Link className="text-link" href="/reports">Open reports <ArrowRight size={12} /></Link>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 12 }}>
                 <div><div className="stat-label">Cleared income</div><div className="stat-value" style={{ marginTop: 4 }}>{hidden(data.reportSnapshot.income)}</div></div>

@@ -1,8 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Download, FilterX, Search, Wallet } from 'lucide-react';
-import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,11 +125,10 @@ export default function TransactionsClient({ userName, userRole }: { userName: s
 
   return (
     <div className="app-shell">
-      <AppSidebar workspaceName="My Business" businessType="Business workspace" userName={userName} userRole={userRole} current="transactions" loanCount={0} />
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Transactions</strong></div>
-          <div className="top-actions"><a className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</a></div>
+          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Transactions</strong></div>
+          <div className="top-actions"><Link className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</Link><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">
           <section className="page-heading">
