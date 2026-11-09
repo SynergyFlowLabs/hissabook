@@ -73,17 +73,17 @@ This inventory covers the intended product, not an implementation. Priority labe
 ## 6. Dashboards, reports, and exports
 | Feature | Priority | Notes |
 |---|---:|---|
-| Business overview | P0 | Cash/account balances, recent activity, loans, period totals. |
-| Income and expense summary | P0 | Date range, category breakdown, clear calculation definitions. |
-| Cash movement report | P0 | Inflows/outflows by account and period; not labeled profit. |
-| Owner contributions and withdrawals | P0 | Per owner and date range. |
-| Loan/receivable balances | P0 | Original, repayments, remaining, due date. |
-| Ownership register and effective history | P0 | Distinct from cash and contribution reports. |
-| Search, filters, and date ranges | P0 | Type, account, category, owner, counterparty, status. |
-| CSV export | P0 | Respect access permissions and selected date range. |
-| Human-readable statement/report | P1 | Useful for sharing with owners or an accountant. |
-| Profit and loss summary | P1 | Only with explicit treatment/limitations and clear labels. |
-| Custom reports and scheduled exports | P2 | Validate demand and privacy controls. |
+| Business overview | P0 | Cash/account balances, recent activity, loans, period totals. A "This month, explained" card repeats the reports' income, expense and difference figures with the same counting rules, so the dashboard and the reports cannot disagree. |
+| Income and expense summary | P0 | Implemented at `/reports`: date range with presets, income and expense categories with shares, cash in and out per account, an explicit "kept out of income and expenses" table, owner money and transfers listed apart, pending and voided counts, and the counting rules printed under every report. CSV matches the screen. |
+| Cash movement report | P0 | Implemented inside the summary report: cleared inflow and outflow per account for the range. Internal transfers are excluded and labelled as such, because counting both legs would inflate every total. |
+| Owner contributions and withdrawals | P0 | Implemented in the summary report and on the Partners page. Reports show them in their own table, never inside income or expenses. |
+| Loan/receivable balances | P0 | Overview lists each loan with principal, repaid and outstanding. Reports add the fee and principal split of repayments in the range. |
+| Ownership register and effective history | P0 | Partners page. Reports never derive ownership from any balance. |
+| Search, filters, and date ranges | P0 | Transactions page. Reports add quick ranges: this month, last month, last 30 days, this quarter, this year, or a custom pair of dates. |
+| CSV export | P0 | Ledger, partner movements, statements, distributions, and all four reports export the exact payload on screen, with the range and counting rules in the file header. Salary CSV is limited to owner, admin, and payroll roles. |
+| Human-readable statement/report | P1 | Reports are print-ready: report cards and tables print on A4 with headers repeating across pages and without the app chrome. |
+| Profit and loss summary | P1 | Implemented as "Profit summary" with its basis stated in the UI and the CSV: only cleared records, loan fees treated as costs and fee income as income, principal and owner money excluded, salaries and stock counted once at payment, and partner profit shares listed as an appropriation rather than an expense. Labelled informational, not audited accounts. |
+| Custom reports and scheduled exports | P2 | Not built. A report link carries its range and type in the URL, which is the building block if demand appears. |
 
 ## 7. Collaboration, trust, and auditability
 | Feature | Priority | Notes |
@@ -119,6 +119,7 @@ This inventory covers the intended product, not an implementation. Priority labe
 | Record stock sold, used, or issued | P1 | Quantity, date, reason/customer where relevant; stock movement is distinct from the money transaction. |
 | Returns and adjustments | P1 | Dated, attributable movement with reason; preserve history rather than overwriting counts. |
 | On-hand stock and movement history | P1 | Show current quantity by item and a ledger of receipts/issues/returns/adjustments. |
+| Stock movement report | P1 | Implemented at `/reports`: opening, received, issued and closing quantity per item for the range, reorder flags, and the cash actually spent on linked stock purchases. Quantities only; stock is deliberately not valued until a valuation method is reviewed. |
 | Low-stock threshold and alert | P1 | Per-item reorder point; no automated purchase order in the first inventory release. |
 | Stock count/reconciliation | P1 | Compare counted quantity to recorded quantity and record an approved adjustment. |
 | Multiple storage locations | P2 | Validate need and transfer semantics before implementation. |
@@ -132,7 +133,7 @@ This inventory covers the intended product, not an implementation. Priority labe
 | Effective-dated pay rates | P1 | Monthly salary initially; retain prior rate and effective date when compensation changes. |
 | Salary periods | P1 | Define pay period and due date, amount due, and status (unpaid, partially paid, paid). |
 | Record salary payment | P1 | Date, amount, payment account/method, and reference; support partial payments and remaining payable. |
-| Salary expense and payable summaries | P1 | Clearly state the reporting basis and avoid double-counting salary accruals and payments. |
+| Salary expense and payable summaries | P1 | Implemented at `/reports`: salary due, paid and outstanding per employee period, with the basis stated. Payments are expensed when paid, so the salary report reports the obligation beside the payment and never adds to expenses a second time. Restricted to owner, admin and payroll roles. |
 | Employee-level access restrictions | P1 | Payroll/owner-authorized roles only; do not expose another employee's salary to ordinary workspace members. |
 | Employee advances | P2 | Link to a separately tracked advance/receivable and repayment history; do not silently net against salary. |
 | Hourly/daily wages, commissions, bonuses, deductions | P2 | Validate demand and local rules; show each component explicitly if supported. |

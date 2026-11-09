@@ -6,6 +6,8 @@ import postgres, { type Sql, type TransactionSql } from 'postgres';
 import { positionFromLines, type PositionLine } from '@/lib/partners/ledger';
 import { hashPassword } from '@/lib/passwords';
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_USER_NAME, DEMO_WORKSPACE_NAME, DEMO_WORKSPACE_SLUG } from '@/lib/demo-account';
+import { buildDashboardSnapshot } from '@/lib/reports/dashboard';
+import { resolveRange } from '@/lib/reports/period';
 
 const databaseUrl = process.env.DATABASE_URL;
 const databasePath = process.env.DATABASE_PATH ?? join(process.cwd(), 'data', 'hisaabook.sqlite');
@@ -1046,6 +1048,14 @@ export async function getDashboardData(selectedWorkspaceId?: number) {
 
   const cashBalance = (accounts as Array<{ balance: number }>).reduce((sum, account) => sum + account.balance, 0);
   const outstandingLoans = (loans as Array<{ outstanding: number }>).reduce((sum, loan) => sum + loan.outstanding, 0);
+  // Same classification the reports use, so the dashboard card and the reports
+  // screen cannot tell two different stories about the same month.
+  let reportSnapshot: Awaited<ReturnType<typeof buildDashboardSnapshot>> | null = null;
+  try {
+    reportSnapshot = await buildDashboardSnapshot(resolveRange('this-month', new Date().toISOString().slice(0, 10)), 'This month', workspaceId);
+  } catch (error) {
+    console.error('Dashboard report snapshot failed', error);
+  }
   return {
     workspace,
     accounts,
@@ -1063,5 +1073,6 @@ export async function getDashboardData(selectedWorkspaceId?: number) {
       activeLoans: (loans as Array<{ outstanding: number }>).filter((loan) => Number(loan.outstanding) > 0).length,
     },
     chart,
+    reportSnapshot,
   };
 }

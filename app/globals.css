@@ -628,6 +628,30 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* ------------------------------------------------------------------ */
+/* Reports: range controls + a printable report body                   */
+.report-range-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 14px; }
+.report-preset { min-width: 160px; }
+@media (max-width: 560px) {
+  .report-range-row > .form-field { flex: 1 1 140px; min-width: 0; }
+  .report-range-row > .form-field > input, .report-range-row > .form-field [data-slot="select-trigger"] { width: 100%; }
+  .report-range-row > button { flex: 0 0 auto; min-height: 44px; }
+  /* Report tables keep their columns readable by scrolling inside the card
+     instead of squeezing numbers to two digits. */
+  .report-table-wrap { -webkit-overflow-scrolling: touch; }
+  .report-table-wrap .data-table { min-width: 560px; }
+}
+.report-body { margin-top: 14px; }
+.report-notes { margin: 8px 0 0 18px; line-height: 1.7; }
+@media print {
+  .report-body, .report-body * { visibility: visible; }
+  .report-body { position: static; }
+  .report-body .data-table-wrap { overflow: visible; border: 0; border-radius: 0; background: #fff; }
+  .report-body .data-table { min-width: 0; width: 100%; font-size: 8.5pt; }
+  .report-body .data-table th { background: #f2f4ef !important; color: #333 !important; }
+  .report-body .data-table thead { display: table-header-group; }
+  .report-body .soft-card, .report-body .stat-card { break-inside: avoid; border: 1px solid #ddd !important; box-shadow: none !important; }
+}
+
 /* Secondary pill button + shared data-table (ledger / stock / team)   */
 /* ------------------------------------------------------------------ */
 .subtle-button {
