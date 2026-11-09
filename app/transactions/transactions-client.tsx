@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { SkStatus, SkTableRows } from '@/components/skeletons';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Download, FilterX, Search, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -188,8 +189,9 @@ export default function TransactionsClient({ userName, userRole }: { userName: s
               <span className="ledger-page-count">{data?.total ? `Page ${pageNumber} of ${pageCount}` : ''}</span>
             </div>
             {error ? <div className="ledger-message error" role="alert">{error} <button className="text-link" onClick={() => setRetry((current) => current + 1)}>Try again</button></div> : null}
-            <div className="data-table-wrap"><table className="data-table ledger-table-min"><thead><tr><th>Type</th><th>Date</th><th>Description</th><th>Account</th><th>Category</th><th>Recorded by</th><th>Status</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead><tbody>
-              {loading && !data ? <tr><td colSpan={8} className="ledger-message">Loading activity…</td></tr> : data?.transactions.length ? data.transactions.map((item) => {
+            <SkStatus label={loading ? 'Loading matching records' : `${(data?.total ?? 0).toLocaleString()} matching records loaded`} />
+            <div className={`data-table-wrap${loading && data ? ' is-refreshing' : ''}`} aria-busy={loading}><table className="data-table ledger-table-min"><thead><tr><th>Type</th><th>Date</th><th>Description</th><th>Account</th><th>Category</th><th>Recorded by</th><th>Status</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead><tbody>
+              {loading && !data ? <SkTableRows rows={8} columns={8} /> : data?.transactions.length ? data.transactions.map((item) => {
                 const negative = ['EXPENSE', 'WITHDRAWAL', 'LOAN_GIVEN', 'LOAN_REPAYMENT_OUT'].includes(item.kind);
                 const neutral = item.kind === 'TRANSFER';
                 return <tr key={`${item.kind}-${item.id}`}>
@@ -203,6 +205,7 @@ export default function TransactionsClient({ userName, userRole }: { userName: s
                   <td className={neutral ? 'table-muted' : negative ? 'amount-negative' : 'amount-positive'} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{neutral ? '' : negative ? '−' : '+'}{formatPKR(item.amount)}</td>
                 </tr>;
               }) : !loading && <tr><td colSpan={8} className="ledger-message">No activity matches these filters. Try clearing or changing your filters.</td></tr>}
+              {loading && data && data.transactions.length === 0 ? <SkTableRows rows={6} columns={8} /> : null}
             </tbody></table></div>
             <div className="ledger-pagination"><span className="ledger-page-count">Showing {data?.total ? `${offset + 1} to ${Math.min(offset + (data?.transactions.length ?? 0), data.total)} of ${data.total.toLocaleString()}` : '0 records'}</span><div style={{ display: 'flex', gap: 8 }}><Button variant="outline" className="rounded-full" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - limit))}><ArrowLeft size={13} /> Previous</Button><Button variant="outline" className="rounded-full" disabled={!data?.hasMore || loading} onClick={() => setOffset(offset + limit)}>Next <ArrowRight size={13} /></Button></div></div>
           </section>

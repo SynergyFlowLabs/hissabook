@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+import { SkPageBody, SkStatus } from '@/components/skeletons';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Archive, Boxes, Check, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -112,7 +113,30 @@ export default function InventoryClient({ userName, role }: { userName: string; 
     finally { setSaving(false); }
   };
 
-  if (!data) return <div className="loading-screen"><div className="icon-badge"><Boxes size={20} /></div><strong>{error || 'Loading inventory…'}</strong><span>{error ? 'Refresh the page to try again.' : 'Preparing your stock records'}</span></div>;
+  if (!data) {
+    if (error) return <div className="loading-screen"><div className="icon-badge"><Boxes size={20} /></div><strong>Your stock records could not be loaded</strong><span>{error}</span></div>;
+    return (
+      <div className="app-shell" id="overview">
+        <main className="main-area">
+          <header className="topbar">
+            <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Inventory</strong></div>
+            <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
+          </header>
+          <div className="content">
+            <SkStatus label="Loading inventory" />
+            <section className="page-heading">
+              <div>
+                <span className="eyebrow"><span className="h-1.5 w-1.5 rounded-full bg-[var(--lime-strong)]" aria-hidden="true" />Stock control</span>
+                <h1 className="page-title">Inventory</h1>
+                <p className="page-subtitle">Know what you have, what’s moving, and what needs a restock.</p>
+              </div>
+            </section>
+            <SkPageBody stats={4} tableColumns={7} tableRows={6} extra="two-cards" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell" id="overview">

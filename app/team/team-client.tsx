@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+import { SkPageBody, SkStatus, SkTableRows } from '@/components/skeletons';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -200,7 +201,31 @@ export default function TeamClient({ userName, role }: { userName: string; role:
     finally { setSaving(false); }
   };
 
-  if (!data) return <div className="loading-screen"><div className="icon-badge"><UsersRound size={20} /></div><strong>{loadError || 'Loading team records…'}</strong><span>{loadError ? 'Refresh the page to try again.' : 'Preparing your employee and salary book'}</span></div>;
+  if (!data) {
+    if (loadError) return <div className="loading-screen"><div className="icon-badge"><UsersRound size={20} /></div><strong>Your team records could not be loaded</strong><span>{loadError}</span></div>;
+    // Keep the real header and heading so the page settles instead of jumping.
+    return (
+      <div className="app-shell" id="overview">
+        <main className="main-area">
+          <header className="topbar">
+            <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Team &amp; salaries</strong></div>
+            <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
+          </header>
+          <div className="content">
+            <SkStatus label="Loading team records" />
+            <section className="page-heading">
+              <div>
+                <span className="eyebrow"><span className="h-1.5 w-1.5 rounded-full bg-[var(--lime-strong)]" aria-hidden="true" />People &amp; pay</span>
+                <h1 className="page-title">Team &amp; salaries</h1>
+                <p className="page-subtitle">Keep employee details and salary obligations in one private place.</p>
+              </div>
+            </section>
+            <SkPageBody stats={4} tableColumns={6} tableRows={5} extra="list" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell" id="overview">
@@ -259,7 +284,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
               <button className="lime-button" style={{ height: 42, fontSize: 11 }} onClick={openInvite}><UserPlus size={14} /> Invite member</button>
             </div>
             {accessError && <div className="form-error" role="alert" style={{ marginTop: 14 }}>{accessError}</div>}
-            {!accessData ? <div className="empty-state">Loading workspace members…</div> : <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Member</th><th>Workspace role</th><th>Status</th><th>Access</th></tr></thead><tbody>{accessData.members.map((member) => <tr key={member.id}>
+            {!accessData ? <div className="data-table-wrap" aria-busy="true"><SkStatus label="Loading workspace members" /><table className="data-table"><tbody><SkTableRows rows={3} columns={4} /></tbody></table></div> : <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Member</th><th>Workspace role</th><th>Status</th><th>Access</th></tr></thead><tbody>{accessData.members.map((member) => <tr key={member.id}>
               <td><div className="cell-title">{member.name}</div><div className="cell-sub">{member.email}{member.role === 'OWNER' ? ' · Workspace owner' : ''}</div></td>
               <td>{member.role === 'OWNER' ? <span className="role-pill owner-role">Owner</span> : <select className="member-role-select" aria-label={`Role for ${member.name}`} value={member.role} onChange={(event) => changeMember(member.id, { role: event.target.value })}><option value="ADMIN">Admin</option><option value="BOOKKEEPER">Bookkeeper</option><option value="PAYROLL">Payroll</option><option value="VIEWER">Viewer</option></select>}</td>
               <td><span className={`pill ${member.active ? 'good' : 'neutral'}`}>{member.active ? 'Active' : 'Revoked'}</span></td>

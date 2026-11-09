@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+import { SkList, SkPageBody, SkStatus } from '@/components/skeletons';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Download, HandCoins, History, LogOut, PieChart, Plus, Printer,
@@ -690,8 +691,27 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       <main className="main-area"><div className="content"><div className="empty-state" role="alert">{loadError}</div></div></main></div>);
   }
   if (!data) {
-    return (<div className="app-shell" id="overview">
-      <main className="main-area"><div className="content"><div className="empty-state">Loading partner records…</div></div></main></div>);
+    return (
+      <div className="app-shell" id="overview">
+        <main className="main-area">
+          <header className="topbar">
+            <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Partners &amp; shares</strong></div>
+            <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
+          </header>
+          <div className="content">
+            <SkStatus label="Loading partner records" />
+            <section className="page-heading">
+              <div>
+                <span className="eyebrow"><span className="h-1.5 w-1.5 rounded-full bg-[var(--lime-strong)]" aria-hidden="true" />Ownership &amp; money</span>
+                <h1 className="page-title">Partners &amp; shares</h1>
+                <p className="page-subtitle">Who fronts what, who draws from the counter, and what each partner is owed.</p>
+              </div>
+            </section>
+            <SkPageBody stats={4} tableColumns={6} tableRows={4} extra="two-cards" />
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -866,7 +886,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                 {canManage && <button className="lime-button" onClick={openDistribution}><PieChart size={14} /> Distribute profit</button>}
               </div>
             </div>
-            {historyLoading && distributions.length === 0 && <div className="empty-state">Loading distribution history…</div>}
+            {historyLoading && distributions.length === 0 && <><SkStatus label="Loading distribution history" /><SkList rows={3} avatar={false} /></>}
             {!historyLoading && distributions.length === 0 && <div className="empty-state">No distributions yet. When the month closes, run the appropriation here and every partner ledger posts itself.</div>}
             <div className="history-list">
               {distributions.map((item) => (
