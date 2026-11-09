@@ -832,6 +832,7 @@ button:disabled { cursor: not-allowed; }
   }
   .glass, .glass-chip, .glass-menu, .glass-dialog { background: #f7faf5; }
   .glass-deep, .mobile-nav { background: #14211a; }
+  .topbar { background: var(--canvas); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mobile-nav-pill { transition: none; }
