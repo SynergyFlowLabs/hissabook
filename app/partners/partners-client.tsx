@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowRight, ArrowUpRight, Download, HandCoins, Pencil, Plus, Printer,
+  ArrowDownLeft, ArrowRight, ArrowUpRight, Download, HandCoins, PieChart, Plus, Printer, SlidersHorizontal,
   Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
 } from 'lucide-react';
 import AppSidebar from '@/components/app-sidebar';
@@ -31,16 +31,42 @@ type Partner = {
   netValue: number;
   month: { fronts: number; reimbursed: number; drawings: number };
   lastMovements: Array<{ id: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; amount: number; date: string; note: string }>;
+  accruedEstimate: number;
+  drawingsLifetime: number;
 };
 type Account = { id: number; name: string; type: string; currency: string };
 type Member = { userId: number; name: string };
+type DeedSettings = {
+  partnerSalaryEnabled: boolean;
+  interestOnCapitalEnabled: boolean;
+  interestOnCapitalPct: number | null;
+  interestOnDrawingsEnabled: boolean;
+  interestOnDrawingsPct: number | null;
+  drawingCapPct: number;
+  settlementMethod: 'PAY' | 'LOAN';
+};
 type Overview = {
   workspace: { id: number; name: string; businessType: string; currency: string };
   accounts: Account[];
   partners: Partner[];
   members: Member[];
-  settings: { drawingCapPct: number };
+  settings: DeedSettings;
 };
+type WorkingsPayload = {
+  from: string; to: string; days: number; lossPeriod: boolean; basisProfit: number;
+  segments: Array<{ from: string; to: string; days: number; shares: Array<{ ownerId: number; share: number }> }>;
+  psr: Array<{ ownerId: number; name: string; ratio: number; weight: number }>;
+  salaries: Array<{ ownerId: number; name: string; amount: number }>;
+  salaryTotal: number; salaryCapped: boolean;
+  capitals: Array<{ ownerId: number; name: string; openingCapital: number; interest: number }>;
+  interestCapitalTotal: number; interestCapitalCapped: boolean;
+  drawingsInterest: Array<{ ownerId: number; name: string; interest: number }>;
+  interestDrawingsTotal: number;
+  residual: number; shareMismatchTotal: number;
+  lines: Array<{ ownerId: number; name: string; salary: number; interestCapital: number; interestDrawings: number; share: number; total: number }>;
+  roundingNote: string; notes: string[];
+};
+type DistributionItem = { id: number; periodFrom: string; periodTo: string; basisProfit: number; residual: number; status: 'POSTED' | 'VOID'; note: string; createdBy: string; createdAt: string };
 type StatementRow = { id: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; amount: number; note: string; date: string; label: string; bucket: 'capital' | 'current'; runningCurrent: number; runningCapital: number };
 type StatementPayload = {
   partner: { id: number; name: string; role: string };
@@ -138,6 +164,33 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   const [statement, setStatement] = useState<StatementPayload | null>(null);
   const [statementLoading, setStatementLoading] = useState(false);
 
+  // deed settings dialog
+  const [deedOpen, setDeedOpen] = useState(false);
+  const [deedSalary, setDeedSalary] = useState(false);
+  const [deedICap, setDeedICap] = useState(false);
+  const [deedICapPct, setDeedICapPct] = useState('6');
+  const [deedIDraw, setDeedIDraw] = useState(false);
+  const [deedIDrawPct, setDeedIDrawPct] = useState('12');
+  const [deedCap, setDeedCap] = useState('70');
+  const [deedMethod, setDeedMethod] = useState<'PAY' | 'LOAN'>('PAY');
+
+  // distribution dialog + history
+  const [distOpen, setDistOpen] = useState(false);
+  const [distFrom, setDistFrom] = useState(monthStartIso());
+  const [distTo, setDistTo] = useState(todayIso());
+  const [distPreset, setDistPreset] = useState<'month' | 'lastMonth' | 'quarter' | 'custom'>('month');
+  const [salaryInputs, setSalaryInputs] = useState<Record<number, string>>({});
+  const [distNote, setDistNote] = useState('');
+  const [distPreview, setDistPreview] = useState<{ workings: WorkingsPayload; overlapDistributionId: number | null } | null>(null);
+  const [distBusy, setDistBusy] = useState(false);
+  const [distError, setDistError] = useState('');
+  const [confirmMismatch, setConfirmMismatch] = useState(false);
+  const [distributions, setDistributions] = useState<DistributionItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<number | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidBusy, setVoidBusy] = useState(false);
+
   const activePartners = useMemo(() => (data?.partners ?? []).filter((partner) => partner.status === 'active'), [data]);
   const totals = useMemo(() => {
     const list = data?.partners ?? [];
@@ -168,6 +221,152 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     setMovementOpen(true);
   };
   const openStatement = (partnerId: number) => { setStatementPartnerId(partnerId); setStatement(null); setStatementFrom(monthStartIso()); setStatementTo(todayIso()); setStatementOpen(true); };
+
+  const loadDistributions = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await fetch('/api/partners/distribution', { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) setDistributions(Array.isArray(payload.distributions) ? payload.distributions : []);
+    } catch {
+      // history is non-critical; keep silence and leave the list empty
+    } finally { setHistoryLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    void loadDistributions();
+    // load once when the page data is ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(data)]);
+
+  const openDeed = () => {
+    if (!data) return;
+    setFormError('');
+    setDeedSalary(data.settings.partnerSalaryEnabled);
+    setDeedICap(data.settings.interestOnCapitalEnabled);
+    setDeedICapPct(String(data.settings.interestOnCapitalPct ?? 6));
+    setDeedIDraw(data.settings.interestOnDrawingsEnabled);
+    setDeedIDrawPct(String(data.settings.interestOnDrawingsPct ?? 12));
+    setDeedCap(String(data.settings.drawingCapPct));
+    setDeedMethod(data.settings.settlementMethod);
+    setDeedOpen(true);
+  };
+
+  const saveDeed = async (event: FormEvent) => {
+    event.preventDefault();
+    setFormError(''); setBusy(true);
+    try {
+      const response = await fetch('/api/partners/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerSalaryEnabled: deedSalary,
+          interestOnCapitalEnabled: deedICap,
+          interestOnCapitalPct: deedICap ? Number(deedICapPct) : null,
+          interestOnDrawingsEnabled: deedIDraw,
+          interestOnDrawingsPct: deedIDraw ? Number(deedIDrawPct) : null,
+          drawingCapPct: Number(deedCap),
+          settlementMethod: deedMethod,
+        }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not save the deed settings.');
+      sounds.shimmer();
+      toast.success('Deed settings saved', 'Future distributions use these terms.');
+      setDeedOpen(false);
+      await load();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Could not save the deed settings.');
+    } finally { setBusy(false); }
+  };
+
+  const quarterStartIso = () => {
+    const now = new Date();
+    const quarterFirstMonth = Math.floor(now.getMonth() / 3) * 3;
+    return new Date(Date.UTC(now.getFullYear(), quarterFirstMonth, 1)).toISOString().slice(0, 10);
+  };
+  const lastMonthRange = () => {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 1));
+    const last = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 0));
+    return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
+  };
+  const applyDistPreset = (preset: 'month' | 'lastMonth' | 'quarter' | 'custom') => {
+    setDistPreset(preset);
+    setDistPreview(null);
+    setDistError('');
+    if (preset === 'month') { setDistFrom(monthStartIso()); setDistTo(todayIso()); }
+    else if (preset === 'lastMonth') { const range = lastMonthRange(); setDistFrom(range.from); setDistTo(range.to); }
+    else if (preset === 'quarter') { setDistFrom(quarterStartIso()); setDistTo(todayIso()); }
+  };
+
+  const openDistribution = () => {
+    if (!data) return;
+    setDistError(''); setDistPreview(null); setDistNote(''); setConfirmMismatch(false);
+    setSalaryInputs(Object.fromEntries(activePartners.map((partner) => [partner.id, ''])));
+    applyDistPreset('month');
+    setDistOpen(true);
+  };
+
+  const salariesQuery = () => Object.entries(salaryInputs)
+    .map(([id, amount]) => [Number(id), Math.trunc(Number(amount))] as const)
+    .filter(([, amount]) => Number.isSafeInteger(amount) && amount > 0)
+    .map(([id, amount]) => `${id}:${amount}`)
+    .join(',');
+
+  const buildPreview = async () => {
+    setDistBusy(true); setDistError('');
+    try {
+      const query = new URLSearchParams({ from: distFrom, to: distTo });
+      const salaries = salariesQuery();
+      if (salaries) query.set('salaries', salaries);
+      const response = await fetch(`/api/partners/distribution/preview?${query.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not build the preview.');
+      setDistPreview(payload as { workings: WorkingsPayload; overlapDistributionId: number | null });
+      setConfirmMismatch(false);
+    } catch (error) {
+      setDistPreview(null);
+      setDistError(error instanceof Error ? error.message : 'Could not build the preview.');
+    } finally { setDistBusy(false); }
+  };
+
+  const postDistribution = async () => {
+    if (!distPreview) return;
+    setDistBusy(true); setDistError('');
+    try {
+      const salaries = Object.entries(salaryInputs)
+        .map(([id, amount]) => ({ ownerId: Number(id), amount: Math.trunc(Number(amount)) }))
+        .filter((item) => Number.isSafeInteger(item.amount) && item.amount > 0);
+      const response = await fetch('/api/partners/distribution', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: distPreview.workings.from, to: distPreview.workings.to, salaries, note: distNote, confirmShareMismatch: confirmMismatch }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not post the distribution.');
+      sounds.shimmer();
+      toast.success('Profit distributed', `${money(payload.residual ?? distPreview.workings.residual)} appropriated and posted to the partner ledgers.`);
+      setDistOpen(false);
+      await load();
+      await loadDistributions();
+    } catch (error) {
+      setDistError(error instanceof Error ? error.message : 'Could not post the distribution.');
+    } finally { setDistBusy(false); }
+  };
+
+  const confirmVoid = async () => {
+    if (voidTarget === null) return;
+    setVoidBusy(true);
+    try {
+      const response = await fetch(`/api/partners/distribution/${voidTarget}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: voidReason }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not void the distribution.');
+      sounds.shimmer();
+      toast.success('Distribution voided', 'Reversing correction rows were posted to every affected partner ledger.');
+      setVoidTarget(null);
+      setVoidReason('');
+      await load();
+      await loadDistributions();
+    } catch (error) {
+      toast.info('Could not void', error instanceof Error ? error.message : 'Please try again.');
+    } finally { setVoidBusy(false); }
+  };
 
   const savePartner = async (event: FormEvent) => {
     event.preventDefault();
@@ -265,7 +464,11 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? 'Could not save this movement.');
       sounds.shimmer();
-      toast.ledger('Saved to partner ledger', movementMeta.title);
+      if (payload.capWarning) {
+        toast.info('Over the drawing cap', `Lifetime drawings now ₨ ${Number(payload.capWarning.drawnAfter).toLocaleString('en-PK')} vs a ${payload.capWarning.capPct}% cap on ₨ ${Number(payload.capWarning.accrued).toLocaleString('en-PK')} accrued. Recorded in the audit log.`);
+      } else {
+        toast.ledger('Saved to partner ledger', movementMeta.title);
+      }
       setMovementOpen(false);
       await load();
     } catch (error) {
@@ -289,6 +492,16 @@ export default function PartnersClient({ userName, role }: { userName: string; r
 
   const statementCsvHref = statementPartnerId ? `/api/partners/statement?ownerId=${statementPartnerId}&from=${statementFrom}&to=${statementTo}&format=csv` : '#';
   const movementPartner = activePartners.find((partner) => partner.id === movementPartnerId) ?? null;
+  const drawingCapWarning = (() => {
+    if (movementKind !== 'drawing' || !movementPartner || !data) return null;
+    const amount = Math.trunc(Number(mAmount));
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    const accrued = movementPartner.accruedEstimate;
+    if (accrued <= 0) return null;
+    const drawnAfter = movementPartner.drawingsLifetime + amount;
+    const capAmount = (data.settings.drawingCapPct / 100) * accrued;
+    return drawnAfter > capAmount ? { drawnAfter, capPct: data.settings.drawingCapPct, capAmount: Math.floor(capAmount), accrued } : null;
+  })();
 
   if (loadError) {
     return (<div className="app-shell" id="overview"><AppSidebar workspaceName="Hisaabook" businessType="Partners" userName={userName} userRole={role} current="partners" />
@@ -315,10 +528,21 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <p className="page-subtitle">Who fronts what, who draws from the counter, and what each partner is owed.</p>
             </div>
             <div className="inventory-heading-actions">
+              {canManage && <button className="ghost-pill" onClick={openDistribution}><PieChart size={13} /> Distribute profit</button>}
+              {canManage && <button className="ghost-pill" onClick={openDeed}><SlidersHorizontal size={13} /> Deed terms</button>}
               {canManage && <button className="ghost-pill" onClick={openShare}><Scale size={13} /> Edit shares</button>}
               {canManage && <button className="lime-button" onClick={openAddPartner}><UserPlus size={15} strokeWidth={2.6} /> Add partner</button>}
             </div>
           </section>
+
+          <div className="deed-chips" aria-label="Current deed terms">
+            <span className="deed-chip-label">Deed</span>
+            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Salaries {data.settings.partnerSalaryEnabled ? 'on' : 'off'}</button>
+            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Interest on capital {data.settings.interestOnCapitalEnabled ? `${data.settings.interestOnCapitalPct ?? 0}% p.a.` : 'off'}</button>
+            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Interest on drawings {data.settings.interestOnDrawingsEnabled ? `${data.settings.interestOnDrawingsPct ?? 0}% p.a.` : 'off'}</button>
+            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Drawing cap {data.settings.drawingCapPct}%</button>
+            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Exit mode {data.settings.settlementMethod === 'LOAN' ? 'loan' : 'pay'}</button>
+          </div>
 
           <div className="payroll-notice">
             <ShieldCheck size={17} />
@@ -395,6 +619,32 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                 {canManage && <div style={{ textAlign: 'center', paddingBottom: 18 }}><button className="lime-button" onClick={openAddPartner}><UserPlus size={15} strokeWidth={2.6} /> Add partner</button></div>}
               </div>
             )}
+          </section>
+
+          <section className="soft-card" style={{ marginTop: 14 }} aria-label="Distribution history">
+            <div className="card-header-row">
+              <div>
+                <h2 className="card-title"><PieChart size={15} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Distribution history</h2>
+                <p className="card-subtitle">Every appropriation posted to the partner ledgers, newest first.</p>
+              </div>
+              {canManage && <button className="lime-button" onClick={openDistribution}><PieChart size={14} /> Distribute profit</button>}
+            </div>
+            {historyLoading && distributions.length === 0 && <div className="empty-state">Loading distribution history…</div>}
+            {!historyLoading && distributions.length === 0 && <div className="empty-state">No distributions yet. When the month closes, run the appropriation here and every partner ledger posts itself.</div>}
+            <div className="history-list">
+              {distributions.map((item) => (
+                <div className="history-row" key={item.id}>
+                  <div className="min-w-0 flex-1">
+                    <div className="cell-title" style={{ fontSize: 11 }}>{dateLabel(item.periodFrom)} to {dateLabel(item.periodTo)}{item.status === 'VOID' && <span className="status-chip void">VOID</span>}</div>
+                    <div className="cell-sub">Basis {item.basisProfit < 0 ? '−' : ''}{money(item.basisProfit)} · {item.createdBy} · {dateLabel(item.createdAt)}{item.note ? ` · ${item.note}` : ''}</div>
+                  </div>
+                  <div className="text-right" style={{ flex: '0 0 auto' }}>
+                    <div className="cell-num" style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{item.residual < 0 ? '−' : ''}{money(item.residual)}</div>
+                    {canManage && item.status === 'POSTED' && <button type="button" className="text-link" style={{ fontSize: 9 }} onClick={() => { setVoidTarget(item.id); setVoidReason(''); }}>Void <ArrowRight size={10} /></button>}
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
 
           <p className="footer-note" id="about">Hisaabook records the shares and terms you agree. For bookkeeping reference only, not legal, tax, or accounting advice.</p>
@@ -509,6 +759,11 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             </div>
             <div className="form-field"><Label htmlFor="m-date">Date</Label><Input id="m-date" type="date" required value={mDate} onChange={(event) => setMDate(event.target.value)} className="h-11 rounded-xl" /></div>
             <div className="form-field full"><Label htmlFor="m-note">Note (optional)</Label><Input id="m-note" maxLength={1000} value={mNote} onChange={(event) => setMNote(event.target.value)} placeholder="Why, and against which bill" className="h-11 rounded-xl" /></div>
+            {drawingCapWarning && (
+              <p className="warn-box form-field full" role="status">
+                Over the drawing cap: lifetime drawings would reach {money(drawingCapWarning.drawnAfter)}, above {drawingCapWarning.capPct}% of the accrued {money(drawingCapWarning.accrued)} (cap {money(drawingCapWarning.capAmount)}). {role === 'BOOKKEEPER' ? 'This will be flagged in the audit log.' : 'You can still proceed; it will be flagged in the audit log.'}
+              </p>
+            )}
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
             <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setMovementOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : movementMeta.confirm}</button></DialogFooter>
           </form>
@@ -549,6 +804,134 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <div className="no-print" style={{ marginTop: 10, textAlign: 'right' }}><button className="ghost-pill" onClick={() => window.print()}><Printer size={12} /> Print statement</button></div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Deed settings dialog */}
+      <Dialog open={deedOpen} onOpenChange={setDeedOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">Deed terms</DialogTitle>
+            <DialogDescription>What your partnership deed allows, as data. Everything stays off until you turn it on; Hisaabook never invents terms you have not agreed.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveDeed} className="form-grid" style={{ marginTop: 4 }}>
+            <label className="deed-toggle form-field full" htmlFor="deed-salary">
+              <input id="deed-salary" type="checkbox" checked={deedSalary} onChange={(event) => setDeedSalary(event.target.checked)} />
+              <span><strong>Partner salary</strong><small>Deed-fixed salary paid before profit share (s.13(a)). The amounts are entered per distribution.</small></span>
+            </label>
+            <label className="deed-toggle form-field full" htmlFor="deed-icap">
+              <input id="deed-icap" type="checkbox" checked={deedICap} onChange={(event) => setDeedICap(event.target.checked)} />
+              <span><strong>Interest on capital</strong><small>Only out of profits remaining after salary (s.13(c)). Paid on each partner’s opening capital.</small></span>
+            </label>
+            {deedICap && (
+              <div className="form-field"><Label htmlFor="deed-icap-pct">Rate (% p.a.)</Label><Input id="deed-icap-pct" type="number" min="0" max="50" step="0.5" required value={deedICapPct} onChange={(event) => setDeedICapPct(event.target.value)} className="h-11 rounded-xl" /></div>
+            )}
+            <label className="deed-toggle form-field full" htmlFor="deed-idraw">
+              <input id="deed-idraw" type="checkbox" checked={deedIDraw} onChange={(event) => setDeedIDraw(event.target.checked)} />
+              <span><strong>Interest on drawings</strong><small>Each drawing accrues from its date to the period end, added back to distributable profit.</small></span>
+            </label>
+            {deedIDraw && (
+              <div className="form-field"><Label htmlFor="deed-idraw-pct">Rate (% p.a.)</Label><Input id="deed-idraw-pct" type="number" min="0" max="50" step="0.5" required value={deedIDrawPct} onChange={(event) => setDeedIDrawPct(event.target.value)} className="h-11 rounded-xl" /></div>
+            )}
+            <div className="form-field"><Label htmlFor="deed-cap">Drawing cap (%)</Label><Input id="deed-cap" type="number" min="0" max="100" step="1" required value={deedCap} onChange={(event) => setDeedCap(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">Warn when lifetime drawings exceed this % of accrued (posted + estimated) share. Never blocks; flagged in the audit log.</span></div>
+            <div className="form-field"><Label htmlFor="deed-method">On partner exit</Label>
+              <Select value={deedMethod} onValueChange={(value) => setDeedMethod(value as 'PAY' | 'LOAN')}><SelectTrigger id="deed-method" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
+              <span className="field-hint">Used by the exit settlement (coming next).</span>
+            </div>
+            {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
+            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDeedOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Save deed terms'}</button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Distribution dialog */}
+      <Dialog open={distOpen} onOpenChange={setDistOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">Distribute profit</DialogTitle>
+            <DialogDescription>Salary first, interest on capital capped by what remains, interest on drawings added back, residual by day-weighted PSR. Preview is read-only; nothing posts until you confirm.</DialogDescription>
+          </DialogHeader>
+          <div className="dist-presets" role="group" aria-label="Period presets">
+            <button type="button" className={`deed-chip${distPreset === 'month' ? ' active' : ''}`} onClick={() => applyDistPreset('month')}>This month</button>
+            <button type="button" className={`deed-chip${distPreset === 'lastMonth' ? ' active' : ''}`} onClick={() => applyDistPreset('lastMonth')}>Last month</button>
+            <button type="button" className={`deed-chip${distPreset === 'quarter' ? ' active' : ''}`} onClick={() => applyDistPreset('quarter')}>Quarter to date</button>
+            <button type="button" className={`deed-chip${distPreset === 'custom' ? ' active' : ''}`} onClick={() => applyDistPreset('custom')}>Custom</button>
+          </div>
+          <div className="form-grid" style={{ marginTop: 8 }}>
+            <div className="form-field"><Label htmlFor="dist-from">From</Label><Input id="dist-from" type="date" value={distFrom} onChange={(event) => { setDistPreset('custom'); setDistFrom(event.target.value); setDistPreview(null); }} className="h-11 rounded-xl" /></div>
+            <div className="form-field"><Label htmlFor="dist-to">To</Label><Input id="dist-to" type="date" value={distTo} onChange={(event) => { setDistPreset('custom'); setDistTo(event.target.value); setDistPreview(null); }} className="h-11 rounded-xl" /></div>
+          </div>
+          {data.settings.partnerSalaryEnabled && (
+            <div className="form-field full" style={{ marginTop: 10 }}>
+              <Label>Salaries for this period (optional)</Label>
+              <div className="mt-2 grid gap-2">
+                {activePartners.map((partner) => (
+                  <div key={partner.id} className="flex items-center gap-2">
+                    <span className="w-28 truncate text-[11px] font-semibold">{partner.name.split(' ')[0]}</span>
+                    <Input type="number" min="0" step="1" inputMode="numeric" placeholder="0" aria-label={`Salary for ${partner.name}`} value={salaryInputs[partner.id] ?? ''} onChange={(event) => { setSalaryInputs({ ...salaryInputs, [partner.id]: event.target.value }); setDistPreview(null); }} className="h-10 rounded-xl tabular-nums" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="form-field full" style={{ marginTop: 10 }}><Label htmlFor="dist-note">Note (optional)</Label><Input id="dist-note" maxLength={300} value={distNote} onChange={(event) => setDistNote(event.target.value)} placeholder="e.g. October distribution as per deed" className="h-10 rounded-xl" /></div>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: 10 }}>
+            <span className="field-hint">Basis: CLEARED income − expenses. Partner-funded expenses already count.</span>
+            <button type="button" className="ghost-pill" onClick={() => void buildPreview()} disabled={distBusy}>{distBusy && !distPreview ? 'Computing…' : 'Preview'}</button>
+          </div>
+          {distError && <p className="form-error" role="alert" style={{ marginTop: 10 }}>{distError}</p>}
+          {distPreview && (
+            <div className="dist-panel">
+              {distPreview.overlapDistributionId !== null && <p className="warn-box" role="alert">This period overlaps distribution #{distPreview.overlapDistributionId} (already posted). Posting is blocked until that distribution is voided.</p>}
+              {distPreview.workings.lossPeriod && <p className="warn-box" role="alert">Loss period. Salaries and interest on capital are not paid (s.13(c)); the loss is shared by PSR.</p>}
+              <div className="dist-row"><span>Basis profit · {dateLabel(distPreview.workings.from)} to {dateLabel(distPreview.workings.to)} ({distPreview.workings.days}d)</span><strong>{signed(distPreview.workings.basisProfit)}</strong></div>
+              {distPreview.workings.salaries.map((line) => (<div className="dist-row" key={`sal-${line.ownerId}`}><span>Salary · {line.name}</span><strong>− {money(line.amount)}</strong></div>))}
+              {distPreview.workings.salaryCapped && <p className="field-hint">Salaries exceeded the profit and were scaled pro-rata to the available amount.</p>}
+              {distPreview.workings.capitals.filter((line) => line.openingCapital > 0).map((line) => (<div className="dist-row" key={`cap-${line.ownerId}`}><span>Interest on capital · {line.name} · opening {money(line.openingCapital)}</span><strong>− {money(line.interest)}</strong></div>))}
+              {distPreview.workings.interestCapitalCapped && <p className="field-hint">Interest on capital was capped by the profit remaining after salary (s.13(c)).</p>}
+              {distPreview.workings.drawingsInterest.filter((line) => line.interest > 0).map((line) => (<div className="dist-row" key={`draw-${line.ownerId}`}><span>Interest on drawings · {line.name}</span><strong>+ {money(line.interest)}</strong></div>))}
+              <div className="dist-row dist-total"><span>Residual to share by PSR</span><strong>{signed(distPreview.workings.residual)}</strong></div>
+              <div className="dist-psr" aria-label="Day-weighted profit shares">
+                {distPreview.workings.segments.map((segment) => (
+                  <div className="dist-psr-row" key={segment.from}><span>{dateLabel(segment.from)} to {dateLabel(segment.to)} · {segment.days}d</span><span>{segment.shares.filter((share) => share.share > 0).map((share) => `${activePartners.find((partner) => partner.id === share.ownerId)?.name.split(' ')[0] ?? share.ownerId} ${Number(share.share).toLocaleString('en-PK')}%`).join(' · ')}</span></div>
+                ))}
+                <div className="dist-psr-row"><span>Effective period ratio</span><span>{distPreview.workings.psr.filter((entry) => entry.ratio > 0).map((entry) => `${entry.name.split(' ')[0]} ${(entry.ratio * 100).toFixed(2)}%`).join(' · ')}</span></div>
+              </div>
+              <div className="data-table-wrap" style={{ marginTop: 10 }}>
+                <table className="data-table">
+                  <thead><tr><th>Partner</th><th>Salary</th><th>Int. capital</th><th>Profit / (Loss)</th><th>Drawings int.</th></tr></thead>
+                  <tbody>{distPreview.workings.lines.map((line) => (
+                    <tr key={line.ownerId}><td><div className="cell-title" style={{ fontSize: 10 }}>{line.name}</div></td><td className="cell-num">{line.salary > 0 ? money(line.salary) : '-'}</td><td className="cell-num">{line.interestCapital > 0 ? money(line.interestCapital) : '-'}</td><td className="cell-num">{signed(line.share)}</td><td className="cell-num">{line.interestDrawings > 0 ? money(line.interestDrawings) : '-'}</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <p className="field-hint" style={{ marginTop: 6 }}>{distPreview.workings.roundingNote}</p>
+              {Math.abs(distPreview.workings.shareMismatchTotal - 100) > 0.01 && (
+                <label className="dist-confirm" htmlFor="dist-confirm-mismatch">
+                  <input id="dist-confirm-mismatch" type="checkbox" checked={confirmMismatch} onChange={(event) => setConfirmMismatch(event.target.checked)} />
+                  <span>Recorded shares total {distPreview.workings.shareMismatchTotal}% (not 100). Distribute anyway using the recorded day-weighted weights.</span>
+                </label>
+              )}
+            </div>
+          )}
+          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
+            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDistOpen(false)}>Close</Button>
+            <button type="button" className="lime-button" disabled={!distPreview || distBusy || distPreview.overlapDistributionId !== null || (Math.abs(distPreview.workings.shareMismatchTotal - 100) > 0.01 && !confirmMismatch)} onClick={() => void postDistribution()}>{distBusy ? 'Posting…' : 'Post distribution'}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Void distribution dialog */}
+      <Dialog open={voidTarget !== null} onOpenChange={(open) => { if (!open) setVoidTarget(null); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">Void distribution #{voidTarget}</DialogTitle>
+            <DialogDescription>Posts reversing correction rows for every entry of this distribution. The original stays visible in history, marked void, forever.</DialogDescription>
+          </DialogHeader>
+          <div className="form-field full" style={{ marginTop: 4 }}><Label htmlFor="void-reason">Reason (required)</Label><Input id="void-reason" maxLength={200} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} placeholder="e.g. Posted for the wrong period" className="h-11 rounded-xl" autoFocus /></div>
+          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
+            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setVoidTarget(null)}>Cancel</Button>
+            <button type="button" className="lime-button" disabled={voidBusy || !voidReason.trim()} onClick={() => void confirmVoid()}>{voidBusy ? 'Voiding…' : 'Void distribution'}</button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

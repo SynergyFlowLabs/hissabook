@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
   try {
     const result = await postPartnerMovement(workspaceId, body, { name: access.member.name, userId: access.member.userId });
     await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'transaction',
-      title: result.title, body: result.body, href: '/partners' });
-    return NextResponse.json({ ok: true, transactionId: result.transactionId }, { status: 201 });
+      title: result.title, body: result.capWarning ? `${result.body} · over the ${result.capWarning.capPct}% drawing cap` : result.body, href: '/partners' });
+    return NextResponse.json({ ok: true, transactionId: result.transactionId, capWarning: result.capWarning ?? null }, { status: 201 });
   } catch (error) {
     if (error instanceof MovementError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
