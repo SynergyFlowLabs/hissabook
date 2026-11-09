@@ -4,9 +4,11 @@ import {
   ArrowRight, Boxes, ChevronDown, HandCoins, LayoutDashboard,
   ArrowLeftRight, Wallet, UsersRound, FileText, LogOut,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import SoundControl from '@/components/sound-control';
 
 const workspaceLinks = [
   { label: 'Overview', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
@@ -82,15 +84,20 @@ export default function AppSidebar({
         <div className="user-profile">
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>
           <div className="profile-meta"><div className="profile-name">{userName}</div><div className="profile-role">{roleLabel[userRole] ?? 'Member'}</div></div>
-          <Button variant="ghost" size="icon" className="ml-auto rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => signOut({ redirectTo: '/login' })}><LogOut size={16} /></Button>
+          <SoundControl className="ml-auto" />
+          <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => signOut({ redirectTo: '/login' })}><LogOut size={16} /></Button>
         </div>
       </aside>
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        {visibleMobile.map(({ label, href, icon: Icon, key }) => (
-          <a key={key} href={href} className={key === current ? 'active' : ''} aria-current={key === current ? 'page' : undefined}>
-            <Icon size={17} strokeWidth={2} /><span>{label}</span>
-          </a>
-        ))}
+        {visibleMobile.map(({ label, href, icon: Icon, key }) => {
+          const active = key === current;
+          return (
+            <a key={key} href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+              {active && <motion.span layoutId="mobile-nav-pill" className="mobile-nav-pill" aria-hidden="true" transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }} />}
+              <Icon size={17} strokeWidth={2} /><span>{label}</span>
+            </a>
+          );
+        })}
       </nav>
     </>
   );

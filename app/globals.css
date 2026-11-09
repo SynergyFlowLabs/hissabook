@@ -419,26 +419,24 @@ button:disabled { cursor: not-allowed; }
 
 .empty-state { text-align: center; color: var(--muted); font-size: 11px; padding: 30px 16px; }
 
-/* toast */
-.toast {
-  position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom, 0px));
-  background: var(--deep); color: #eef6ea; border-radius: 999px; padding: 13px 20px; font-size: 11px; font-weight: 600;
-  box-shadow: var(--shadow-lg); animation: toast-in .25s cubic-bezier(.2,.9,.3,1.2); border: 1px solid #ffffff1f; max-width: min(92vw, 480px); text-align: center;
-}
-@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-
 /* bottom pill nav (mobile) — the reference pattern */
 .mobile-nav {
   display: flex; position: fixed; z-index: 40; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
-  align-items: center; gap: 2px; background: var(--deep); padding: 7px; border-radius: 999px;
-  box-shadow: var(--shadow-lg), inset 0 1px 0 #ffffff1a; border: 1px solid #ffffff1f; max-width: calc(100vw - 24px);
+  align-items: center; gap: 2px; background: linear-gradient(165deg, rgb(29 47 38 / .72), rgb(16 27 21 / .78));
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  padding: 7px; border-radius: 999px; box-shadow: var(--glass-shadow-deep); border: 1px solid rgb(255 255 255 / .12); max-width: calc(100vw - 24px);
 }
 .mobile-nav a {
-  display: grid; justify-items: center; gap: 2px; color: #b8cbb4; text-decoration: none;
-  font-size: 8px; font-weight: 700; border-radius: 999px; padding: 8px 15px; transition: color .15s ease; min-height: 46px; min-width: 56px;
+  position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4; text-decoration: none;
+  font-size: 8px; font-weight: 700; border-radius: 999px; padding: 8px 15px; transition: color .2s ease; min-height: 46px; min-width: 60px; isolation: isolate;
 }
-.mobile-nav a.active { background: var(--lime); color: var(--lime-foreground); }
+.mobile-nav a > * { position: relative; z-index: 1; }
+.mobile-nav a.active { color: var(--lime-foreground); }
 .mobile-nav a.active svg { color: var(--lime-foreground); }
+.mobile-nav-pill {
+  position: absolute; inset: 3px; z-index: 0; border-radius: 999px;
+  background: linear-gradient(160deg, #d6ff5e, var(--lime) 70%); box-shadow: 0 4px 16px rgb(201 242 79 / .35), inset 0 1px 0 #ffffffaa;
+}
 @media (min-width: 901px) { .mobile-nav { display: none; } }
 
 /* footer note */
@@ -621,7 +619,6 @@ button:disabled { cursor: not-allowed; }
 /* Responsive (mobile-first: base styles above are the small-screen    */
 /* layout; min-width queries layer on enhancements)                     */
 /* ------------------------------------------------------------------ */
-@media (min-width: 901px) { .toast { bottom: 28px; } }
 @media (pointer: coarse) {
   .icon-row-button { min-width: 40px; min-height: 40px; }
   .loan-action { height: 40px; padding: 0 18px; }
@@ -741,3 +738,132 @@ button:disabled { cursor: not-allowed; }
 .serif-lime { color: var(--lime); }
 .landing-copy h1 .serif-accent { color: var(--ink); }
 .showcase-mini-amount { font-family: var(--font-display); font-weight: 400; letter-spacing: -.5px; }
+
+/* ------------------------------------------------------------------ */
+/* iOS-style glass material (PR: motion + glass)                        */
+/* ------------------------------------------------------------------ */
+:root {
+  --glass-surface: linear-gradient(165deg, rgb(255 255 255 / .82), rgb(255 255 255 / .58));
+  --glass-surface-deep: linear-gradient(165deg, rgb(29 47 38 / .72), rgb(16 27 21 / .78));
+  --glass-chip: rgb(255 255 255 / .55);
+  --glass-border: rgb(255 255 255 / .68);
+  --glass-border-deep: rgb(255 255 255 / .12);
+  --glass-blur: blur(20px) saturate(1.65);
+  --glass-shadow: 0 18px 48px rgb(13 26 19 / .22), inset 0 1px 0 rgb(255 255 255 / .65);
+  --glass-shadow-deep: 0 22px 60px rgb(6 12 9 / .42), inset 0 1px 0 rgb(255 255 255 / .12);
+  --lime-glow: 0 0 0 1px rgb(201 242 79 / .5), 0 8px 28px rgb(201 242 79 / .22);
+}
+
+.glass {
+  background: var(--glass-surface);
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+.glass-deep {
+  background: var(--glass-surface-deep);
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border-deep);
+  box-shadow: var(--glass-shadow-deep);
+}
+.glass-chip {
+  background: var(--glass-chip);
+  backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .6);
+}
+.glass-tile {
+  background: var(--glass-surface);
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 22px;
+}
+.glass-menu {
+  background: var(--glass-surface);
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 18px;
+}
+/* dialog content renders as a light frosted sheet */
+.glass-dialog {
+  background: linear-gradient(168deg, rgb(255 255 255 / .92), rgb(246 250 243 / .86));
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* focus-visible stays unmistakably visible on glass */
+.glass:focus-visible, .glass-chip:focus-visible, .glass-tile:focus-visible, .glass-menu:focus-visible {
+  outline: none; box-shadow: var(--glass-shadow), 0 0 0 3px var(--lime);
+}
+
+/* ------------------------------------------------------------------ */
+/* Sileo toast — brand skin (deep frost + lime accents)               */
+/* ------------------------------------------------------------------ */
+:root {
+  --sileo-state-success: #c9f24f;
+  --sileo-state-loading: #8fb39b;
+  --sileo-state-error: #ffab8a;
+  --sileo-state-warning: #ffd166;
+  --sileo-state-info: #9be0ff;
+  --sileo-state-action: #c9f24f;
+  --sileo-width: min(92vw, 380px);
+  --sileo-duration: 560ms;
+}
+[data-sileo-toast] {
+  backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border-radius: 20px !important;
+  border: 1px solid rgb(255 255 255 / .10) !important;
+  box-shadow: 0 22px 60px rgb(4 10 7 / .5), inset 0 1px 0 rgb(255 255 255 / .10) !important;
+}
+[data-sileo-title] { font-family: var(--font-sans) !important; font-weight: 650 !important; letter-spacing: -.01em; color: #f2f9ee !important; }
+[data-sileo-description] { color: #b9cbb4 !important; }
+
+/* ------------------------------------------------------------------ */
+/* Accessibility fallbacks                                              */
+/* ------------------------------------------------------------------ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog { background: rgb(255 255 255 / .97); }
+  .glass-deep, .mobile-nav { background: rgb(18 29 23 / .97); }
+  [data-sileo-toast] { background: rgb(18 29 23 / .97) !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog, .mobile-nav, [data-sileo-toast] {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  .glass, .glass-chip, .glass-tile, .glass-menu, .glass-dialog { background: #f7faf5; }
+  .glass-deep, .mobile-nav { background: #14211a; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-pill { transition: none; }
+  .loan-action, .quick-action, .waterfall-row { transition: none !important; }
+}
+
+/* ghost icon button (sidebar / top bars) */
+.ghost-icon-button {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px;
+  color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer;
+  transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.ghost-icon-button:hover { color: var(--ink); background: rgb(13 26 19 / .06); }
+.ghost-icon-button:active { transform: scale(.94); }
+
+/* sounds popover */
+.sound-switch {
+  position: relative; width: 36px; height: 20px; border-radius: 999px; border: 1px solid var(--line-strong);
+  background: #dfe6dc; cursor: pointer; transition: background .18s ease, border-color .18s ease; flex: 0 0 auto;
+}
+.sound-switch.on { background: var(--lime); border-color: var(--lime-strong); }
+.sound-switch-thumb {
+  position: absolute; top: 1.5px; left: 2px; width: 15px; height: 15px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 3px rgb(13 26 19 / .35); transition: transform .18s cubic-bezier(.3,1.4,.4,1);
+}
+.sound-switch.on .sound-switch-thumb { transform: translateX(15.5px); }
+.sound-volume { display: flex; gap: 4px; background: rgb(13 26 19 / .06); padding: 3px; border-radius: 10px; }
+.sound-volume button {
+  flex: 1; height: 26px; border-radius: 8px; font-size: 9.5px; font-weight: 700; color: var(--muted); border: 0; background: transparent; cursor: pointer; transition: all .15s ease;
+}
+.sound-volume button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgb(13 26 19 / .18); }
+.sound-volume button:disabled { opacity: .45; cursor: not-allowed; }

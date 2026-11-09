@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/lib/toast';
+import { sounds } from '@/lib/sounds';
 
 type TeamData = {
   workspace: { id: number; name: string; currency: string };
@@ -45,7 +47,6 @@ export default function TeamClient({ userName, role }: { userName: string; role:
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [employeeRef, setEmployeeRef] = useState('');
@@ -83,7 +84,6 @@ export default function TeamClient({ userName, role }: { userName: string; role:
   const activeEmployees = useMemo(() => data?.employees.filter((employee) => employee.active) ?? [], [data]);
   const currentPeriod = data?.periods.find((period) => String(period.id) === selectedPeriod);
   const selectedEmployeeData = data?.employees.find((employee) => String(employee.id) === selectedEmployee);
-  const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 3000); };
 
   const openEmployee = () => { setDialogMode('employee'); setEditingEmployeeId(null); setEmployeeName(''); setJobTitle(''); setEmployeeRef(''); setStartDate(new Date().toISOString().slice(0, 10)); setMonthlySalary(''); setRateEffectiveFrom(new Date().toISOString().slice(0, 10)); setFormError(''); setDialogOpen(true); };
   const openEditEmployee = (employee: TeamData['employees'][number]) => {
@@ -99,8 +99,19 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const response = await fetch(`/api/team/employees/${employee.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !employee.active }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || `Could not ${action.toLowerCase()} employee.`);
-      setData(result as TeamData); showToast(employee.active ? 'Employee archived. Salary history was kept.' : 'Employee reactivated.');
-    } catch (error) { showToast(error instanceof Error ? error.message : 'Could not update employee status.'); }
+      setData(result as TeamData);
+      const revert = employee.active; // undo restores the pre-action state
+      toast.withUndo(revert ? 'Employee archived' : 'Employee reactivated', () => {
+        void (async () => {
+          try {
+            const revertResponse = await fetch(`/api/team/employees/${employee.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: revert }) });
+            const revertResult = await revertResponse.json();
+            if (revertResponse.ok) { setData(revertResult as TeamData); toast.success(revert ? 'Employee reactivated' : 'Employee archived'); }
+            else toast.error('Could not undo that change.', revertResult.error);
+          } catch { toast.error('Could not undo that change.'); }
+        })();
+      }, 'Salary history was kept.');
+    } catch (error) { toast.error('Could not update employee status.', error instanceof Error ? error.message : undefined); }
   };
   const openPeriod = () => {
     setDialogMode('period'); setFormError(''); setPeriodStart(monthStart()); setPeriodEnd(monthEnd()); setDueDate(`${monthStart().slice(0, 7)}-10`);
@@ -119,7 +130,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not create invitation.');
       setInviteLink(`${window.location.origin}/invite/${result.token}`);
-      await refreshAccess(); showToast('Invitation created. Share the link with the invitee.');
+      await refreshAccess(); toast.invite('Invitation created', 'Share the link with the invitee — it expires in 7 days.');
     } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not create invitation.'); }
     finally { setInviteSaving(false); }
   };
@@ -128,7 +139,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const response = await fetch(`/api/workspace/members/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not update access.');
-      setAccessData(result as WorkspaceAccess); showToast('Workspace access updated.');
+      setAccessData(result as WorkspaceAccess); toast.success('Workspace access updated');
     } catch (error) { setAccessError(error instanceof Error ? error.message : 'Could not update access.'); }
   };
   const revokeInvite = async (id: number, email: string) => {
@@ -137,11 +148,11 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       const response = await fetch(`/api/workspace/invitations/${id}`, { method: 'DELETE' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not revoke invitation.');
-      setAccessData(result as WorkspaceAccess); showToast('Invitation revoked.');
+      setAccessData(result as WorkspaceAccess); toast.success('Invitation revoked');
     } catch (error) { setAccessError(error instanceof Error ? error.message : 'Could not revoke invitation.'); }
   };
   const copyInviteLink = async () => {
-    try { await navigator.clipboard.writeText(inviteLink); showToast('Invitation link copied.'); }
+    try { await navigator.clipboard.writeText(inviteLink); sounds.tap(); toast.success('Link copied'); }
     catch { setInviteError('Copy was blocked. Select and copy the invitation link below.'); }
   };
 
@@ -170,8 +181,16 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       if (!response.ok) throw new Error(result.error || 'Could not save this record.');
       setData(result as TeamData); setDialogOpen(false);
       if (dialogMode === 'employee' || dialogMode === 'employeeEdit') { setEmployeeName(''); setJobTitle(''); setEmployeeRef(''); setMonthlySalary(''); setEditingEmployeeId(null); }
-      showToast(dialogMode === 'employeeEdit' ? 'Employee record updated.' : dialogMode === 'employee' ? 'Employee record added.' : dialogMode === 'period' ? 'Salary period created.' : 'Salary payment recorded.');
-    } catch (error) { setFormError(error instanceof Error ? error.message : 'Could not save this record.'); }
+      if (dialogMode === 'payment') {
+        toast.salaryPaid('Salary paid', 'Payment posted to the ledger and marked against the period.');
+      } else {
+        toast.success(
+          dialogMode === 'employeeEdit' ? 'Employee updated'
+            : dialogMode === 'employee' ? 'Employee added'
+            : 'Salary period created',
+        );
+      }
+    } catch (error) { sounds.error(); setFormError(error instanceof Error ? error.message : 'Could not save this record.'); }
     finally { setSaving(false); }
   };
 
@@ -324,7 +343,6 @@ export default function TeamClient({ userName, role }: { userName: string; role:
           </form>}
         </DialogContent>
       </Dialog>
-      {toast && <div role="status" className="toast">{toast}</div>}
     </div>
   );
 }
