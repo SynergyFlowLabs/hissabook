@@ -22,6 +22,7 @@ import { formatPKR, greetingFor } from '@/lib/format';
 import { primeWorkspaceContext } from '@/lib/use-workspace-context';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import DashboardSkeleton from '@/components/dashboard-skeleton';
+import AccountsDialog from '@/components/accounts-dialog';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -126,6 +127,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [hideBalance, setHideBalance] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [kind, setKind] = useState<TransactionKind>('Expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -478,7 +480,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card accounts-panel xl:col-span-5" id="accounts">
               <div className="card-header-row">
                 <div><div className="card-title">Where your money is</div><div className="card-subtitle">Recorded balance across business accounts</div></div>
-                <Button variant="ghost" size="icon" className="rounded-full text-[var(--muted)]" aria-label="Account options" onClick={() => toast.info('Account management is being built.', 'We’ll let you know when it lands.')}><MoreHorizontal size={17} /></Button>
+                <Button variant="ghost" size="icon" className="rounded-full text-[var(--muted)]" aria-label="Manage accounts" onClick={() => setAccountsOpen(true)}><MoreHorizontal size={17} /></Button>
               </div>
               <div className="mt-4 flex items-end justify-between gap-3">
                 <div><div className="text-[10px] font-bold uppercase tracking-[.1em] text-[var(--faint)]">Total recorded</div><div className="mt-1 text-[26px] font-extrabold leading-none tracking-[-1px] tabular-nums">{hidden(data.summary.cashBalance)}</div></div>
@@ -560,6 +562,19 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       </main>
 
       {/* Add transaction dialog */}
+      <AccountsDialog
+        open={accountsOpen}
+        onOpenChange={setAccountsOpen}
+        accounts={data.accounts.map((account) => ({ id: account.id, name: account.name, type: account.type, balance: account.balance }))}
+        canManage={['OWNER', 'ADMIN'].includes(userRole)}
+        onSaved={(payload) => {
+          // The API returns the recalculated book, so the panel behind the dialog
+          // updates in place instead of waiting for a reload.
+          setData(payload as DashboardData);
+          writeCache(DASHBOARD_CACHE, payload as DashboardData);
+        }}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
