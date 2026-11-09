@@ -8,7 +8,7 @@ import 'sileo/styles.css';
 import MotionProvider from '@/components/motion-provider';
 import AppToaster from '@/components/app-toaster';
 import PwaRegister from '@/components/pwa-register';
-import AppShell from '@/components/app-shell';
+import ShellGate, { currentSession } from '@/components/shell-gate';
 
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -107,7 +107,10 @@ export const viewport: Viewport = {
   colorScheme: 'light',
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // Resolved on the server so the shell is never drawn over the public landing
+  // page, and so a signed-in owner still gets it without a client round trip.
+  const signedIn = await currentSession();
   return (
     <html lang="en" dir="ltr">
       <body>
@@ -116,7 +119,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               client-side navigation never unmounts it. Previously it lived inside
               every screen, which restarted the notification poll and rebuilt the
               nav on each route change. */}
-          <AppShell />
+          <ShellGate signedIn={signedIn} />
           {children}
           <PwaRegister />
           <AppToaster />
