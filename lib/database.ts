@@ -543,6 +543,15 @@ async function seedPartnerDemoIfEmpty(workspaceId: number) {
       .run(workspaceId, DEMO_USER_NAME);
   } catch (error) {
     console.error('Demo partner seed failed', error);
+    // Never fail silently: leave an audit trail so a partially seeded demo can be
+    // diagnosed from the database instead of guessed at. Best effort only; the
+    // demo page must still render if this write also fails.
+    try {
+      await db.prepare('INSERT INTO audit_events (workspace_id, action, details, actor) VALUES (?, ?, ?, ?)')
+        .run(workspaceId, 'DEMO_PARTNER_SEED_FAILED', String(error instanceof Error ? `${error.message}` : error).slice(0, 500), DEMO_USER_NAME);
+    } catch (auditError) {
+      console.error('Demo partner seed failure could not be audited', auditError);
+    }
   }
 }
 
