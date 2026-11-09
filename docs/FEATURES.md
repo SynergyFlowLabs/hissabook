@@ -18,8 +18,14 @@ This inventory covers the intended product, not an implementation. Priority labe
 | Ownership shares or units | P0 | Explicitly informational; total shares/percentages and effective dates. |
 | Ownership change history | P0 | Preserve prior arrangements; show who recorded a change and when. |
 | Record an agreement reference or attachment | P1 | Do not imply legal validation or create a binding contract. |
-| Ownership/profit-sharing rules | P2 | Only after discovery; keep separate from ownership and contributions. |
+| Ownership/profit-sharing rules | P2 | Implemented in Hisaabook as day-weighted profit-sharing ratios (effective-dated share history, largest-remainder apportionment) for appropriation runs and exit settlements; kept separate from ownership and contributions. The original "only after discovery" gate was cleared by the owner for the pilot. |
 | Roles and permissions | P0 | Owner/admin, bookkeeper/editor, viewer (final roles to validate). |
+| Partner ledger (fronts, drawings, reimbursements) | P0 | Hisaabook implements this: one running hisaab per partner. Fronted business expenses credit the partner (reimbursable or count as capital), counter drawings debit them, multi-partner splits post per funding partner in one transaction. |
+| Deed-configurable appropriation run | P1 | Implemented. Salary, interest on capital (capped by profit remaining after salary), interest on drawings (added back), residual shared by day-weighted PSR; POSTED/VOID with mirrored correction entries; full workings persisted per distribution. |
+| Exit settlement calculator | P1 | Implemented. s.48-style order: auto-post any unposted distribution first, revaluation lines shared by exit-date PSR, goodwill methods (raise-and-write-off in old PSR, or cash adjustment borne by remaining partners), settle as payment or loan, partner marked exited, ledger closes to zero, unpaid balance booked as a loan. |
+| Partner statements and CSV export | P0 | Implemented. Per-partner dated statement (print-friendly + CSV) with opening/closing balances; workspace-level movements CSV; distribution history CSV. |
+| Exit terms and settlement default in deed settings | P1 | Implemented. Workspace-level deed settings (salary, interest toggles and rates, drawing cap, settlement method); plain-language copy; deed silent means off, nothing is invented. |
+| Drawing cap guard and monthly partner digest | P2 | Implemented. Drawings over the cap warn (never block) with the numbers and an audit flag; monthly cron summarizes partner money in/out. |
 | Record review/approval workflow | P1 | Optional business policy; do not make a simple solo flow cumbersome. |
 
 ## 3. Transactions and ledger

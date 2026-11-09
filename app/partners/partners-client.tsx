@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowRight, ArrowUpRight, Download, HandCoins, PieChart, Plus, Printer, SlidersHorizontal,
+  ArrowDownLeft, ArrowRight, ArrowUpRight, Download, HandCoins, LogOut, PieChart, Plus, Printer, SlidersHorizontal,
   Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
 } from 'lucide-react';
 import AppSidebar from '@/components/app-sidebar';
@@ -67,6 +67,31 @@ type WorkingsPayload = {
   roundingNote: string; notes: string[];
 };
 type DistributionItem = { id: number; periodFrom: string; periodTo: string; basisProfit: number; residual: number; status: 'POSTED' | 'VOID'; note: string; createdBy: string; createdAt: string };
+type SettlementPayload = {
+  partner: { id: number; name: string };
+  asOf: string;
+  mode: 'PAY' | 'LOAN';
+  psr: Array<{ ownerId: number; name: string; ratio: number }>;
+  continuing: Array<{ ownerId: number; name: string; absorbed: number }>;
+  exitDistribution: null | { from: string; to: string; basisProfit: number; residual: number; lossPeriod: boolean; share: number; posted: boolean; distributionId: number | null };
+  capitalBalance: number;
+  currentPosition: number;
+  undistributedShare: number;
+  revaluations: Array<{ description: string; delta: number; share: number; allocations: Array<{ ownerId: number; name: string; amount: number }> }>;
+  revaluationTotal: number;
+  revaluationShare: number;
+  goodwillValue: number;
+  goodwillMethod: 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT';
+  goodwillShare: number;
+  currentSettled: number;
+  capitalReturned: number;
+  totalDue: number;
+  firmPays: number;
+  partnerOwes: number;
+  shareMismatchTotal: number;
+  notes: string[];
+};
+type ExitRevaluationRow = { id: number; description: string; delta: string };
 type StatementRow = { id: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; amount: number; note: string; date: string; label: string; bucket: 'capital' | 'current'; runningCurrent: number; runningCapital: number };
 type StatementPayload = {
   partner: { id: number; name: string; role: string };
@@ -190,6 +215,20 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   const [voidTarget, setVoidTarget] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidBusy, setVoidBusy] = useState(false);
+
+  // exit settlement dialog
+  const [exitOpen, setExitOpen] = useState(false);
+  const [exitPartnerId, setExitPartnerId] = useState<number | null>(null);
+  const [exitAsOf, setExitAsOf] = useState(todayIso());
+  const [exitMode, setExitMode] = useState<'PAY' | 'LOAN'>('PAY');
+  const [exitGoodwill, setExitGoodwill] = useState('0');
+  const [exitGoodwillMethod, setExitGoodwillMethod] = useState<'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT'>('RAISE_WRITEOFF');
+  const [exitRevaluations, setExitRevaluations] = useState<ExitRevaluationRow[]>([]);
+  const [exitRevaluationId, setExitRevaluationId] = useState(1);
+  const [exitPreview, setExitPreview] = useState<SettlementPayload | null>(null);
+  const [exitBusy, setExitBusy] = useState(false);
+  const [exitError, setExitError] = useState('');
+  const [exitConfirmMismatch, setExitConfirmMismatch] = useState(false);
 
   const activePartners = useMemo(() => (data?.partners ?? []).filter((partner) => partner.status === 'active'), [data]);
   const totals = useMemo(() => {
@@ -368,6 +407,62 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     } finally { setVoidBusy(false); }
   };
 
+  const exitPartner = useMemo(() => (data?.partners ?? []).find((partner) => partner.id === exitPartnerId) ?? null, [data, exitPartnerId]);
+  const openExit = (partnerId: number) => {
+    if (!data) return;
+    setExitPartnerId(partnerId); setExitAsOf(todayIso()); setExitMode(data.settings.settlementMethod);
+    setExitGoodwill('0'); setExitGoodwillMethod('RAISE_WRITEOFF'); setExitRevaluations([]); setExitRevaluationId(1);
+    setExitPreview(null); setExitError(''); setExitConfirmMismatch(false); setExitOpen(true);
+  };
+  const revaluationsQuery = () => JSON.stringify(
+    exitRevaluations
+      .map((line) => ({ description: line.description.trim(), delta: Math.trunc(Number(line.delta)) }))
+      .filter((line) => line.description.length > 0 && Number.isSafeInteger(line.delta) && line.delta !== 0),
+  );
+  const goodwillInt = Number.isFinite(Number(exitGoodwill)) ? Math.max(0, Math.trunc(Number(exitGoodwill))) : 0;
+  const buildSettlementPreview = async () => {
+    if (exitPartnerId === null) return;
+    setExitBusy(true); setExitError('');
+    try {
+      const query = new URLSearchParams({ partnerId: String(exitPartnerId), asOf: exitAsOf, goodwillValue: String(goodwillInt), goodwillMethod: exitGoodwillMethod, mode: exitMode });
+      const revaluations = revaluationsQuery();
+      if (revaluations && revaluations !== '[]') query.set('revaluations', revaluations);
+      const response = await fetch(`/api/partners/settlement/preview?${query.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not build the settlement preview.');
+      setExitPreview(payload.workings as SettlementPayload);
+      setExitConfirmMismatch(false);
+    } catch (error) {
+      setExitPreview(null);
+      setExitError(error instanceof Error ? error.message : 'Could not build the settlement preview.');
+    } finally { setExitBusy(false); }
+  };
+  const confirmSettlement = async () => {
+    if (!exitPreview || exitPartnerId === null) return;
+    setExitBusy(true); setExitError('');
+    try {
+      const response = await fetch('/api/partners/settlement', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerId: exitPartnerId, asOf: exitPreview.asOf, goodwillValue: exitPreview.goodwillValue, goodwillMethod: exitPreview.goodwillMethod, mode: exitPreview.mode,
+          revaluations: exitRevaluations.map((line) => ({ description: line.description.trim(), delta: Math.trunc(Number(line.delta)) })).filter((line) => line.description && Number.isFinite(line.delta) && line.delta !== 0),
+          confirmShareMismatch: exitConfirmMismatch,
+        }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not post the settlement.');
+      sounds.shimmer();
+      toast.success('Exit settlement posted', exitPreview.firmPays > 0
+        ? `${money(exitPreview.firmPays)} is owed to ${exitPreview.partner.name}${payload.loanCreated ? ' (booked as a loan payable)' : ''}. Their ledger is closed.`
+        : exitPreview.partnerOwes > 0
+          ? `${money(exitPreview.partnerOwes)} is owed by ${exitPreview.partner.name} (tracked as a loan receivable). Their ledger is closed.`
+          : 'The partner settles at zero; their ledger is closed.');
+      setExitOpen(false);
+      await load();
+      await loadDistributions();
+    } catch (error) {
+      setExitError(error instanceof Error ? error.message : 'Could not post the settlement.');
+    } finally { setExitBusy(false); }
+  };
+
   const savePartner = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(''); setBusy(true);
@@ -528,6 +623,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <p className="page-subtitle">Who fronts what, who draws from the counter, and what each partner is owed.</p>
             </div>
             <div className="inventory-heading-actions">
+              <a className="ghost-pill" href="/api/partners/movements?format=csv" download><Download size={13} /> Movements CSV</a>
               {canManage && <button className="ghost-pill" onClick={openDistribution}><PieChart size={13} /> Distribute profit</button>}
               {canManage && <button className="ghost-pill" onClick={openDeed}><SlidersHorizontal size={13} /> Deed terms</button>}
               {canManage && <button className="ghost-pill" onClick={openShare}><Scale size={13} /> Edit shares</button>}
@@ -603,12 +699,13 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                   )}
 
                   <div className="partner-actions">
-                    {canEdit && <button className="ghost-pill" onClick={() => { setFormError(''); setFrontedOpen(true); setFeFunders([{ ownerId: String(partner.id), amount: '' }]); }}><Receipt size={12} /> Out of pocket</button>}
-                    {canEdit && <button className="ghost-pill" onClick={() => openMovement('drawing', partner.id)}><ArrowDownLeft size={12} /> Counter drawing</button>}
-                    {canEdit && <button className="ghost-pill" onClick={() => openMovement('reimburse', partner.id)}><HandCoins size={12} /> Reimburse{partner.frontedOutstanding > 0 ? ` (${money(partner.frontedOutstanding)})` : ''}</button>}
-                    {canEdit && <button className="ghost-pill" onClick={() => openMovement('contribution', partner.id)}><Plus size={12} /> Add capital</button>}
+                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => { setFormError(''); setFrontedOpen(true); setFeFunders([{ ownerId: String(partner.id), amount: '' }]); }}><Receipt size={12} /> Out of pocket</button>}
+                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('drawing', partner.id)}><ArrowDownLeft size={12} /> Counter drawing</button>}
+                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('reimburse', partner.id)}><HandCoins size={12} /> Reimburse{partner.frontedOutstanding > 0 ? ` (${money(partner.frontedOutstanding)})` : ''}</button>}
+                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('contribution', partner.id)}><Plus size={12} /> Add capital</button>}
                     <button className="ghost-pill" onClick={() => openStatement(partner.id)}><Printer size={12} /> Statement</button>
-                    {canEdit && partner.capitalBalance > 0 && <button className="text-link" style={{ fontSize: 10 }} onClick={() => openMovement('capital-return', partner.id)}>Return capital <ArrowRight size={12} /></button>}
+                    {canEdit && partner.status === 'active' && partner.capitalBalance > 0 && <button className="text-link" style={{ fontSize: 10 }} onClick={() => openMovement('capital-return', partner.id)}>Return capital <ArrowRight size={12} /></button>}
+                    {canManage && partner.status === 'active' && <button className="text-link" style={{ fontSize: 10, color: 'var(--ink-soft)' }} onClick={() => openExit(partner.id)}><LogOut size={12} style={{ verticalAlign: '-2px' }} /> Exit partner</button>}
                   </div>
                 </article>
               );
@@ -627,7 +724,10 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                 <h2 className="card-title"><PieChart size={15} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Distribution history</h2>
                 <p className="card-subtitle">Every appropriation posted to the partner ledgers, newest first.</p>
               </div>
-              {canManage && <button className="lime-button" onClick={openDistribution}><PieChart size={14} /> Distribute profit</button>}
+              <div className="flex items-center gap-2">
+                <a className="ghost-pill" href="/api/partners/distribution?format=csv" download><Download size={12} /> CSV</a>
+                {canManage && <button className="lime-button" onClick={openDistribution}><PieChart size={14} /> Distribute profit</button>}
+              </div>
             </div>
             {historyLoading && distributions.length === 0 && <div className="empty-state">Loading distribution history…</div>}
             {!historyLoading && distributions.length === 0 && <div className="empty-state">No distributions yet. When the month closes, run the appropriation here and every partner ledger posts itself.</div>}
@@ -806,6 +906,82 @@ export default function PartnersClient({ userName, role }: { userName: string; r
           )}
         </DialogContent>
       </Dialog>
+      {/* Exit settlement dialog */}
+      <Dialog open={exitOpen} onOpenChange={setExitOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold tracking-tight">Exit settlement{exitPartner ? ` - ${exitPartner.name}` : ''}</DialogTitle>
+            <DialogDescription>Computes everything the partner is owed or owes, in the s.48 order: losses first, then advances, then capital, then the residue. Preview posts nothing; the ledger changes only on confirm.</DialogDescription>
+          </DialogHeader>
+          <div className="form-grid" style={{ marginTop: 4 }}>
+            <div className="form-field"><Label htmlFor="exit-date">Exit date</Label><Input id="exit-date" type="date" required max={todayIso()} value={exitAsOf} onChange={(event) => { setExitAsOf(event.target.value); setExitPreview(null); }} className="h-11 rounded-xl" /></div>
+            <div className="form-field"><Label htmlFor="exit-mode">Settle as</Label>
+              <Select value={exitMode} onValueChange={(value) => { setExitMode(value as 'PAY' | 'LOAN'); setExitPreview(null); }}><SelectTrigger id="exit-mode" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
+              <span className="field-hint">Default comes from the deed terms.</span>
+            </div>
+            <div className="form-field"><Label htmlFor="exit-goodwill">Goodwill value (PKR)</Label><Input id="exit-goodwill" type="number" min="0" step="1" inputMode="numeric" value={exitGoodwill} onChange={(event) => { setExitGoodwill(event.target.value); setExitPreview(null); }} className="h-11 rounded-xl" /></div>
+            {goodwillInt > 0 && (
+              <div className="form-field"><Label htmlFor="exit-gw-method">Goodwill method</Label>
+                <Select value={exitGoodwillMethod} onValueChange={(value) => { setExitGoodwillMethod(value as 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT'); setExitPreview(null); }}><SelectTrigger id="exit-gw-method" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="RAISE_WRITEOFF">Raise and write off (old PSR)</SelectItem><SelectItem value="CASH_ADJUSTMENT">Cash adjustment (remaining partners)</SelectItem></SelectContent></Select>
+              </div>
+            )}
+          </div>
+          <div className="form-field full" style={{ marginTop: 12 }}>
+            <Label>Revaluation lines (optional)</Label>
+            <p className="field-hint">Assets and liabilities at fair value. A positive delta increases asset values, a negative delta reduces them. Split by the exit-date PSR.</p>
+            {exitRevaluations.map((line) => (
+              <div className="mt-2 flex items-center gap-2" key={line.id}>
+                <Input placeholder="e.g. Delivery van revalued" aria-label="Revaluation description" maxLength={80} value={line.description} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, description: event.target.value } : row)); setExitPreview(null); }} className="h-10 rounded-xl" />
+                <Input type="number" step="1" inputMode="numeric" placeholder="+/-" aria-label="Revaluation delta in PKR" value={line.delta} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, delta: event.target.value } : row)); setExitPreview(null); }} className="h-10 w-32 rounded-xl tabular-nums" />
+                <button type="button" className="ghost-pill" aria-label="Remove revaluation line" onClick={() => { setExitRevaluations(exitRevaluations.filter((row) => row.id !== line.id)); setExitPreview(null); }}><X size={12} /></button>
+              </div>
+            ))}
+            {exitRevaluations.length < 24 && <button type="button" className="text-link" style={{ fontSize: 10, marginTop: 8 }} onClick={() => { setExitRevaluations([...exitRevaluations, { id: exitRevaluationId, description: '', delta: '' }]); setExitRevaluationId(exitRevaluationId + 1); }}>+ Add revaluation line</button>}
+          </div>
+          <div className="flex items-center justify-between gap-2" style={{ marginTop: 10 }}>
+            <span className="field-hint">Preview only; nothing posts until you confirm.</span>
+            <button type="button" className="ghost-pill" onClick={() => void buildSettlementPreview()} disabled={exitBusy || !exitAsOf}>{exitBusy && !exitPreview ? 'Computing…' : 'Preview'}</button>
+          </div>
+          {exitError && <p className="form-error" role="alert" style={{ marginTop: 10 }}>{exitError}</p>}
+          {exitPreview && (
+            <div className="dist-panel">
+              {exitPreview.exitDistribution && (
+                <p className="warn-box" role="status">Step 1 posts the distribution for {dateLabel(exitPreview.exitDistribution.from)} to {dateLabel(exitPreview.exitDistribution.to)} first (residual {signed(exitPreview.exitDistribution.residual)}). {exitPreview.partner.name} keeps {money(exitPreview.exitDistribution.share)} of it, paid exactly once here.</p>
+              )}
+              <div className="dist-row"><span>Capital balance</span><strong>{signed(exitPreview.capitalBalance)}</strong></div>
+              <div className="dist-row"><span>Current account (fronts − drawings + appropriations)</span><strong>{signed(exitPreview.currentPosition)}</strong></div>
+              {exitPreview.undistributedShare > 0 && <div className="dist-row"><span>Share of un-distributed profit (step 1)</span><strong>+ {money(exitPreview.undistributedShare)}</strong></div>}
+              {exitPreview.revaluations.map((line, index) => (
+                <div className="dist-row" key={`${index}-${line.description}`}>
+                  <span>Revaluation · {line.description}<br /><small className="table-muted">{line.allocations.map((allocation) => `${allocation.name.split(' ')[0]} ${signed(allocation.amount)}`).join(' · ')}</small></span>
+                  <strong>{signed(line.share)}</strong>
+                </div>
+              ))}
+              {exitPreview.goodwillValue > 0 && <div className="dist-row"><span>Goodwill · {exitPreview.goodwillMethod === 'RAISE_WRITEOFF' ? 'raise and write off (old PSR)' : 'cash adjustment (remaining partners)'}</span><strong>{exitPreview.goodwillMethod === 'RAISE_WRITEOFF' ? `+ ${money(exitPreview.goodwillShare)}` : `${money(exitPreview.goodwillShare)} personal claim`}</strong></div>}
+              <div className="dist-row"><span>Current account settled</span><strong>{signed(exitPreview.currentSettled)}</strong></div>
+              <div className="dist-row"><span>Capital returned</span><strong>{money(exitPreview.capitalReturned)}</strong></div>
+              <div className="dist-row dist-total"><span>{exitPreview.firmPays > 0 ? `Firm pays ${exitPreview.partner.name}` : exitPreview.partnerOwes > 0 ? `${exitPreview.partner.name} owes the firm` : 'Settles at zero'}{exitMode === 'LOAN' && exitPreview.firmPays > 0 ? ' (as a loan)' : ''}</span><strong>{money(Math.max(exitPreview.firmPays, exitPreview.partnerOwes))}</strong></div>
+              {exitPreview.continuing.length > 0 && (
+                <div className="dist-psr" aria-label="Continuing partners absorb">
+                  <div className="dist-psr-row"><span>Continuing partners absorb</span><span>{exitPreview.continuing.map((entry) => entry.absorbed === 0 ? null : `${entry.name.split(' ')[0]} ${entry.absorbed >= 0 ? '−' : '+'} ${money(entry.absorbed)}`).filter(Boolean).join(' · ')}</span></div>
+                </div>
+              )}
+              {exitPreview.notes.map((note) => <p className="field-hint" key={note}>{note}</p>)}
+              {Math.abs(exitPreview.shareMismatchTotal - 100) > 0.01 && (
+                <label className="dist-confirm" htmlFor="exit-confirm-mismatch">
+                  <input id="exit-confirm-mismatch" type="checkbox" checked={exitConfirmMismatch} onChange={(event) => setExitConfirmMismatch(event.target.checked)} />
+                  <span>Recorded shares total {exitPreview.shareMismatchTotal}% (not 100). Settle anyway using the recorded day-weighted weights.</span>
+                </label>
+              )}
+            </div>
+          )}
+          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
+            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setExitOpen(false)}>Close</Button>
+            <button type="button" className="lime-button" disabled={!exitPreview || exitBusy || (Math.abs(exitPreview.shareMismatchTotal - 100) > 0.01 && !exitConfirmMismatch)} onClick={() => void confirmSettlement()}>{exitBusy ? 'Posting…' : 'Post exit settlement'}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Deed settings dialog */}
       <Dialog open={deedOpen} onOpenChange={setDeedOpen}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
@@ -835,7 +1011,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <div className="form-field"><Label htmlFor="deed-cap">Drawing cap (%)</Label><Input id="deed-cap" type="number" min="0" max="100" step="1" required value={deedCap} onChange={(event) => setDeedCap(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">Warn when lifetime drawings exceed this % of accrued (posted + estimated) share. Never blocks; flagged in the audit log.</span></div>
             <div className="form-field"><Label htmlFor="deed-method">On partner exit</Label>
               <Select value={deedMethod} onValueChange={(value) => setDeedMethod(value as 'PAY' | 'LOAN')}><SelectTrigger id="deed-method" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
-              <span className="field-hint">Used by the exit settlement (coming next).</span>
+              <span className="field-hint">Default for the exit settlement and for how an exited partner is paid.</span>
             </div>
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
             <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDeedOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Save deed terms'}</button></DialogFooter>

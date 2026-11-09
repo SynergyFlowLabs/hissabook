@@ -2,17 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ensureDemoWorkspace } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
 import { createWorkspaceNotification, money } from '@/lib/notifications';
+import { csvAttachment, csvNum } from '@/lib/csv';
 import { DistributionError, listDistributions, postDistribution } from '@/lib/partners/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const access = await requireWorkspaceMember();
   if (access.response) return access.response;
   try {
     const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
-    return NextResponse.json({ distributions: await listDistributions(workspaceId) }, { headers: { 'Cache-Control': 'private, no-store' } });
+    const distributions = await listDistributions(workspaceId);
+    if (request.nextUrl.searchParams.get('format') === 'csv') {
+      const headers = ['ID', 'Period from', 'Period to', 'Basis profit (PKR)', 'Salary total (PKR)', 'Interest on capital (PKR)', 'Interest on drawings (PKR)', 'Residual distributed (PKR)', 'Status', 'Note', 'Posted by', 'Posted on'];
+      const rows = distributions.map((row) => [String(row.id), row.periodFrom, row.periodTo,
+        csvNum(row.basisProfit), csvNum(row.salaryTotal), csvNum(row.interestCapitalTotal), csvNum(row.interestDrawingsTotal),
+        csvNum(row.residual), row.status, row.note, row.createdBy, row.createdAt]);
+      const meta = [
+        'Hisaabook distribution history',
+        `Exported ${new Date().toISOString()}`,
+      ];
+      const file = csvAttachment(meta, headers, rows);
+      return new NextResponse(file, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="partner-distributions.csv"',
+          'Cache-Control': 'private, no-store',
+        },
+      });
+    }
+    return NextResponse.json({ distributions }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Failed to load distributions', error);
     return NextResponse.json({ error: 'Could not load the distribution history.' }, { status: 500 });

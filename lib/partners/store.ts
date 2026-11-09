@@ -75,9 +75,14 @@ export async function getEffectiveShares(workspaceId: number, asOf = today()) {
   return map;
 }
 
-export async function getPartnerPositions(workspaceId: number) {
-  const rows = await db.prepare(`SELECT owner_id AS ownerId, entry_type AS entryType, direction, SUM(amount) AS total
-    FROM partner_entries WHERE workspace_id = ? GROUP BY owner_id, entry_type, direction`).all(workspaceId) as Array<{ ownerId: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; total: number }>;
+/** Positions from sub-ledger rows, optionally restricted to entries on/before `upTo` (ISO date). */
+export async function getPartnerPositionLines(workspaceId: number, upTo?: string) {
+  const cutoff = upTo && /^\d{4}-\d{2}-\d{2}$/.test(upTo) ? upTo : null;
+  const rows = cutoff
+    ? await db.prepare(`SELECT owner_id AS ownerId, entry_type AS entryType, direction, SUM(amount) AS total
+        FROM partner_entries WHERE workspace_id = ? AND substr(transaction_date, 1, 10) <= ? GROUP BY owner_id, entry_type, direction`).all(workspaceId, cutoff) as Array<{ ownerId: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; total: number }>
+    : await db.prepare(`SELECT owner_id AS ownerId, entry_type AS entryType, direction, SUM(amount) AS total
+        FROM partner_entries WHERE workspace_id = ? GROUP BY owner_id, entry_type, direction`).all(workspaceId) as Array<{ ownerId: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; total: number }>;
   const byOwner = new Map<number, PositionLine[]>();
   for (const row of rows) {
     const list = byOwner.get(row.ownerId) ?? [];
@@ -85,6 +90,10 @@ export async function getPartnerPositions(workspaceId: number) {
     byOwner.set(row.ownerId, list);
   }
   return byOwner;
+}
+
+export async function getPartnerPositions(workspaceId: number) {
+  return getPartnerPositionLines(workspaceId);
 }
 
 export async function getPartnerOverview(workspaceId: number): Promise<PartnerOverviewEntry[]> {
@@ -497,24 +506,16 @@ export async function computeDistributionWorkings(workspaceId: number, from: str
 
 export type PostDistributionInput = { from: string; to: string; salaries: WorkingsSalary[]; note?: string; confirmShareMismatch?: boolean };
 
-export async function postDistribution(workspaceId: number, input: PostDistributionInput, actor: { name: string; userId: number | null }) {
-  const workings = await computeDistributionWorkings(workspaceId, input.from, input.to, input.salaries);
-  // Overlap guard: at most one POSTED distribution per period.
-  const overlap = await db.prepare(`SELECT id FROM profit_distributions WHERE workspace_id = ? AND status = 'POSTED' AND NOT (period_to < ? OR period_from > ?) LIMIT 1`)
-    .get(workspaceId, input.from, input.to) as { id: number } | undefined;
-  if (overlap) throw new DistributionError(`This period overlaps distribution #${overlap.id} you already posted. Void it first if you need to redo it.`);
-  if (workings.basisProfit === 0) throw new DistributionError('Nothing to distribute: income equals expenses for this period.');
-  const mismatch = Math.abs(workings.shareMismatchTotal - 100) > 0.01;
-  if (mismatch && input.confirmShareMismatch !== true) {
-    throw new DistributionError(`Recorded shares total ${workings.shareMismatchTotal}% (not 100%). Tick the confirmation in the dialog to distribute anyway.`);
-  }
-
-  const actorName = actor.name || 'Workspace member';
-  return db.transaction(async () => {
+/**
+ * Inserts the distribution row, its partner_entries and the audit event.
+ * MUST run inside the caller's db.transaction (nested transactions deadlock
+ * the SQLite write queue). Use postDistribution or postSettlement.
+ */
+async function postDistributionRows(workspaceId: number, workings: DistributionWorkings, note: string, actorName: string): Promise<number> {
     const inserted = await db.prepare(`INSERT INTO profit_distributions (workspace_id, period_from, period_to, basis_profit, salary_total, interest_capital_total, interest_drawings_total, residual_distributed, status, workings_json, note, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'POSTED', ?, ?, ?)`)
-      .run(workspaceId, input.from, input.to, workings.basisProfit, workings.salaryTotal, workings.interestCapitalTotal,
-        workings.interestDrawingsTotal, workings.residual, JSON.stringify(workings), (input.note ?? '').trim().slice(0, 300), actorName);
+      .run(workspaceId, workings.from, workings.to, workings.basisProfit, workings.salaryTotal, workings.interestCapitalTotal,
+        workings.interestDrawingsTotal, workings.residual, JSON.stringify(workings), note.trim().slice(0, 300), actorName);
     const distributionId = Number(inserted.lastInsertRowid);
     const ratioById = new Map(workings.psr.map((entry) => [entry.ownerId, entry.ratio]));
     for (const line of workings.lines) {
@@ -532,16 +533,33 @@ export async function postDistribution(workspaceId: number, input: PostDistribut
         await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, distribution_id, split_share, note, transaction_date, created_by)
           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`)
           .run(workspaceId, line.ownerId, posting.entryType, posting.direction, posting.amount, distributionId, split,
-            `Distribution #${distributionId} · ${input.from} to ${input.to}`, `${input.to}T12:00:00.000Z`, actorName);
+            `Distribution #${distributionId} · ${workings.from} to ${workings.to}`, `${workings.to}T12:00:00.000Z`, actorName);
       }
     }
+    const mismatch = Math.abs(workings.shareMismatchTotal - 100) > 0.01;
     await audit(workspaceId, null, 'DISTRIBUTION_POSTED', {
-      distributionId, from: input.from, to: input.to, basisProfit: workings.basisProfit, salaryTotal: workings.salaryTotal,
+      distributionId, from: workings.from, to: workings.to, basisProfit: workings.basisProfit, salaryTotal: workings.salaryTotal,
       interestCapitalTotal: workings.interestCapitalTotal, interestDrawingsTotal: workings.interestDrawingsTotal,
       residual: workings.residual, shareMismatch: mismatch, lossPeriod: workings.lossPeriod,
     }, actorName);
-    return { id: distributionId, workings };
-  })();
+    return distributionId;
+}
+
+export async function postDistribution(workspaceId: number, input: PostDistributionInput, actor: { name: string; userId: number | null }) {
+  const workings = await computeDistributionWorkings(workspaceId, input.from, input.to, input.salaries);
+  // Overlap guard: at most one POSTED distribution per period.
+  const overlap = await db.prepare(`SELECT id FROM profit_distributions WHERE workspace_id = ? AND status = 'POSTED' AND NOT (period_to < ? OR period_from > ?) LIMIT 1`)
+    .get(workspaceId, input.from, input.to) as { id: number } | undefined;
+  if (overlap) throw new DistributionError(`This period overlaps distribution #${overlap.id} you already posted. Void it first if you need to redo it.`);
+  if (workings.basisProfit === 0) throw new DistributionError('Nothing to distribute: income equals expenses for this period.');
+  const mismatch = Math.abs(workings.shareMismatchTotal - 100) > 0.01;
+  if (mismatch && input.confirmShareMismatch !== true) {
+    throw new DistributionError(`Recorded shares total ${workings.shareMismatchTotal}% (not 100%). Tick the confirmation in the dialog to distribute anyway.`);
+  }
+
+  const actorName = actor.name || 'Workspace member';
+  const id = await db.transaction(async () => postDistributionRows(workspaceId, workings, input.note ?? '', actorName))();
+  return { id, workings };
 }
 
 export async function voidDistribution(workspaceId: number, distributionId: number, reason: string, actor: { name: string; userId: number | null }) {
@@ -610,4 +628,297 @@ export async function computeAccruedEstimates(workspaceId: number, ownerIds: num
     result.set(id, { accrued: Number(postedMap.get(id) ?? 0) + Number(liveByOwner.get(id) ?? 0), drawingsLifetime: Number(drawingsMap.get(id) ?? 0) });
   }
   return result;
+}
+
+/* ------------------------------------------------------------------ */
+/* Phase 4 — exit settlement calculator                                  */
+/* ------------------------------------------------------------------ */
+
+const monthStartOf = (iso: string) => `${iso.slice(0, 7)}-01`;
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+export type SettlementRevaluation = { description: string; delta: number };
+export type SettlementInput = {
+  partnerId: number;
+  asOf: string;
+  revaluations: SettlementRevaluation[];
+  goodwillValue: number;
+  goodwillMethod: 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT';
+  mode: 'PAY' | 'LOAN';
+  confirmShareMismatch?: boolean;
+};
+
+export type SettlementWorkings = {
+  partner: { id: number; name: string };
+  asOf: string;
+  mode: 'PAY' | 'LOAN';
+  psr: Array<{ ownerId: number; name: string; ratio: number }>;
+  continuing: Array<{ ownerId: number; name: string; absorbed: number }>;
+  exitDistribution: { from: string; to: string; basisProfit: number; residual: number; lossPeriod: boolean; share: number; posted: boolean; distributionId: number | null } | null;
+  capitalBalance: number;
+  currentPosition: number;
+  undistributedShare: number;
+  revaluations: Array<{ description: string; delta: number; share: number; allocations: Array<{ ownerId: number; name: string; amount: number }> }>;
+  revaluationTotal: number;
+  revaluationShare: number;
+  goodwillValue: number;
+  goodwillMethod: 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT';
+  goodwillShare: number;
+  currentSettled: number;
+  capitalReturned: number;
+  totalDue: number;
+  firmPays: number;
+  partnerOwes: number;
+  shareMismatchTotal: number;
+  notes: string[];
+};
+
+function normalizeSettlementInput(workspaceId: number, input: SettlementInput) {
+  const partnerId = Number(input.partnerId);
+  if (!Number.isSafeInteger(partnerId)) throw new DistributionError('Choose a valid partner.');
+  if (!isValidDate(input.asOf)) throw new DistributionError('Enter a valid as-of date.');
+  if (input.asOf > todayIso()) throw new DistributionError('The as-of date cannot be in the future.');
+  const goodwillValue = Math.trunc(Number(input.goodwillValue) || 0);
+  if (!Number.isSafeInteger(goodwillValue) || goodwillValue < 0) throw new DistributionError('Goodwill must be a whole number of PKR, zero or more.');
+  const goodwillMethod = input.goodwillMethod === 'CASH_ADJUSTMENT' ? 'CASH_ADJUSTMENT' as const : 'RAISE_WRITEOFF' as const;
+  const mode = input.mode === 'LOAN' ? 'LOAN' as const : 'PAY' as const;
+  const revaluations = (Array.isArray(input.revaluations) ? input.revaluations : []).slice(0, 24).map((line) => ({
+    description: String(line.description ?? '').trim().slice(0, 80) || 'Revaluation',
+    delta: Math.trunc(Number(line.delta) || 0),
+  })).filter((line) => line.delta !== 0 && Math.abs(line.delta) <= 1_000_000_000);
+  return { partnerId, asOf: input.asOf.slice(0, 10), goodwillValue, goodwillMethod, mode, revaluations };
+}
+
+const splitSigned = (absTotal: number, weights: number[], sign: 1 | -1) => (absTotal <= 0 ? weights.map(() => 0) : apportion(Math.round(absTotal), weights).map((part) => sign * part));
+
+/**
+ * Full workings for a partner exit. Pure read + math; posts nothing.
+ * If the firm has un-distributed results up to `asOf`, the workings include an
+ * automatic step 1 (distribution for the unposted period, all partners); posting
+ * the settlement executes it atomically so the exiting partner is made whole in
+ * one go and no profit is paid twice.
+ */
+export async function computeSettlementWorkings(workspaceId: number, input: SettlementInput): Promise<SettlementWorkings> {
+  const { partnerId, asOf, goodwillValue, goodwillMethod, mode, revaluations } = normalizeSettlementInput(workspaceId, input);
+  const partner = await db.prepare("SELECT id, name FROM owners WHERE id = ? AND workspace_id = ? AND status = 'active'").get(partnerId, workspaceId) as { id: number; name: string } | undefined;
+  if (!partner) throw new DistributionError('That partner was not found, or has already exited.');
+
+  const owners = await db.prepare("SELECT id, name, share, effective_at AS effectiveAt FROM owners WHERE workspace_id = ? AND status = 'active' ORDER BY id")
+    .all(workspaceId) as Array<{ id: number; name: string; share: number; effectiveAt: string }>;
+  const ownerIds = owners.map((owner) => Number(owner.id));
+  const nameById = new Map(owners.map((owner) => [Number(owner.id), owner.name]));
+
+  // Effective PSR on the exit date (single day), normalized for apportionment.
+  const shareRows = await db.prepare(`SELECT owner_id AS ownerId, share, substr(effective_at, 1, 10) AS date
+    FROM owner_share_changes WHERE workspace_id = ? AND substr(effective_at, 1, 10) <= ? ORDER BY owner_id, date, id`)
+    .all(workspaceId, asOf) as Array<{ ownerId: number; share: number; date: string }>;
+  const pointsByOwner = new Map<number, SharePoint[]>();
+  for (const row of shareRows) {
+    const list = pointsByOwner.get(Number(row.ownerId)) ?? [];
+    list.push({ date: String(row.date).slice(0, 10), share: Number(row.share) });
+    pointsByOwner.set(Number(row.ownerId), list);
+  }
+  const pointsFor = (ownerId: number, fallbackShare: number): SharePoint[] => {
+    const list = pointsByOwner.get(ownerId);
+    return list && list.length > 0 ? list : [{ date: '1970-01-01', share: fallbackShare }];
+  };
+  const psrRows = dayWeightedPsr(owners.map((owner) => ({ ownerId: Number(owner.id), points: pointsFor(Number(owner.id), Number(owner.share)) })), asOf, asOf);
+  const ratioById = new Map(psrRows.map((entry) => [entry.ownerId, entry.ratio]));
+  const weights = owners.map((owner) => ratioById.get(Number(owner.id)) ?? 0);
+  const shareMismatchTotal = Math.round(owners.reduce((sum, owner) => sum + (shareAt(pointsFor(Number(owner.id), Number(owner.share)), asOf) ?? Number(owner.share)), 0) * 100) / 100;
+
+  // Step 1: automatic distribution for any period not yet distributed up to asOf.
+  const latest = await db.prepare(`SELECT MAX(period_to) AS periodTo FROM profit_distributions WHERE workspace_id = ? AND status = 'POSTED'`).get(workspaceId) as { periodTo: string | null } | undefined;
+  const latestPeriodTo = latest?.periodTo ? String(latest.periodTo).slice(0, 10) : null;
+  let exitDistribution: SettlementWorkings['exitDistribution'] = null;
+  if (!latestPeriodTo || latestPeriodTo < asOf) {
+    const earliest = await db.prepare('SELECT MIN(substr(transaction_date, 1, 10)) AS earliest FROM partner_entries WHERE workspace_id = ?').get(workspaceId) as { earliest: string | null } | undefined;
+    const from = latestPeriodTo ? addDays(latestPeriodTo, 1) : earliest?.earliest ?? monthStartOf(asOf);
+    const distWorkings = await computeDistributionWorkings(workspaceId, from, asOf, []);
+    const retiring = distWorkings.lines.find((line) => line.ownerId === partnerId);
+    exitDistribution = {
+      from, to: asOf, basisProfit: distWorkings.basisProfit, residual: distWorkings.residual,
+      lossPeriod: distWorkings.lossPeriod, share: Number(retiring?.share ?? 0),
+      posted: false, distributionId: null,
+    };
+  }
+  const undistributedShare = exitDistribution?.share ?? 0;
+
+  // Positions at the exit date.
+  const positionLines = await getPartnerPositionLines(workspaceId, asOf);
+  const retiringPos = positionFromLines(positionLines.get(partnerId) ?? []);
+  const currentAfterDist = retiringPos.settleable + undistributedShare;
+
+  // Revaluation lines, split by exit-date PSR.
+  const revaluationsOut = revaluations.map((line) => {
+    const parts = splitSigned(Math.abs(line.delta), weights, line.delta >= 0 ? 1 : -1);
+    const own = parts[ownerIds.indexOf(partnerId)] ?? 0;
+    const allocations = ownerIds
+      .map((ownerId, index) => ({ ownerId, name: nameById.get(ownerId) ?? 'Partner', amount: parts[index] ?? 0 }))
+      .filter((row) => row.amount !== 0);
+    return { description: line.description, delta: line.delta, share: own, allocations };
+  });
+  const revaluationTotal = revaluations.reduce((sum, line) => sum + line.delta, 0);
+  const revaluationShare = revaluationsOut.reduce((sum, line) => sum + line.share, 0);
+  const currentAfterReval = currentAfterDist + revaluationShare;
+
+  // Goodwill.
+  const continuingOwners = owners.filter((owner) => Number(owner.id) !== partnerId);
+  const continuingWeights = continuingOwners.map((owner) => ratioById.get(Number(owner.id)) ?? 0);
+  let goodwillShare = 0;
+  let continuingAbsorb: Array<{ ownerId: number; name: string; absorbed: number }> = [];
+  if (goodwillValue > 0) {
+    if (goodwillMethod === 'RAISE_WRITEOFF') {
+      const raise = apportion(goodwillValue, weights);
+      goodwillShare = raise[ownerIds.indexOf(partnerId)] ?? 0;
+      const writeoff = continuingOwners.length > 0 ? apportion(goodwillValue, continuingWeights) : [];
+      continuingAbsorb = continuingOwners.map((owner, index) => {
+        const raiseOwn = raise[ownerIds.indexOf(Number(owner.id))] ?? 0;
+        return { ownerId: Number(owner.id), name: owner.name, absorbed: (writeoff[index] ?? 0) - raiseOwn };
+      });
+    } else {
+      goodwillShare = goodwillValue; // personal claim on the continuing partners, not through firm cash
+      const absorb = continuingOwners.length > 0 ? apportion(goodwillValue, continuingWeights) : [];
+      continuingAbsorb = continuingOwners.map((owner, index) => ({ ownerId: Number(owner.id), name: owner.name, absorbed: absorb[index] ?? 0 }));
+    }
+  } else {
+    goodwillShare = 0;
+  }
+  const currentAfterGoodwill = currentAfterReval + (goodwillMethod === 'RAISE_WRITEOFF' ? goodwillShare : 0);
+
+  // Settlement rows.
+  const currentSettled = currentAfterGoodwill;
+  const capitalReturned = Math.max(0, retiringPos.capitalBalance);
+  const totalDue = retiringPos.capitalBalance + currentSettled;
+  const firmPays = Math.max(0, totalDue);
+  const partnerOwes = Math.max(0, -totalDue);
+
+  const notes: string[] = [];
+  if (exitDistribution) notes.push(exitDistribution.residual !== 0
+    ? `Step 1 posts a distribution for ${exitDistribution.from} to ${asOf} to all partners before the settlement, so profit is paid exactly once.`
+    : `Nothing to distribute for ${exitDistribution.from} to ${asOf}; the settlement pays out existing positions only.`);
+  else notes.push('A posted distribution already covers the exit date; nothing is distributed here.');
+  if (revaluations.length > 0) notes.push('Revaluation is shared by the exit-date PSR across all active partners; the exiting partner\'s share is settled here in cash.');
+  if (goodwillValue > 0) notes.push(goodwillMethod === 'RAISE_WRITEOFF'
+    ? 'Goodwill is raised in the exit-date PSR and written off against the continuing partners only (their shares normalized). The exiting partner keeps their raise.'
+    : 'Goodwill is a personal claim on the continuing partners, not firm cash; the firm pays nothing for goodwill under this method.');
+  if (mode === 'LOAN') notes.push('Settlement is recorded as a firm loan payable to the exiting partner instead of an immediate payout.');
+  if (partnerOwes > 0) notes.push('The retiring partner owes the firm money after settlement; a receivable loan is booked to track collection.');
+
+  return {
+    partner: { id: partnerId, name: partner.name },
+    asOf, mode,
+    psr: owners.map((owner) => ({ ownerId: Number(owner.id), name: owner.name, ratio: ratioById.get(Number(owner.id)) ?? 0 })),
+    continuing: continuingAbsorb,
+    exitDistribution,
+    capitalBalance: retiringPos.capitalBalance,
+    currentPosition: retiringPos.settleable,
+    undistributedShare,
+    revaluations: revaluationsOut,
+    revaluationTotal,
+    revaluationShare,
+    goodwillValue, goodwillMethod, goodwillShare,
+    currentSettled, capitalReturned, totalDue, firmPays, partnerOwes,
+    shareMismatchTotal,
+    notes,
+  };
+}
+
+/** Executes the settlement atomically: optional exit distribution, corrections, settlement rows, exit flag. */
+export async function postSettlement(workspaceId: number, input: SettlementInput, actor: { name: string; userId: number | null }) {
+  const workings = await computeSettlementWorkings(workspaceId, input);
+  const mismatch = Math.abs(workings.shareMismatchTotal - 100) > 0.01;
+  if (mismatch && input.confirmShareMismatch !== true) {
+    throw new DistributionError(`Recorded shares total ${workings.shareMismatchTotal}% (not 100%). Tick the confirmation in the dialog to settle anyway.`);
+  }
+  const actorName = actor.name || 'Workspace member';
+  const asOf = workings.asOf;
+  const partnerId = workings.partner.id;
+  const partnerName = workings.partner.name;
+
+  return db.transaction(async () => {
+    // Step 1 — auto distribution for the unposted period, if any.
+    let distributionId: number | null = null;
+    if (workings.exitDistribution && workings.exitDistribution.residual !== 0) {
+      const from = workings.exitDistribution.from;
+      const distWorkings = await computeDistributionWorkings(workspaceId, from, asOf, []);
+      distributionId = await postDistributionRows(workspaceId, distWorkings, `Auto-posted at exit of ${partnerName}`, actorName);
+    }
+
+    // Step 2 — revaluation corrections (all active partners incl. the exiting one).
+    const owners = await db.prepare("SELECT id FROM owners WHERE workspace_id = ? AND status = 'active'").all(workspaceId) as Array<{ id: number }>;
+    const ownerIds = owners.map((owner) => Number(owner.id));
+    const shareRows = await db.prepare(`SELECT owner_id AS ownerId, share, substr(effective_at, 1, 10) AS date
+      FROM owner_share_changes WHERE workspace_id = ? AND substr(effective_at, 1, 10) <= ? ORDER BY owner_id, date, id`)
+      .all(workspaceId, asOf) as Array<{ ownerId: number; share: number; date: string }>;
+    const pointsByOwner = new Map<number, SharePoint[]>();
+    for (const row of shareRows) {
+      const list = pointsByOwner.get(Number(row.ownerId)) ?? [];
+      list.push({ date: String(row.date).slice(0, 10), share: Number(row.share) });
+      pointsByOwner.set(Number(row.ownerId), list);
+    }
+    const psrRows = dayWeightedPsr(ownerIds.map((ownerId) => ({ ownerId, points: pointsByOwner.get(ownerId) ?? [{ date: '1970-01-01', share: 0 }] })), asOf, asOf);
+    const weights = ownerIds.map((ownerId) => psrRows.find((entry) => entry.ownerId === ownerId)?.ratio ?? 0);
+    for (const line of input.revaluations ?? []) {
+      const delta = Math.trunc(Number(line.delta) || 0);
+      if (delta === 0) continue;
+      const description = String(line.description ?? '').trim().slice(0, 80) || 'Revaluation';
+      const parts = splitSigned(Math.abs(delta), weights, delta >= 0 ? 1 : -1);
+      for (let i = 0; i < ownerIds.length; i += 1) {
+        if (parts[i] === 0) continue;
+        await insertEntry(workspaceId, ownerIds[i], 'CORRECTION', parts[i] >= 0 ? 'CREDIT' : 'DEBIT', Math.abs(parts[i]), null, asOf, `Revaluation: ${description}`, actorName);
+      }
+    }
+
+    // Step 3 — goodwill raise (everyone, exit-date PSR) and write-off (continuing partners only).
+    if (workings.goodwillValue > 0 && workings.goodwillMethod === 'RAISE_WRITEOFF') {
+      const raise = apportion(workings.goodwillValue, weights);
+      for (let i = 0; i < ownerIds.length; i += 1) {
+        if (raise[i] <= 0) continue;
+        await insertEntry(workspaceId, ownerIds[i], 'CORRECTION', 'CREDIT', raise[i], null, asOf, `Goodwill raised (share of ₨ ${workings.goodwillValue.toLocaleString('en-PK')})`, actorName);
+      }
+      const continuingIndexes = ownerIds.map((id, index) => ({ id, index })).filter(({ id }) => id !== partnerId);
+      if (continuingIndexes.length > 0) {
+        const continuingWeights = continuingIndexes.map(({ index }) => weights[index]);
+        const writeoff = apportion(workings.goodwillValue, continuingWeights);
+        for (let k = 0; k < continuingIndexes.length; k += 1) {
+          if (writeoff[k] <= 0) continue;
+          await insertEntry(workspaceId, continuingIndexes[k].id, 'CORRECTION', 'DEBIT', writeoff[k], null, asOf, `Goodwill write-off (exit of ${partnerName})`, actorName);
+        }
+      }
+    }
+
+    // Step 4 — capital return and the settlement itself.
+    if (workings.capitalReturned > 0) {
+      await insertEntry(workspaceId, partnerId, 'CAPITAL_RETURN', 'DEBIT', workings.capitalReturned, null, asOf, `Exit settlement · ${partnerName}`, actorName);
+    }
+    if (workings.currentSettled >= 0) {
+      if (workings.currentSettled > 0) await insertEntry(workspaceId, partnerId, 'SETTLEMENT', 'DEBIT', workings.currentSettled, null, asOf, `Exit settlement · ${partnerName} · as of ${asOf}`, actorName);
+    } else {
+      await insertEntry(workspaceId, partnerId, 'SETTLEMENT', 'CREDIT', -workings.currentSettled, null, asOf, `Exit settlement balance owed by ${partnerName}`, actorName);
+    }
+
+    // Step 5 — mark exited; carry any unpaid obligation as a loan to track it.
+    await db.prepare("UPDATE owners SET status = 'exited', exited_at = ? WHERE id = ? AND workspace_id = ?").run(`${asOf}T00:00:00.000Z`, partnerId, workspaceId);
+    let loanCreated = false;
+    if (workings.mode === 'LOAN' && workings.firmPays > 0) {
+      await db.prepare('INSERT INTO loans (workspace_id, direction, name, counterparty, principal, outstanding, due_at) VALUES (?, ?, ?, ?, ?, ?, NULL)')
+        .run(workspaceId, 'PAYABLE', `Exit settlement - ${partnerName}`, partnerName, workings.firmPays, workings.firmPays);
+      loanCreated = true;
+    } else if (workings.partnerOwes > 0) {
+      await db.prepare('INSERT INTO loans (workspace_id, direction, name, counterparty, principal, outstanding, due_at) VALUES (?, ?, ?, ?, ?, ?, NULL)')
+        .run(workspaceId, 'RECEIVABLE', `Exit settlement - ${partnerName}`, partnerName, workings.partnerOwes, workings.partnerOwes);
+      loanCreated = true;
+    }
+
+    await audit(workspaceId, null, 'SETTLEMENT_POSTED', {
+      partnerId, partnerName, asOf, mode: workings.mode, distributionId,
+      capitalReturned: workings.capitalReturned, currentSettled: workings.currentSettled,
+      undistributedShare: workings.undistributedShare, revaluationTotal: workings.revaluationTotal,
+      goodwillValue: workings.goodwillValue, goodwillMethod: workings.goodwillMethod, goodwillShare: workings.goodwillShare,
+      firmPays: workings.firmPays, partnerOwes: workings.partnerOwes, loanCreated, shareMismatch: mismatch,
+    }, actorName);
+
+    return { workings: { ...workings, exitDistribution: workings.exitDistribution ? { ...workings.exitDistribution, posted: distributionId !== null, distributionId } : null }, loanCreated };
+  })();
 }
