@@ -397,6 +397,65 @@ describe('every data-driven screen shows a skeleton, not a spinner sentence', ()
   });
 });
 
+describe('account management exists instead of a placeholder toast', () => {
+  it('never tells the owner a shipped feature is still being built', async () => {
+    // The accounts panel's overflow menu used to raise "Account management is
+    // being built." while the panel behind it already listed the accounts.
+    const dashboard = await read('app/dashboard.tsx');
+    expect(dashboard).not.toContain('is being built');
+    expect(dashboard).toContain('<AccountsDialog');
+    expect(dashboard).toContain('Manage accounts');
+  });
+
+  it('keeps the balance derived, never typed', async () => {
+    // The opening balance is a starting fact and may be set once. A typed
+    // running balance would invent money no transaction explains.
+    const route = await read('app/api/accounts/[id]/route.ts');
+    expect(route).toContain('openingBalance');
+    expect(route).toContain('already has transactions');
+    // An account with history may be renamed but not deleted.
+    const del = route.slice(route.indexOf('export async function DELETE'));
+    expect(del).toContain('Rename it instead');
+    expect(del).toContain('at least one account');
+  });
+
+  it('gates account changes to owners and admins', async () => {
+    for (const file of ['app/api/accounts/route.ts', 'app/api/accounts/[id]/route.ts']) {
+      const source = await read(file);
+      expect({ file, gated: source.includes('ROLE.OWNER') && source.includes('ROLE.ADMIN') })
+        .toEqual({ file, gated: true });
+    }
+  });
+});
+
+describe('toast and pill surfaces stay on-brand', () => {
+  it('keeps the sileo toast dark, including the surfaces around the body', async () => {
+    const css = await read('app/globals.css');
+    // The white shoulders in the owner's screenshot were the surfaces sileo
+    // paints around the body, which kept a pale default.
+    expect(css).toContain('[data-sileo-pill]');
+    expect(css).toContain('[data-sileo-canvas] svg');
+    const toaster = await read('components/app-toaster.tsx');
+    // theme="light" means "drawn on a light page" => dark toast. Reversing this
+    // would literally make the toast white, so pin the intent.
+    expect(toaster).toContain('theme="light"');
+  });
+
+  it('cannot widen the page from a data table, which is what shifted the pill', async () => {
+    // A 720px table in a 380px card made the layout viewport wider than the
+    // screen; the fixed pill then centred in the wider box and rendered shifted
+    // right with "Menu" cut off.
+    const css = await read('app/globals.css');
+    // The base rule is the multi-line one; the print overrides are single-line
+    // and appear earlier in the file, so anchor on the min-width line.
+    const anchor = css.indexOf('min-width: 0;\n  max-width: 100%;');
+    const rule = css.slice(css.lastIndexOf('.data-table-wrap', anchor), css.indexOf('}', anchor));
+    expect(rule).toContain('min-width: 0');
+    expect(rule).toContain('overflow-x: auto');
+    expect(rule).toContain('max-width: 100%');
+  });
+});
+
 describe('quick actions are swipeable, not just scrollable', () => {
   it('does not forbid the browser from claiming horizontal pans', async () => {
     const css = await read('app/globals.css');
