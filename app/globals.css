@@ -645,7 +645,7 @@ button:disabled { cursor: not-allowed; }
 .data-table th { text-align: left; padding: 11px 15px; background: var(--card-soft); color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .11em; font-weight: 800; white-space: nowrap; }
 .data-table td { padding: 13px 15px; border-top: 1px solid var(--line); vertical-align: middle; }
 .data-table tbody tr:first-child td { border-top: 0; }
-.data-table tbody tr:hover td { background: #fafbf7; }
+@media (hover: hover) and (pointer: fine) { .data-table tbody tr:hover td { background: #fafbf7; } }
 .cell-title { font-size: 11.5px; font-weight: 750; color: var(--ink); }
 .cell-sub { color: var(--faint); font-size: 8.5px; margin-top: 3px; }
 .cell-num { font-variant-numeric: tabular-nums; font-weight: 800; }
@@ -973,6 +973,10 @@ button:active, [role="button"]:active { transform: scale(.97); }
   .notif-trigger { min-width: 44px; min-height: 44px; }
   .ghost-pill { min-height: 44px; padding: 0 16px; }
   .text-link { min-height: 44px; }
+  .deed-chip { min-height: 44px; padding: 0 14px; }
+  .legacy-tag-button { min-height: 44px; }
+  .legacy-select { min-height: 44px; }
+  .statement-summary span { min-height: 32px; display: inline-flex; align-items: center; }
 }
 
 
@@ -999,6 +1003,28 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .partner-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; padding-top: 12px; align-items: center; }
 .owner-position { margin-top: 6px; font-size: 8.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* Unattributed (pre-partners) tray */
+.legacy-count { font-size: 9px; font-weight: 800; color: var(--ink-soft); background: var(--card-soft); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.legacy-list { display: grid; gap: 2px; margin-top: 10px; }
+.legacy-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px dashed var(--line); }
+.legacy-row:last-child { border-bottom: 0; }
+.legacy-main { min-width: 0; flex: 1 1 auto; }
+.legacy-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.legacy-type { font-size: 10.5px; font-weight: 800; color: var(--ink); }
+.legacy-desc { font-size: 9.5px; font-weight: 650; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.legacy-side { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: 0 0 auto; }
+.legacy-amount { font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.legacy-tag { display: flex; align-items: center; gap: 7px; }
+.legacy-select { width: 148px; min-width: 0; }
+.legacy-tag-button { height: 40px; padding: 0 14px; font-size: 10px; }
+@media (max-width: 560px) {
+  .legacy-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .legacy-side { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+  .legacy-tag { flex: 1 1 auto; min-width: 0; }
+  .legacy-select { width: 100%; }
+}
+.status-chip.legacy { background: var(--card-soft); color: var(--ink-soft); border: 1px solid var(--line-strong); margin-left: 0; }
+
 .deed-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
 .deed-chip-label { font-size: 8px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
 .deed-chip { font-size: 8.5px; font-weight: 750; color: var(--ink-soft); background: var(--card-soft); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
@@ -1023,6 +1049,19 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .dist-psr-row span:last-child { font-weight: 700; text-align: right; }
 .dist-confirm { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 8px 10px; border: 1px solid #fde68a; background: #fffbeb; border-radius: 12px; font-size: 9.5px; font-weight: 650; color: #92400e; cursor: pointer; line-height: 1.4; }
 .dist-confirm input { margin-top: 1px; width: 15px; height: 15px; accent-color: var(--lime-strong); flex: 0 0 auto; }
+
+/* Exit dialog revaluation lines: one row on desktop, two compact lines on phones */
+.exit-reval-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.exit-reval-desc { flex: 1 1 auto; min-width: 0; }
+.exit-reval-delta { width: 128px; flex: 0 0 auto; }
+.exit-reval-remove { flex: 0 0 auto; }
+@media (max-width: 480px) {
+  /* Two lines at 375 px: description full width, then amount + remove. */
+  .exit-reval-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; }
+  .exit-reval-desc { grid-column: 1 / -1; }
+  .exit-reval-delta { width: 100%; }
+  .exit-reval-remove { width: 44px; justify-content: center; padding: 0; }
+}
 .history-list { margin-top: 10px; display: grid; }
 .history-row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px dashed var(--line); }
 .history-row:last-child { border-bottom: 0; }
@@ -1034,10 +1073,42 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .statement-summary span { font-size: 9px; font-weight: 800; background: var(--card-soft); border: 1px solid var(--line); padding: 4px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
 .statement-closing { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
+@page { size: A4 portrait; margin: 14mm 12mm; }
+
+/*
+ * Print: a partner statement only. The statement lives inside a fixed dialog,
+ * so printing it as-is would clip it to the dialog box. Here the shell and the
+ * overlay are removed, the dialog is neutralised into normal flow and the
+ * statement flows onto as many A4 pages as it needs with repeating headers.
+ */
 @media print {
+  html, body { background: #fff !important; }
   body * { visibility: hidden; }
+  .app-shell, .mobile-nav, [data-slot="dialog-overlay"] { display: none !important; }
+  [data-slot="dialog-content"] {
+    position: static !important; inset: auto !important; transform: none !important;
+    display: block !important; max-height: none !important; max-width: none !important;
+    width: auto !important; height: auto !important; overflow: visible !important;
+    border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
+    background: #fff !important; box-shadow: none !important;
+  }
+  /* Dialog chrome (title, form, buttons) is not part of the printed page and
+     must not reserve height above it. */
+  [data-slot="dialog-content"] > *:not(.statement-print) { display: none !important; }
   .statement-print, .statement-print * { visibility: visible; }
-  .statement-print { position: absolute; inset: 0; border: 0; padding: 24px; }
+  .statement-print {
+    position: static; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
+    background: #fff; box-shadow: none; font-size: 10pt; line-height: 1.45; color: #111;
+  }
+  .statement-print .data-table-wrap { overflow: visible; border: 0; border-radius: 0; margin-top: 8pt; background: #fff; }
+  .statement-print .data-table { min-width: 0; width: 100%; font-size: 8.5pt; border-collapse: collapse; }
+  .statement-print .data-table th { background: #f2f4ef !important; color: #333 !important; border-bottom: 1px solid #ccc; padding: 5pt 6pt; }
+  .statement-print .data-table td { padding: 5pt 6pt; border-top: 1px solid #e2e2e2; }
+  .statement-print .data-table tbody tr { break-inside: avoid; }
+  .statement-print thead { display: table-header-group; }
+  .statement-print .statement-meta strong, .statement-print .statement-closing { font-size: 9.5pt; }
+  .statement-print .statement-summary span { border: 1px solid #ddd; background: #f7f8f4; }
+  .statement-print .statement-closing { break-inside: avoid; }
   .no-print, .no-print * { display: none !important; }
 }
 

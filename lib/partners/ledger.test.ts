@@ -5,6 +5,8 @@ import {
   computeAppropriation,
   dayWeightedPsr,
   daysBetweenInclusive,
+  LEGACY_ATTRIBUTABLE_TYPES,
+  legacyEntryFor,
   periodSegments,
   positionFromLines,
   shareAt,
@@ -211,5 +213,26 @@ describe('positionFromLines', () => {
       { entryType: 'CORRECTION', direction: 'CREDIT', amount: 2_500 },
     ]);
     expect(position.settleable).toBe(1_500);
+  });
+});
+
+describe('legacyEntryFor', () => {
+  it('maps a legacy contribution to a capital credit', () => {
+    expect(legacyEntryFor('CONTRIBUTION')).toEqual({ entryType: 'CAPITAL_CONTRIBUTION', direction: 'CREDIT' });
+  });
+
+  it('maps a legacy withdrawal to a counter drawing debit', () => {
+    expect(legacyEntryFor('WITHDRAWAL')).toEqual({ entryType: 'CASH_WITHDRAWAL', direction: 'DEBIT' });
+  });
+
+  it('refuses types that are not partner money', () => {
+    for (const type of ['INCOME', 'EXPENSE', 'TRANSFER', 'LOAN_GIVEN', 'LOAN_RECEIVED', '']) {
+      expect(legacyEntryFor(type)).toBeNull();
+    }
+  });
+
+  it('covers exactly the legacy attributable set', () => {
+    expect(LEGACY_ATTRIBUTABLE_TYPES).toEqual(['CONTRIBUTION', 'WITHDRAWAL']);
+    for (const type of LEGACY_ATTRIBUTABLE_TYPES) expect(legacyEntryFor(type)).not.toBeNull();
   });
 });

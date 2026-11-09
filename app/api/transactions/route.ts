@@ -14,9 +14,11 @@ const activitySource = `
   SELECT t.id, t.description AS title, t.category, t.transaction_date AS date,
     t.amount, t.type AS kind, a.name AS account, t.account_id AS accountId,
     destination.name AS destinationAccount, t.destination_account_id AS destinationAccountId,
-    t.status, t.counterparty, t.note, t.created_by AS createdBy
+    t.status, t.counterparty, t.note, t.created_by AS createdBy,
+    t.partner_id AS partnerId, partner.name AS partnerName
   FROM transactions t JOIN accounts a ON a.id = t.account_id
   LEFT JOIN accounts destination ON destination.id = t.destination_account_id AND destination.workspace_id = t.workspace_id
+  LEFT JOIN owners partner ON partner.id = t.partner_id AND partner.workspace_id = t.workspace_id
   WHERE t.workspace_id = ?
   UNION ALL
   SELECT -lr.id AS id,
@@ -25,7 +27,8 @@ const activitySource = `
     lr.transaction_date AS date, lr.principal_amount AS amount,
     CASE WHEN l.direction = 'PAYABLE' THEN 'LOAN_REPAYMENT_OUT' ELSE 'LOAN_REPAYMENT_IN' END AS kind,
     a.name AS account, lr.account_id AS accountId, NULL AS destinationAccount, NULL AS destinationAccountId,
-    'CLEARED' AS status, l.counterparty, lr.note, lr.created_by AS createdBy
+    'CLEARED' AS status, l.counterparty, lr.note, lr.created_by AS createdBy,
+    NULL AS partnerId, NULL AS partnerName
   FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id JOIN accounts a ON a.id = lr.account_id
   WHERE lr.workspace_id = ?`;
 
@@ -57,7 +60,15 @@ type ActivityRow = {
   counterparty: string;
   note: string;
   createdBy: string;
+  partnerId: number | null;
+  partnerName: string | null;
+  attribution?: 'unattributed-legacy' | 'partner' | null;
 };
+
+/** Legacy CONTRIBUTION/WITHDRAWAL rows that no partner has claimed yet. */
+function isUnattributedLegacy(row: ActivityRow) {
+  return (row.kind === 'CONTRIBUTION' || row.kind === 'WITHDRAWAL') && (row.partnerId === null || row.partnerId === undefined);
+}
 
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -148,6 +159,8 @@ export async function GET(request: NextRequest) {
       .all(workspaceId, workspaceId, ...filterValues, limit + 1, offset) as ActivityRow[];
     const hasMore = transactions.length > limit;
     transactions.length = Math.min(transactions.length, limit);
+    // Reports label these rows "Unattributed (pre-partners)" until an owner tags one.
+    for (const row of transactions) row.attribution = isUnattributedLegacy(row) ? 'unattributed-legacy' : (row.partnerId === null || row.partnerId === undefined ? null : 'partner');
     const accounts = await db.prepare('SELECT id, name FROM accounts WHERE workspace_id = ? AND is_system = 0 ORDER BY name').all(workspaceId);
     const categories = await db.prepare(`SELECT category FROM (
       SELECT DISTINCT category FROM transactions WHERE workspace_id = ?

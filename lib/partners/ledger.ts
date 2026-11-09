@@ -254,6 +254,29 @@ export const ENTRY_DIRECTION = {
 
 export type EntryType = keyof typeof ENTRY_DIRECTION | 'SETTLEMENT' | 'CORRECTION';
 
+/**
+ * Legacy (pre-partners) activity types that belong on a partner's hisaab once
+ * they are attributed. Anything else on `transactions` is not partner money.
+ */
+export const LEGACY_ATTRIBUTABLE_TYPES = ['CONTRIBUTION', 'WITHDRAWAL'] as const;
+
+export type LegacyAttributableType = typeof LEGACY_ATTRIBUTABLE_TYPES[number];
+
+/**
+ * Partner entry a legacy transaction becomes when it is attributed.
+ * A legacy CONTRIBUTION is money the partner put in (CAPITAL_CONTRIBUTION CREDIT);
+ * a legacy WITHDRAWAL is money the partner took out (CASH_WITHDRAWAL DEBIT).
+ * Returns null for types that are not partner money, so callers never post a
+ * phantom sub-ledger row.
+ */
+export function legacyEntryFor(type: string): { entryType: 'CAPITAL_CONTRIBUTION'; direction: 'CREDIT' }
+  | { entryType: 'CASH_WITHDRAWAL'; direction: 'DEBIT' }
+  | null {
+  if (type === 'CONTRIBUTION') return { entryType: 'CAPITAL_CONTRIBUTION', direction: 'CREDIT' };
+  if (type === 'WITHDRAWAL') return { entryType: 'CASH_WITHDRAWAL', direction: 'DEBIT' };
+  return null;
+}
+
 export type PositionLine = { entryType: string; direction: 'CREDIT' | 'DEBIT'; amount: number };
 
 export type PartnerPosition = {

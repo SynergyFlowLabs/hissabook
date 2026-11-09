@@ -3,7 +3,7 @@
  * All postings run inside the caller's db.transaction (or open one).
  */
 import { db } from '@/lib/database';
-import { ENTRY_DIRECTION, addDays, apportion, computeAppropriation, dayWeightedPsr, daysBetweenInclusive, periodSegments, positionFromLines, shareAt, type PositionLine, type SharePoint } from './ledger';
+import { ENTRY_DIRECTION, addDays, apportion, computeAppropriation, dayWeightedPsr, daysBetweenInclusive, legacyEntryFor, periodSegments, positionFromLines, shareAt, type PositionLine, type SharePoint } from './ledger';
 
 export const CLEARING_ACCOUNT_NAME = 'Partner out-of-pocket (clearing)';
 
@@ -291,6 +291,106 @@ export async function postPartnerMovement(workspaceId: number, input: PostMoveme
     throw new MovementError('Unknown movement kind.');
   });
   return post();
+}
+
+/* ------------------------------------------------------------------ */
+/* Legacy attribution (pre-partners rows)                               */
+/* ------------------------------------------------------------------ */
+
+export class LegacyAttributionError extends Error {}
+
+export type LegacyUnattributedRow = {
+  transactionId: number;
+  type: 'CONTRIBUTION' | 'WITHDRAWAL';
+  amount: number;
+  description: string;
+  category: string;
+  accountName: string;
+  date: string;
+  note: string;
+  createdBy: string;
+};
+
+/**
+ * Legacy CONTRIBUTION/WITHDRAWAL rows with no `partner_id`. They have never
+ * touched a partner sub-ledger, so they are labelled "Unattributed
+ * (pre-partners)" wherever they surface. Oldest first: people usually work
+ * through the backlog in date order.
+ */
+export async function getUnattributedLegacyEntries(workspaceId: number, limit = 200): Promise<LegacyUnattributedRow[]> {
+  const rows = await db.prepare(`SELECT t.id AS transactionId, t.type, t.amount, t.description, t.category,
+      substr(t.transaction_date, 1, 10) AS date, t.note, t.created_by AS createdBy, a.name AS accountName
+    FROM transactions t JOIN accounts a ON a.id = t.account_id
+    WHERE t.workspace_id = ? AND t.partner_id IS NULL AND t.status <> 'VOID'
+      AND t.type IN ('CONTRIBUTION','WITHDRAWAL')
+    ORDER BY substr(t.transaction_date, 1, 10) ASC, t.id ASC LIMIT ?`)
+    .all(workspaceId, Math.min(Math.max(1, limit), 500)) as Array<Omit<LegacyUnattributedRow, 'amount'> & { amount: number }>;
+  return rows.map((row) => ({ ...row, amount: Number(row.amount) }));
+}
+
+/**
+ * Attributes one legacy row to a partner: tags `transactions.partner_id`, posts
+ * the matching sub-ledger entry, and writes one audit event. All of it happens
+ * in a single transaction (read + write only, never a nested db.transaction:
+ * the SQLite write queue would deadlock and hang the request).
+ *
+ * A row is attributable only while it is untagged. Once tagged it is immutable
+ * here, which keeps the sub-ledger and the activity row permanently in sync.
+ */
+export async function attributeLegacyEntry(workspaceId: number, transactionId: number, ownerId: number,
+  actor: { name: string; userId: number | null }) {
+  const actorName = actor.name || 'Workspace member';
+  return db.transaction(async () => {
+    const transactionIdInt = Number(transactionId);
+    const ownerIdInt = Number(ownerId);
+    if (!Number.isSafeInteger(transactionIdInt) || transactionIdInt <= 0) throw new LegacyAttributionError('Choose a valid activity row.');
+    if (!Number.isSafeInteger(ownerIdInt) || ownerIdInt <= 0) throw new LegacyAttributionError('Choose a valid partner.');
+
+    const partner = await db.prepare('SELECT id, name, status FROM owners WHERE id = ? AND workspace_id = ?').get(ownerIdInt, workspaceId) as
+      { id: number; name: string; status: string } | undefined;
+    if (!partner) throw new LegacyAttributionError('That partner was not found in this business.');
+    if (partner.status !== 'active') throw new LegacyAttributionError(`${partner.name} has exited. Attribute this row to an active partner.`);
+
+    const row = await db.prepare(`SELECT id, type, amount, description, partner_id AS partnerId, status,
+        substr(transaction_date, 1, 10) AS date
+      FROM transactions WHERE id = ? AND workspace_id = ?`).get(transactionIdInt, workspaceId) as
+      { id: number; type: string; amount: number; description: string; partnerId: number | null; status: string; date: string } | undefined;
+    if (!row) throw new LegacyAttributionError('That activity row was not found in this business.');
+    const entry = legacyEntryFor(row.type);
+    if (!entry) throw new LegacyAttributionError('Only contributions and withdrawals can be attributed to a partner.');
+    if (row.partnerId !== null) throw new LegacyAttributionError('This row is already attributed to a partner and stays as recorded.');
+    if (row.status === 'VOID') throw new LegacyAttributionError('This row is void, so there is nothing to attribute.');
+
+    // A partner sub-ledger row already pointing at this activity row means the
+    // row is effectively tagged even if `partner_id` was never set. Refuse
+    // rather than post a second entry for the same money.
+    const existing = await db.prepare('SELECT id FROM partner_entries WHERE workspace_id = ? AND transaction_id = ? LIMIT 1')
+      .get(workspaceId, transactionIdInt) as { id: number } | undefined;
+    if (existing) throw new LegacyAttributionError('A partner entry already exists for this row, so it cannot be attributed again.');
+
+    const amount = Number(row.amount);
+    if (!Number.isSafeInteger(amount) || amount <= 0) throw new LegacyAttributionError('This row has no usable amount.');
+
+    const tagged = await db.prepare('UPDATE transactions SET partner_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ? AND partner_id IS NULL')
+      .run(ownerIdInt, transactionIdInt, workspaceId);
+    if (Number(tagged.changes) !== 1) throw new LegacyAttributionError('This row was attributed by someone else just now. Refresh to see the latest.');
+
+    await insertEntry(workspaceId, ownerIdInt, entry.entryType, entry.direction, amount, transactionIdInt, row.date,
+      `Attributed legacy row${row.description ? `: ${row.description}` : ''}`, actorName);
+    await audit(workspaceId, transactionIdInt, 'LEGACY_ATTRIBUTED', {
+      partnerId: ownerIdInt, partnerName: partner.name, type: row.type, entryType: entry.entryType,
+      direction: entry.direction, amount, description: row.description, date: row.date,
+    }, actorName);
+
+    return {
+      transactionId: transactionIdInt,
+      partnerId: ownerIdInt,
+      partnerName: partner.name,
+      entryType: entry.entryType,
+      direction: entry.direction,
+      amount,
+    };
+  })();
 }
 
 /* ------------------------------------------------------------------ */
