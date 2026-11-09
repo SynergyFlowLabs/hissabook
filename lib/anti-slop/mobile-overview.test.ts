@@ -84,11 +84,26 @@ describe('hero card survives a 375px viewport (R-03)', () => {
 
   it('keeps the workspace chip visible and shrinkable on the hero card', async () => {
     const css = await read('app/globals.css');
-    const chip = css.slice(css.indexOf('.hero-workspace {'), css.indexOf('.hero-amount {'));
-    // It vanished from the screenshot only because overflow pushed it off
-    // screen; the fix must not hide it at narrow widths.
-    expect(chip).not.toContain('display: none');
-    expect(chip).toContain('min-width: 0');
+    // Slice the single rule, not a block: the hero gained rules between the
+    // chip and the amount, and a wide slice would assert nothing useful.
+    const start = css.indexOf('.hero-workspace {');
+    const rule = css.slice(start, css.indexOf('}', start));
+    // It vanished from an earlier screenshot only because overflow pushed it
+    // off screen; the fix must not hide it at narrow widths.
+    expect(rule).not.toContain('display: none');
+    expect(rule).toContain('min-width: 0');
+  });
+
+  it('keeps the hero curve from widening the card or burying the balance', async () => {
+    const css = await read('app/globals.css');
+    const chart = css.slice(css.indexOf('.hero-chart {'), css.indexOf('.hero-chart-foot {'));
+    expect(chart).toContain('min-width: 0');
+    // A sparkline is context, not a second chart card: keep it short.
+    const height = Number(chart.match(/height: (\d+)px/)?.[1]);
+    expect(height).toBeGreaterThan(0);
+    expect(height).toBeLessThanOrEqual(110);
+    // Range buttons are thumb targets on touch.
+    expect(css).toMatch(/@media \(pointer: coarse\) \{ \.hero-range button \{ min-height: 40px/);
   });
 
   it('keeps type legible instead of 8px captions', async () => {
