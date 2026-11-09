@@ -8,6 +8,7 @@ import {
 import { useRouter } from 'next/navigation';
 import type { ClientNotification } from '@/lib/use-notifications';
 import { timeAgo } from '@/lib/use-notifications';
+import PushEnroll from '@/components/push-enroll';
 
 const KIND_ICON: Record<ClientNotification['kind'], typeof ReceiptText> = {
   transaction: ReceiptText,
@@ -74,7 +75,9 @@ export default function NotificationPanel({
       document.removeEventListener('keydown', onKeyDown);
       window.cancelAnimationFrame(frame);
       document.getElementById('notif-sidebar-trigger')?.focus();
-      document.getElementById('notif-fab')?.focus();
+      const trigger = document.getElementById('notif-sidebar-trigger')
+        ?? document.getElementById('notif-nav-trigger');
+      trigger?.focus();
     };
   }, [open, onClose]);
 
@@ -179,6 +182,7 @@ export default function NotificationPanel({
               )}
             </div>
 
+            <div className="notif-enroll"><PushEnroll /></div>
             <div className="notif-footer">
               <span>Hisaabook · business, in balance</span>
               <span className="notif-footer-note">Shared with your whole workspace</span>

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AnimatedAmount from '@/components/animated-amount';
+import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
 
@@ -182,6 +183,15 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       setData(result as DashboardData);
       setDialogOpen(false); resetTransactionForm();
       toast.ledger('Saved to ledger', 'Transaction recorded and posted to your books.');
+      maybePrimePushAfterLedgerSave(() => {
+        toast.ask('Get alerts on this device?', 'New ledger activity and salary reminders, pushed to you.', 'Enable', () => {
+          void (async () => {
+            const outcome = await subscribeThisDevice();
+            if (outcome.ok) { sounds.shimmer(); toast.success('Alerts enabled', 'This device will hear about new activity.'); }
+            else { toast.warning('Could not enable alerts', outcome.reason === 'denied' ? 'Allow notifications in the browser site settings.' : 'Try again from the bell icon.'); }
+          })();
+        });
+      });
     } catch (error) {
       sounds.error();
       setSaveError(error instanceof Error ? error.message : 'Could not save this transaction.');

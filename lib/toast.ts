@@ -47,6 +47,11 @@ export const toast = {
     sounds.undo();
     return sileo.action({ title, description, button: { title: 'Undo', onClick: onUndo } });
   },
+  /** Action toast with a single call-to-action (e.g. smart priming CTAs). */
+  ask(title: string, description: string, buttonTitle: string, onClick: () => void) {
+    sounds.info();
+    return sileo.action({ title, description, button: { title: buttonTitle, onClick } });
+  },
   /** Loading → success/error morph for async mutations. */
   promise<T>(promise: Promise<T> | (() => Promise<T>), messages: { loading: string; success: string; error: string }) {
     return sileo.promise(promise, {

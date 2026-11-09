@@ -8,6 +8,7 @@
  */
 import { db } from '@/lib/database';
 import { formatPKR } from '@/lib/format';
+import { sendWorkspacePush } from '@/lib/push';
 
 export type NotificationKind =
   | 'transaction' | 'loan' | 'inventory' | 'salary' | 'member' | 'invitation' | 'reminder';
@@ -44,7 +45,15 @@ export async function createWorkspaceNotification({
     const result = await db.prepare(
       'INSERT INTO notifications (workspace_id, actor_user_id, kind, title, body, href, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ).run(workspaceId, actorUserId, kind, title.slice(0, 140), body.slice(0, 280), href.slice(0, 200), dedupeKey);
-    return Number(result.lastInsertRowid) || null;
+    const id = Number(result.lastInsertRowid) || null;
+    if (id) {
+      try {
+        await sendWorkspacePush(workspaceId, { title, body, href, kind, tag: dedupeKey ?? `${kind}:${id}` });
+      } catch (pushError) {
+        console.error('push fan-out failed', pushError);
+      }
+    }
+    return id;
   } catch (error) {
     // Unique-dedupe race: another run won — swallow quietly.
     if (dedupeKey) { console.warn('createWorkspaceNotification: dedupe swallowed', dedupeKey); return null; }
