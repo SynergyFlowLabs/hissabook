@@ -139,13 +139,14 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(rule).toContain('margin-inline: auto');
   });
 
-  it('leaves room for six items on a 320px phone', async () => {
+  it('leaves room for five items on a 320px phone', async () => {
     const css = await read('app/globals.css');
-    const narrow = css.slice(css.indexOf('@media (max-width: 389px)'), css.indexOf('/* Menu trigger'));
+    const narrow = css.slice(css.indexOf('@media (max-width: 359px)'), css.indexOf('/* Menu trigger'));
     expect(narrow).toContain('.mobile-nav a, .mobile-nav-menu');
     expect(narrow).toContain('min-width: 44px');
-    // The least-used label gives way first, so the icons and hit areas stay.
-    expect(narrow).toContain('.mobile-nav-menu span { display: none; }');
+    // The bell moved to the topbar, so the pill is five items again and every
+    // one of them keeps its label even on a 320px phone.
+    expect(narrow).not.toContain('display: none');
   });
 
   it('does not re-position the active pill with the generic child rule', async () => {
@@ -155,6 +156,44 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(css).toContain('.mobile-nav a > *:not(.mobile-nav-pill)');
     const pill = css.slice(css.indexOf('.mobile-nav-pill {'), css.indexOf('.mobile-nav-pill {') + 200);
     expect(pill).toContain('position: absolute;');
+  });
+});
+
+describe('the notification bell lives in the topbar, right of search', () => {
+  it('is portalled into a slot every screen renders next to its search control', async () => {
+    const portal = await read('components/topbar-notif-portal.tsx');
+    expect(portal).toContain("document.querySelector<HTMLElement>('.topbar-notif-slot')");
+    expect(portal).toContain('createPortal');
+    expect(portal).toContain('variant="topbar"');
+
+    // Every screen with a topbar must carry the slot, or the bell silently
+    // disappears from that screen.
+    for (const screen of [
+      'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
+      'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
+      'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
+    ]) {
+      expect({ screen, slot: (await read(screen)).includes('topbar-notif-slot') }).toEqual({ screen, slot: true });
+    }
+  });
+
+  it('is no longer in the bottom pill', async () => {
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).not.toContain('variant="nav"');
+    // The sidebar keeps its own trigger for desktop, and the portal is mounted
+    // once so there is still a single polling loop and a single panel.
+    expect(sidebar).toContain('variant="sidebar"');
+    expect(sidebar.match(/<TopbarNotifPortal/g)?.length).toBe(1);
+    expect(sidebar.match(/<NotificationPanel/g)?.length).toBe(1);
+  });
+
+  it('is a 44px target under a thumb and a plain circle beside search', async () => {
+    const css = await read('app/globals.css');
+    const block = css.slice(css.indexOf('.notif-topbar-btn {'), css.indexOf('.notif-scrim {'));
+    expect(block).toMatch(/@media \(pointer: coarse\) \{ \.notif-topbar-btn \{ width: 44px; height: 44px; \} \}/);
+    expect(block).toMatch(/@media \(min-width: 901px\) \{ \.notif-topbar-btn \{ display: none; \} \}/);
+    // Badge ring matches the white circle rather than the old sidebar card.
+    expect(block).toContain('.notif-topbar-btn .notif-badge { top: -4px; right: -4px; border-color: var(--card); }');
   });
 });
 

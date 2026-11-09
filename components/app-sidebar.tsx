@@ -12,6 +12,7 @@ import SoundControl from '@/components/sound-control';
 import NotificationButton from '@/components/notification-button';
 import NotificationPanel from '@/components/notification-panel';
 import MobileMenu from '@/components/mobile-menu';
+import TopbarNotifPortal from '@/components/topbar-notif-portal';
 import { useNotifications } from '@/lib/use-notifications';
 import { useState } from 'react';
 
@@ -108,7 +109,6 @@ export default function AppSidebar({
             </a>
           );
         })}
-        <NotificationButton variant="nav" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
         {/* Everything the pill cannot hold: Partners, Reports, the remaining
             workspace links, profile and sign out. */}
         <button
@@ -122,6 +122,9 @@ export default function AppSidebar({
           <Menu size={17} strokeWidth={2} /><span>Menu</span>
         </button>
       </nav>
+      {/* The bell lives in the page topbar now (right of search). It stays owned
+          here so there is still exactly one polling loop and one panel. */}
+      <TopbarNotifPortal unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
       <MobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}

@@ -130,7 +130,7 @@ export default function ReportsClient({ userName, userRole }: { userName: string
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Reports</strong></div>
-          <div className="top-actions"><a className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</a></div>
+          <div className="top-actions"><a className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</a><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">
           <section className="page-heading">

@@ -202,7 +202,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Team & salaries</strong></div>
-          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span></div>
+          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">
           <section className="page-heading">

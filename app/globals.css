@@ -515,13 +515,11 @@ button:disabled { cursor: not-allowed; }
   background: linear-gradient(160deg, #d6ff5e, var(--lime) 70%); box-shadow: 0 4px 16px rgb(201 242 79 / .35), inset 0 1px 0 #ffffffaa;
 }
 @media (min-width: 901px) { .mobile-nav { display: none; } }
-/* On a 320px phone six items cannot hold their 52px floor. Give back padding and
-   the label of the least-used item rather than letting anything squash or clip. */
-@media (max-width: 389px) {
+/* Five items fit a 320px phone, but tightly: give back padding and the gap first
+   rather than letting anything squash below its target size. */
+@media (max-width: 359px) {
   .mobile-nav { left: 6px; right: 6px; padding: 5px; gap: 0; }
   .mobile-nav a, .mobile-nav-menu { padding: 7px 7px; min-width: 44px; }
-  .mobile-nav-menu span { display: none; }
-  .notif-nav-btn { padding: 7px 7px; min-width: 44px; }
 }
 
 /* Menu trigger: same footprint as a nav item so the row still reads as one pill. */
@@ -1011,6 +1009,26 @@ button:disabled { cursor: not-allowed; }
 @media (hover: hover) and (pointer: fine) { .notif-nav-btn:hover {  color: #e7f3e2;  } }
 .notif-nav-btn .notif-badge { top: 2px; right: 6px; border-color: transparent; box-shadow: 0 0 0 2px rgb(16 27 21 / .85); }
 .notif-nav-label { font-size: 9px; letter-spacing: .02em; }
+
+/* Bell in the page topbar, right of search. Matches the white circular search
+   button beside it so the two read as one control cluster. */
+.topbar-notif-slot { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.notif-topbar-btn {
+  position: relative; display: grid; place-items: center; flex: 0 0 auto;
+  width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
+  color: var(--ink-soft); background: var(--card); border: 1px solid var(--line-strong);
+  transition: color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.notif-topbar-btn:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) { .notif-topbar-btn:hover { color: var(--ink); border-color: var(--lime-strong); } }
+/* The mobile topbar row is tight; 44px targets under a thumb (R-03). */
+@media (pointer: coarse) { .notif-topbar-btn { width: 44px; height: 44px; } }
+@media (min-width: 901px) { .notif-topbar-btn { display: none; } }
+/* Badge ring matches the white topbar circle instead of the old sidebar card. */
+.notif-topbar-btn .notif-badge { top: -4px; right: -4px; border-color: var(--card); }
+/* The bell now owns the topbar corner, so the sidebar keeps its own trigger
+   only where the sidebar is visible. */
+
 
 .notif-scrim { position: fixed; inset: 0; z-index: 65; background: rgb(6 12 9 / .55); }
 
