@@ -246,7 +246,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Overview</strong></div>
           <div className="top-actions">
-            {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-44 rounded-full bg-white text-xs sm:w-52" />}
+            {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-36 min-w-0 flex-1 rounded-full bg-white text-xs sm:w-52 sm:flex-none" />}
             <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
           </div>
         </header>

@@ -1016,3 +1016,13 @@ button:active, [role="button"]:active { transform: scale(.97); }
   .push-toggle { height: 44px; padding: 0 20px; }
   .notif-trigger { min-width: 44px; min-height: 44px; }
 }
+
+
+/* ------------------------------------------------------------------ */
+/* Topbar search on narrow phones: flex instead of fixed width          */
+/* ------------------------------------------------------------------ */
+@media (max-width: 560px) {
+  .topbar { gap: 8px; }
+  .topbar .breadcrumb { font-size: 9px; }
+  .topbar .top-actions { flex: 1 1 auto; justify-content: flex-end; }
+}
