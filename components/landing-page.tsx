@@ -24,7 +24,7 @@ export default function LandingPage() {
         <div className="landing-copy">
           <span className="landing-eyebrow"><i />SIMPLE BOOKKEEPING FOR GROWING BUSINESSES</span>
           <h1>Know where your business <span className="marker"><em className="serif-accent">stands.</em><svg viewBox="0 0 220 22" fill="none" preserveAspectRatio="none" aria-hidden="true"><path d="M4 15C58 7 152 5 216 12" stroke="#c9f24f" strokeWidth="9" strokeLinecap="round" opacity="0.95" /></svg></span></h1>
-          <p className="landing-description">Cash, loans, owners, stock and team — recorded in one shared ledger your whole business can trust. Built for Pakistani founders and the people they start with.</p>
+          <p className="landing-description">Cash, loans, owners, stock and team, all recorded in one shared ledger your whole business can trust. Built for Pakistani founders and the people they start with.</p>
           <div className="landing-actions">
             <Link className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={16} /></Link>
             <Link className="dark-button" style={{ textDecoration: 'none' }} href="/login">Try the demo <ArrowRight size={15} /></Link>
@@ -37,7 +37,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Floating showcase — sample workspace */}
+        {/* Floating showcase: sample workspace */}
         <div className="showcase float-slow" aria-hidden="true">
           <div className="showcase-stage">
             <div className="showcase-glow" />
@@ -59,9 +59,9 @@ export default function LandingPage() {
                 <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--positive)', background: 'var(--positive-soft)', padding: '3px 8px', borderRadius: 999 }}>CLEARED</span>
               </div>
               {[
-                { icon: ArrowDownLeft, tone: 'income', title: 'Client invoice — Studio shoot', meta: 'Today · Bank account', amount: '+₨ 350,000', cls: 'in' },
-                { icon: ArrowUpRight, tone: 'expense', title: 'Studio rent — November', meta: 'Yesterday · Bank account', amount: '−₨ 75,000', cls: '' },
-                { icon: HandCoins, tone: 'expense', title: 'Loan repayment — Shah Assoc.', meta: 'Nov 3 · Cash', amount: '−₨ 40,000', cls: '' },
+                { icon: ArrowDownLeft, tone: 'income', title: 'Client invoice, Studio shoot', meta: 'Today · Bank account', amount: '+₨ 350,000', cls: 'in' },
+                { icon: ArrowUpRight, tone: 'expense', title: 'Studio rent, November', meta: 'Yesterday · Bank account', amount: '−₨ 75,000', cls: '' },
+                { icon: HandCoins, tone: 'expense', title: 'Loan repayment, Shah Assoc.', meta: 'Nov 3 · Cash', amount: '−₨ 40,000', cls: '' },
               ].map((row, i) => (
                 <div className="showcase-row" key={i}>
                   <span className={`txn-icon ${row.tone}`} style={{ width: 36, height: 36, borderRadius: 13 }}><row.icon size={15} /></span>
@@ -80,12 +80,12 @@ export default function LandingPage() {
         <h2 className="section-title">One calm home<br />for business money.</h2>
         <div className="feature-grid">
           {[
-            { icon: ArrowLeftRight, tint: 'lime', title: 'One clear ledger', copy: 'Income, expenses, owner contributions and withdrawals, transfers — searchable, attributable, and exportable to CSV.' },
+            { icon: ArrowLeftRight, tint: 'lime', title: 'One clear ledger', copy: 'Income, expenses, owner contributions and withdrawals, transfers. All searchable, attributable, and exportable to CSV.' },
             { icon: HandCoins, tint: 'terra', title: 'Loans & dues', copy: 'Payables and receivables tracked principal-first. Record partial repayments; optional fees post separately as income or expense.' },
             { icon: PieChart, tint: 'green', title: 'Ownership, clearly recorded', copy: 'Effective-dated shares recorded as your team agrees. Contributions never masquerade as ownership.' },
-            { icon: Wallet, tint: 'slate', title: 'Every account, one balance', copy: 'Cash, bank and mobile wallets. Balances derive from cleared records only — pending never inflates your totals.' },
-            { icon: Boxes, tint: 'lime', title: 'Stock & team', copy: 'Inventory movements with low-stock alerts, employee records, salary periods and part-payments — beside your money, not in separate sheets.' },
-            { icon: FileText, tint: 'green', title: 'Reports & export', copy: 'A filterable ledger your accountant can actually work with — including loan repayments and who recorded what.' },
+            { icon: Wallet, tint: 'slate', title: 'Every account, one balance', copy: 'Cash, bank and mobile wallets. Balances derive from cleared records only, so pending never inflates your totals.' },
+            { icon: Boxes, tint: 'lime', title: 'Stock & team', copy: 'Inventory movements with low-stock alerts, employee records, salary periods and part-payments, beside your money, not in separate sheets.' },
+            { icon: FileText, tint: 'green', title: 'Reports & export', copy: 'A filterable ledger your accountant can actually work with, including loan repayments and who recorded what.' },
           ].map((feature, i) => (
             <div className="feature-card" key={i}>
               <span className={`feature-icon stat-icon ${feature.tint}`}><feature.icon size={18} /></span>
@@ -102,8 +102,8 @@ export default function LandingPage() {
         <h2 className="section-title">Three steps to clean books.</h2>
         <div className="steps-row">
           <div className="step-item"><b>Step 1</b><strong>Set up your workspace</strong><p>Create the owner account, name your business and connect your cash, bank and wallet accounts. Five minutes, once.</p></div>
-          <div className="step-item"><b>Step 2</b><strong>Record as you go</strong><p>Tap add, pick the type, enter the amount. Your bookkeeper or partner sees the same ledger — with their name on what they record.</p></div>
-          <div className="step-item"><b>Step 3</b><strong>See the full picture</strong><p>Balances, dues, shares and salaries — always current, never reconstructed from notebooks at year-end.</p></div>
+          <div className="step-item"><b>Step 2</b><strong>Record as you go</strong><p>Tap add, pick the type, enter the amount. Your bookkeeper or partner sees the same ledger, with their name on what they record.</p></div>
+          <div className="step-item"><b>Step 3</b><strong>See the full picture</strong><p>Balances, dues, shares and salaries, always current, never reconstructed from notebooks at year-end.</p></div>
         </div>
       </section>
 

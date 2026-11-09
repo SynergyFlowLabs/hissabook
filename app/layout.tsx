@@ -13,15 +13,15 @@ const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : 'https://hissabook-eta.vercel.app';
 
-const SITE_TITLE = 'Hisaabook — Business, in balance';
+const SITE_TITLE = 'Hisaabook: Business, in balance';
 const SITE_DESCRIPTION =
-  'A clearer way to manage your business money, together. Cash, loans, owners, stock and team records in one shared, attributable ledger — built for Pakistani businesses.';
+  'A clearer way to manage your business money, together. Cash, loans, owners, stock and team records in one shared, attributable ledger, built for Pakistani businesses.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(productionUrl),
   title: {
     default: SITE_TITLE,
-    template: '%s — Hisaabook',
+    template: '%s: Hisaabook',
   },
   description: SITE_DESCRIPTION,
   applicationName: 'Hisaabook',
@@ -98,6 +98,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#e9ede7' },
     { media: '(prefers-color-scheme: dark)', color: '#16241d' },

@@ -162,7 +162,7 @@ export default function NotificationPanel({
                 <div className="notif-empty">
                   <span className="notif-empty-ring"><CheckCheck size={22} /></span>
                   <strong>You’re all caught up.</strong>
-                  <span>Ledger activity, payroll, stock and invites will land here — and on your devices once you enable alerts.</span>
+                  <span>Ledger activity, payroll, stock and invites will land here, and on your devices once you enable alerts.</span>
                 </div>
               ) : (
                 <>

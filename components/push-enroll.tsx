@@ -60,7 +60,7 @@ export default function PushEnroll() {
         <ol className="push-ios-steps">
           <li><Share size={12} /> Tap <strong>Share</strong> in Safari</li>
           <li><PlusSquare size={12} /> Choose <strong>Add to Home Screen</strong></li>
-          <li><LogIn size={12} /> Open the new icon — alerts unlock there</li>
+          <li><LogIn size={12} /> Open the new icon, alerts unlock there</li>
         </ol>
       </div>
     );
@@ -69,7 +69,7 @@ export default function PushEnroll() {
   if (state === 'denied') {
     return (
       <div className="push-row">
-        <span className="push-copy"><BellOff size={13} className="push-icon-muted" /> <span>Notifications are blocked in your browser settings — allow them for Hisaabook to receive alerts.</span></span>
+        <span className="push-copy"><BellOff size={13} className="push-icon-muted" /> <span>Notifications are blocked in your browser settings. Allow them for Hisaabook to receive alerts.</span></span>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default function PushEnroll() {
     <div className="push-row">
       <span className="push-copy">
         {state === 'on'
-          ? <><CheckCircle2 size={14} className="push-icon-on" /> <span><strong>Device alerts on</strong> — this device hears new ledger activity.</span></>
+          ? <><CheckCircle2 size={14} className="push-icon-on" /> <span><strong>Device alerts on</strong>: this device hears new ledger activity.</span></>
           : <><BellRing size={14} className="push-icon" /> <span>Get pinged for ledger activity, salaries and reminders.</span></>}
       </span>
       {state === 'working' ? (

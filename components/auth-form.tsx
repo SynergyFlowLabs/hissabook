@@ -13,19 +13,19 @@ const asideCopy = {
   login: {
     eyebrow: 'WELCOME BACK',
     title: <>Your business books,{' '}<em className="serif-accent serif-lime">in balance.</em></>,
-    body: 'Pick up right where you left off — every balance, loan, share and salary obligation, exactly as you recorded it.',
+    body: 'Pick up right where you left off: every balance, loan, share and salary obligation, exactly as you recorded it.',
     points: [
-      'Owner-controlled access — add your bookkeeper, co-founder or accountant with the role they need.',
+      'Owner-controlled access: add your bookkeeper, co-founder or accountant with the role they need.',
       'Every record shows who recorded it. No mysteries at month-end.',
-      'Cash, loans and ownership tracked separately — the way your business actually works.',
+      'Cash, loans and ownership tracked separately, the way your business actually works.',
     ],
   },
   setup: {
     eyebrow: 'FIRST-TIME SETUP',
     title: <>Set up your business{' '}<em className="serif-accent serif-lime">in minutes.</em></>,
-    body: 'Create the owner account, name your workspace, and start recording. You can invite your team later — start solo if you want.',
+    body: 'Create the owner account, name your workspace, and start recording. You can invite your team later, and start solo if you want.',
     points: [
-      'Five minutes to your first entry — no credit card, no onboarding calls.',
+      'Five minutes to your first entry, with no credit card and no onboarding calls.',
       'Works for solo founders and informal partnerships alike.',
       'Your data stays in your private workspace. Always exportable, never locked in.',
     ],

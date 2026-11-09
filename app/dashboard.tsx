@@ -246,7 +246,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Overview</strong></div>
           <div className="top-actions">
-            {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-44 rounded-full bg-white text-xs sm:w-52" />}
+            {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-36 min-w-0 flex-1 rounded-full bg-white text-xs sm:w-52 sm:flex-none" />}
             <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
           </div>
         </header>
@@ -287,7 +287,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
               </div>
               <div className="hero-foot">
                 <div className="account-stack" aria-hidden="true">{data.accounts.slice(0, 4).map((account) => <span key={account.id} className="account-dot">{initials(account.name)}</span>)}</div>
-                <div className="hero-foot-note">Your books update themselves — every cleared entry, repayment and transfer rolls up here automatically.</div>
+                <div className="hero-foot-note">Your books update themselves: every cleared entry, repayment and transfer rolls up here automatically.</div>
               </div>
             </div>
 
@@ -433,12 +433,12 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           {/* Loans */}
           <section className="soft-card" id="loans" style={{ marginTop: 14 }}>
             <div className="card-header-row">
-              <div><div className="card-title">Loans & amounts due</div><div className="card-subtitle">What your business owes — and what it’s owed</div></div>
+              <div><div className="card-title">Loans & amounts due</div><div className="card-subtitle">What your business owes, and what it is owed</div></div>
               {canEdit(userRole) && <button className="ghost-pill" onClick={openDialog('Loan received')}><Plus size={12} /> Record a loan</button>}
             </div>
             {data.loans.length ? <div className="loan-list">{data.loans.map((loan) => <div className="loan-item" key={loan.id}><span className={`loan-icon ${loan.direction === 'RECEIVABLE' ? 'receivable' : ''}`}>{loan.direction === 'RECEIVABLE' ? <ArrowUpRight size={17} /> : <ArrowDownLeft size={17} />}</span><span style={{ minWidth: 0 }}><div className="loan-name">{loan.name}</div><div className="loan-due">{loan.direction === 'PAYABLE' ? 'Owed to' : 'Owed by'} {loan.counterparty || 'Unspecified'} · Due {shortDate(loan.dueAt)}</div></span><span className="loan-amount">{hidden(loan.outstanding)}<small>{loan.outstanding === 0 ? 'Settled' : loan.direction === 'PAYABLE' ? 'Payable' : 'Receivable'} · {hidden(loan.repaidAmount)} repaid</small></span>{loan.outstanding > 0 && canEdit(userRole) && <button className={`loan-action ${loan.direction === 'RECEIVABLE' ? 'collect' : ''}`} onClick={() => openRepayment(loan)}>{loan.direction === 'PAYABLE' ? 'Repay' : 'Collect'}</button>}</div>)}</div> : <div className="empty-state">No outstanding loans or dues recorded.</div>}
           </section>
-          <p className="footer-note" id="about">Hisaabook keeps your business records clear. For bookkeeping reference only — not legal, tax, or accounting advice.</p>
+          <p className="footer-note" id="about">Hisaabook keeps your business records clear. For bookkeeping reference only, not legal, tax, or accounting advice.</p>
         </div>
       </main>
 

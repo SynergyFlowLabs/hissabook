@@ -199,7 +199,7 @@ export default function TransactionsClient({ userName, userRole }: { userName: s
                   <td><div className="ledger-description">{item.title}</div>{item.counterparty && <div className="ledger-secondary">{item.counterparty}</div>}{item.note && <div className="ledger-note" title={item.note}>{item.note}</div>}</td>
                   <td className="table-muted">{item.kind === 'TRANSFER' ? `${item.account} → ${item.destinationAccount}` : item.account}</td>
                   <td className="table-muted">{item.category}</td>
-                  <td className="table-muted ledger-creator">{item.createdBy || '—'}</td>
+                  <td className="table-muted ledger-creator">{item.createdBy || '-'}</td>
                   <td><span className={statusPill(item.status)}>{item.status === 'CLEARED' ? 'Cleared' : item.status === 'PENDING' ? 'Pending' : 'Voided'}</span></td>
                   <td className={neutral ? 'table-muted' : negative ? 'amount-negative' : 'amount-positive'} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{neutral ? '' : negative ? '−' : '+'}{formatPKR(item.amount)}</td>
                 </tr>;

@@ -11,7 +11,7 @@ export async function POST() {
   if (access.response) return access.response;
   const { userId, workspaceId } = access.member;
   const sent = await sendUserPush(workspaceId, userId, {
-    title: 'Hisaabook — alerts are on',
+    title: 'Hisaabook: alerts are on',
     body: 'Ledger activity, payroll and reminders will land on this device.',
     href: '/',
     kind: 'reminder',

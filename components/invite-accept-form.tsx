@@ -40,7 +40,7 @@ export default function InviteAcceptForm({ token, email, name, role, workspaceNa
           <h1>You’re invited to{' '}<em className="serif-accent serif-lime">{workspaceName}</em></h1>
           <p>{name} asked you to join as a {role.toLowerCase().replace('_', ' ')}. Accept with a password and you’ll see the same shared ledger they do.</p>
           <ul className="auth-aside-points">
-            <li><Check size={15} strokeWidth={2.6} /><span>Your access level is set by the workspace owner — bookkeeper, payroll, admin or viewer.</span></li>
+            <li><Check size={15} strokeWidth={2.6} /><span>Your access level is set by the workspace owner: bookkeeper, payroll, admin or viewer.</span></li>
             <li><Check size={15} strokeWidth={2.6} /><span>Everything you record is attributed to you. Change history is preserved.</span></li>
             <li><Check size={15} strokeWidth={2.6} /><span>Salary and compensation records stay visible only to authorized roles.</span></li>
           </ul>
