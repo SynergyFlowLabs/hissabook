@@ -658,8 +658,18 @@ export async function postDistribution(workspaceId: number, input: PostDistribut
   }
 
   const actorName = actor.name || 'Workspace member';
-  const id = await db.transaction(async () => postDistributionRows(workspaceId, workings, input.note ?? '', actorName))();
-  return { id, workings };
+  try {
+    const id = await db.transaction(async () => postDistributionRows(workspaceId, workings, input.note ?? '', actorName))();
+    return { id, workings };
+  } catch (error) {
+    // The partial unique index (one POSTED distribution per workspace period) is
+    // the backstop for two requests racing past the overlap check above.
+    const message = error instanceof Error ? error.message : String(error);
+    if (/UNIQUE constraint failed: profit_distributions|profit_distributions_active_period_idx|duplicate key value/i.test(message)) {
+      throw new DistributionError('This period was just posted by another request. Refresh the history before posting again.');
+    }
+    throw error;
+  }
 }
 
 export async function voidDistribution(workspaceId: number, distributionId: number, reason: string, actor: { name: string; userId: number | null }) {

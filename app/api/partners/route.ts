@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   const name = body.name?.trim();
-  if (!name || name.length > 80) return NextResponse.json({ error: 'Give the partner a name of 1–80 characters.' }, { status: 400 });
+  if (!name || name.length > 80) return NextResponse.json({ error: 'Give the partner a name of 1 to 80 characters.' }, { status: 400 });
   const role = (body.role?.trim() || 'Partner').slice(0, 40);
   const share = Number(body.share);
   if (!Number.isFinite(share) || share < 0 || share > 100) return NextResponse.json({ error: 'Share must be between 0 and 100.' }, { status: 400 });

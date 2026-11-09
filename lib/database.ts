@@ -304,7 +304,17 @@ const schemaSql = `
     CREATE INDEX IF NOT EXISTS partner_entries_ws_owner_idx ON partner_entries(workspace_id, owner_id, transaction_date);
     CREATE INDEX IF NOT EXISTS partner_entries_distribution_idx ON partner_entries(workspace_id, distribution_id);
     CREATE INDEX IF NOT EXISTS owner_share_changes_ws_owner_idx ON owner_share_changes(workspace_id, owner_id, effective_at);
+    CREATE TABLE IF NOT EXISTS seed_claims (
+      workspace_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      claimed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (workspace_id, kind)
+    );
     CREATE INDEX IF NOT EXISTS profit_distributions_ws_period_idx ON profit_distributions(workspace_id, period_to DESC);
+    -- One POSTED appropriation per workspace period, enforced by the database so a
+    -- double-tap, a retry or a duplicated demo seed cannot post the same period twice.
+    CREATE UNIQUE INDEX IF NOT EXISTS profit_distributions_active_period_idx
+      ON profit_distributions(workspace_id, period_from, period_to) WHERE status = 'POSTED';
     CREATE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members(user_id, active);
     CREATE INDEX IF NOT EXISTS notifications_workspace_idx ON notifications(workspace_id, id DESC);
     CREATE INDEX IF NOT EXISTS notifications_kind_idx ON notifications(workspace_id, kind, created_at);
@@ -469,7 +479,41 @@ export const db = {
   },
 };
 
+/**
+ * One-time claim for demo seeding, held in a PRIMARY KEY rather than in a
+ * read-then-write check.
+ *
+ * On SQLite the write queue serializes seeds. On Postgres two lambdas can render
+ * /login at the same moment and a plain check-then-insert let both through:
+ * production ended up with every demo partner entry twice and October's
+ * distribution POSTED twice. A unique primary key is the only check that holds
+ * across connections, so the loser of the race gets a duplicate-key error and
+ * stops. The claim row is released if the seed throws, so a failed seed remains
+ * retryable.
+ */
+async function claimDemoSeed(workspaceId: number, kind: string) {
+  try {
+    await db.prepare('INSERT INTO seed_claims (workspace_id, kind) VALUES (?, ?)').run(workspaceId, kind);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/UNIQUE constraint failed: seed_claims|duplicate key value|seed_claims_pkey/i.test(message)) return false;
+    // e.g. the seed_claims table has not been migrated into this database yet.
+    console.error('Demo seed claim unavailable, skipping demo seeding', kind, error);
+    return false;
+  }
+}
+
+async function releaseDemoSeedClaim(workspaceId: number, kind: string) {
+  try {
+    await db.prepare('DELETE FROM seed_claims WHERE workspace_id = ? AND kind = ?').run(workspaceId, kind);
+  } catch (error) {
+    console.error('Demo seed claim could not be released', kind, error);
+  }
+}
+
 async function seedPartnerDemoIfEmpty(workspaceId: number) {
+  let claimed = false;
   try {
     const existing = await db.prepare('SELECT COUNT(*) AS count FROM partner_entries WHERE workspace_id = ?').get(workspaceId) as { count: number };
     // Baseline PSR history rows for demo partners (idempotent).
@@ -478,11 +522,13 @@ async function seedPartnerDemoIfEmpty(workspaceId: number) {
       FROM owners o
       WHERE o.workspace_id = ? AND NOT EXISTS (SELECT 1 FROM owner_share_changes osc WHERE osc.owner_id = o.id)`).run(workspaceId);
     if (Number(existing.count) > 0) return;
+    if (!(await claimDemoSeed(workspaceId, 'partner'))) return;
+    claimed = true;
     const owners = await db.prepare('SELECT id, name FROM owners WHERE workspace_id = ?').all(workspaceId) as Array<{ id: number; name: string }>;
     const hamza = owners.find((owner) => owner.name === 'Hamza Malik');
     const sara = owners.find((owner) => owner.name === 'Sara Ahmed');
     const cash = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ? AND is_system = 0').get(workspaceId, 'Cash in hand') as { id: number } | undefined;
-    if (!hamza || !sara || !cash) return;
+    if (!hamza || !sara || !cash) { await releaseDemoSeedClaim(workspaceId, 'partner'); return; }
     // One hidden clearing account anchors partner-funded expenses.
     await db.prepare(`INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance, is_system)
       VALUES (?, 'Partner out-of-pocket (clearing)', 'PARTNER_ADVANCE', 'PKR', 0, 1) ON CONFLICT (workspace_id, name) DO NOTHING`).run(workspaceId);
@@ -543,6 +589,8 @@ async function seedPartnerDemoIfEmpty(workspaceId: number) {
       .run(workspaceId, DEMO_USER_NAME);
   } catch (error) {
     console.error('Demo partner seed failed', error);
+    // Release the claim so the next visit can retry a seed that failed halfway.
+    if (claimed) await releaseDemoSeedClaim(workspaceId, 'partner');
     // Never fail silently: leave an audit trail so a partially seeded demo can be
     // diagnosed from the database instead of guessed at. Best effort only; the
     // demo page must still render if this write also fails.
@@ -793,6 +841,9 @@ export async function ensureDemoModuleData(workspaceId?: number) {
   }
   const seedModules = db.transaction(async () => {
     const itemCount = (await db.prepare('SELECT COUNT(*) AS count FROM inventory_items WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
+    const hasEmployees = Number((await db.prepare('SELECT COUNT(*) AS count FROM employees WHERE workspace_id = ?').get(workspaceId) as { count: number }).count) > 0;
+    if (itemCount > 0 && hasEmployees) return;
+    if (!(await claimDemoSeed(workspaceId, 'modules'))) return;
     if (itemCount === 0) {
       const item = db.prepare('INSERT INTO inventory_items (workspace_id, name, sku, category, unit, reorder_level) VALUES (?, ?, ?, ?, ?, ?)');
       const sketchbooks = Number((await item.run(workspaceId, 'Branded sketchbooks', 'SK-001', 'Studio merchandise', 'pcs', 40)).lastInsertRowid);
@@ -808,8 +859,7 @@ export async function ensureDemoModuleData(workspaceId?: number) {
       await movement.run(workspaceId, toteBags, 'ISSUE', -8, dayOffset(4), 'Event merchandise');
     }
 
-    const employeeCount = (await db.prepare('SELECT COUNT(*) AS count FROM employees WHERE workspace_id = ?').get(workspaceId) as { count: number }).count;
-    if (employeeCount === 0) {
+    if (!hasEmployees) {
       const today = new Date();
       const periodStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10);
       const periodEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
