@@ -135,9 +135,26 @@ second, worse defect:
   when that index rejects a race. Verified locally: 20 concurrent first visits to
   `/login` on a fresh database produce exactly 6 partner entries, 1 distribution,
   1 clearing account, 3 inventory items, 2 employees, 2 salary periods.
-- **Still needs the owner's decision (nothing applied):** production workspace 2
-  holds the duplicated rows and the double October distribution. The clean path is
-  to void distribution #2, and remove the duplicate partner entries (the seed's
-  demo-only rows) so the demo shows one of each; that is a write to the public demo
-  workspace and needs an explicit go-ahead. Applying the new migration is also
-  pending approval.
+- **Applied to production on 2026-11-09 after the owner's go-ahead.** Migration
+  `20261109153000_profit_distribution_unique_period` ran first (it cannot be added
+  while two POSTED rows for the same period exist, so the data repair went first):
+  1. Data repair, in one transaction. Deleted duplicate distribution `#2` with its
+     three `PROFIT_SHARE` entries, the second set of demo movements
+     (`EXPENSE_PAID` 18,500 on txn 8, `CASH_WITHDRAWAL` 25,000 on txn 11,
+     `ADVANCE_REIMBURSED` 10,000 on txn 12) and the duplicated last-month basis
+     rows (txns 13 and 14). Kept distribution `#1`, entries 1, 2, 3, 6, 7, 9 and
+     txns 5, 6, 7, 9, 10. An unrelated test entry ("Just coffee", txn 15) and its
+     loan repayment were left alone, and an audit row
+     `DEMO_DUPLICATE_SEED_CLEANED` records exactly what was removed.
+  2. Migration applied through the migration runner: `profit_distributions_active_period_idx`
+     and `seed_claims` now exist in production (`seed_claims` has RLS on and no
+     grants to `anon`/`authenticated`).
+  3. The index was probed in production inside a rolled-back `DO` block: a second
+     POSTED row for 2026-10-01..10-31 raises `unique_violation`, a VOID row for the
+     same period is accepted. Production still holds exactly 1 distribution.
+  4. `seed_claims` was pre-populated for the demo workspace (`partner`, `modules`)
+     so the still-deployed pre-fix build cannot seed a third time before the fix
+     reaches production.
+- Post-repair state of workspace 2: 6 partner entries, 1 POSTED distribution
+  (46,000 residual, 20,700 / 16,100 / 9,200), 3 accounts, 3 inventory items,
+  2 employees, 2 salary periods, 10 transactions.
