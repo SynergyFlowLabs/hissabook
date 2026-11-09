@@ -403,8 +403,68 @@ describe('account management exists instead of a placeholder toast', () => {
     // being built." while the panel behind it already listed the accounts.
     const dashboard = await read('app/dashboard.tsx');
     expect(dashboard).not.toContain('is being built');
-    expect(dashboard).toContain('<AccountsDialog');
     expect(dashboard).toContain('Manage accounts');
+  });
+
+  it('keeps account management on its own screen, not in a modal', async () => {
+    // Managing accounts outgrew a dialog: each account needs its balance, its
+    // ledger context and the reason a change is refused. A dialog hid all of
+    // that behind an overflow menu on a panel the page already showed.
+    const dashboard = await read('app/dashboard.tsx');
+    expect(dashboard).not.toContain('<AccountsDialog');
+    expect(dashboard).not.toMatch(/accountsOpen/);
+
+    // The page must exist, be server-gated, and use the shared skeleton idiom.
+    const page = await read('app/accounts/page.tsx');
+    expect(page).toContain('requirePageMember');
+    const loading = await read('app/accounts/loading.tsx');
+    expect(loading).toContain('AppLoading');
+
+    // Something reachable must link to it: the sidebar entry no longer scrolls
+    // back to the dashboard panel, and the panel's button navigates.
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).toContain("href: '/accounts'");
+    expect(sidebar).not.toContain("href: '/#accounts'");
+    expect(dashboard).toContain('href="/accounts"');
+  });
+
+  it('offers a delete only where the API would actually allow it', async () => {
+    // The page once showed a Remove button on every account and let the API
+    // refuse; a refusal that always fails teaches the owner the app is broken
+    // rather than the rule. `hasHistory` must mirror the DELETE condition, which
+    // counts ledger entries only. An opening balance alone is not history.
+    const database = await read('lib/database.ts');
+    expect(database).toContain('hasHistory: entryCount > 0');
+    expect(database).not.toMatch(/hasHistory:\s*entryCount > 0 \|\|/);
+
+    const route = await read('app/api/accounts/[id]/route.ts');
+    const del = route.slice(route.indexOf('export async function DELETE'));
+    expect(del).toContain('FROM transactions');
+    expect(del).not.toContain('opening_balance');
+
+    const client = await read('app/accounts/accounts-client.tsx');
+    expect(client).toContain('function removable(');
+    expect(client).toContain('!account.hasHistory');
+    // A locked account still says why, instead of silently losing its button.
+    expect(client).toContain('cannot be removed');
+  });
+
+  it('keeps a retry path when the page cannot load', async () => {
+    // Standing rule: an error state is an explicit message plus a retry, never a
+    // skeleton that never settles.
+    const client = await read('app/accounts/accounts-client.tsx');
+    expect(client).toContain('could not be loaded');
+    expect(client).toContain('Try again');
+  });
+
+  it('states the delete and opening-balance rules on the page itself', async () => {
+    // A refusal the owner cannot see coming reads as a bug, so the page explains
+    // the rules instead of only surfacing them when an action fails.
+    const client = await read('app/accounts/accounts-client.tsx');
+    expect(client).toContain('renamed but not removed');
+    expect(client).toContain('opening balance is fixed once the first entry');
+    expect(client).toContain('canManage');
+    expect(client).toContain('SkPageBody');
   });
 
   it('keeps the balance derived, never typed', async () => {

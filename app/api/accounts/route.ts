@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, ensureDemoWorkspace, getDashboardData } from '@/lib/database';
+import { db, ensureDemoWorkspace, getAccountsData, getDashboardData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
 import { createWorkspaceNotification } from '@/lib/notifications';
 
@@ -68,13 +68,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Used by the ledger's account pickers; keeps the shape identical to the dashboard. */
+/**
+ * The accounts page payload: every account with its balance and the context the
+ * page needs to decide what may be changed (see `hasHistory`).
+ */
 export async function GET() {
   const access = await requireWorkspaceMember();
   if (access.response) return access.response;
-  const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
-  const accounts = await db
-    .prepare('SELECT id, name, account_type AS accountType, opening_balance AS openingBalance FROM accounts WHERE workspace_id = ? ORDER BY id')
-    .all(workspaceId);
-  return NextResponse.json({ accounts });
+  return NextResponse.json(await getAccountsData(access.member.workspaceId));
 }

@@ -1410,3 +1410,19 @@ button:active, [role="button"]:active { transform: scale(.97); }
    visibly stale, so the tap has an immediate effect instead of appearing to do
    nothing until the response lands. */
 .data-table-wrap.is-refreshing { opacity: .55; transition: opacity .12s ease; }
+
+/* Accounts screen: an account row carries a name, a balance and up to two
+   actions inside ~360 usable pixels on a phone. The action buttons grow to a
+   thumb-sized 36px there and the balance may wrap under the name rather than
+   squeezing it to two characters. */
+@media (max-width: 640px) {
+  .account-action-group { gap: 6px; }
+  .account-action-group .icon-row-button { width: 36px; height: 36px; border-radius: 12px; }
+  .account-row-stack { flex-wrap: wrap; row-gap: 8px; }
+  /* The name keeps a readable minimum; when the balance and the actions no
+     longer fit beside it they wrap to a second line, where the balance stays
+     right-aligned against the actions instead of drifting under the icon. */
+  .account-row-stack .movement-description { flex: 1 1 120px; min-width: 0; }
+  .account-row-stack .movement-quantity { flex: 0 0 auto; }
+  .account-row-stack .account-action-group { margin-left: auto; }
+}

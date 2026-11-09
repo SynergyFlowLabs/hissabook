@@ -23,7 +23,7 @@ import { useState } from 'react';
 const workspaceLinks = [
   { label: 'Overview', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
   { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight, key: 'transactions' },
-  { label: 'Accounts', href: '/#accounts', icon: Wallet, key: 'accounts' },
+  { label: 'Accounts', href: '/accounts', icon: Wallet, key: 'accounts' },
   { label: 'Loans & dues', href: '/#loans', icon: HandCoins, key: 'loans' },
 ];
 
@@ -37,7 +37,7 @@ const manageLinks = [
 const mobileLinks = [
   { label: 'Home', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
   { label: 'Activity', href: '/transactions', icon: ArrowLeftRight, key: 'transactions' },
-  { label: 'Stock', href: '/inventory', icon: Boxes, key: 'inventory' },
+  { label: 'Accounts', href: '/accounts', icon: Wallet, key: 'accounts' },
   { label: 'Team', href: '/team', icon: UsersRound, key: 'team' },
 ];
 
