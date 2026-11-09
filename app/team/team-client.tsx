@@ -25,7 +25,7 @@ type WorkspaceAccess = {
   invitations: Array<{ id: number; email: string; name: string; role: string; expiresAt: string; createdAt: string }>;
 };
 type DialogMode = 'employee' | 'employeeEdit' | 'period' | 'payment';
-const money = (amount: number) => `₨ ${Math.abs(amount).toLocaleString('en-PK')}`;
+const money = (amount: number) => `PKR ${Math.abs(amount).toLocaleString('en-PK')}`;
 const dateLabel = (date: string) => new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
 const monthStart = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10); };
 const monthEnd = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10); };

@@ -100,10 +100,10 @@ This inventory covers the intended product, not an implementation. Priority labe
 ## 8. Localization, accessibility, and security
 | Feature | Priority | Notes |
 |---|---:|---|
-| PKR default and local number formatting | P0 | Currency explicit; no silent mixing. |
+| PKR default and local number formatting | P0 | One money form product-wide: `PKR 519,850` (integer, en-PK grouping), including masked balances (`PKR ••••••`). The rupee glyph is not used because most display fonts fall back to an `Rs` monogram that reads as a second currency next to `PKR`. Rule lives in `lib/format.ts`. |
 | Pakistan-friendly date display | P0 | Consistent timezone and unambiguous stored date. |
 | English-first content with Urdu/RTL readiness | P0 | Validate actual language and RTL launch scope with users. |
-| Responsive, low-friction mobile experience | P0 | Core entry and review flows usable on small screens. |
+| Responsive, low-friction mobile experience | P0 | Core entry and review flows usable at 375px and up. Two-column overview/report grids state `grid-cols-1` explicitly so an `auto` track cannot size to the long quick-actions row; hero chips drop to one column under 400px; the bottom pill nav reserves 94px plus the device inset below content; captions hold a 9px floor. Guarded by `lib/anti-slop/mobile-overview.test.ts`. |
 | Accessible labels, contrast, and non-color status cues | P0 | Include assistive technology and keyboard considerations. |
 | Secure sign-in and session controls | P0 | Final authentication design requires security review. |
 | Least-privilege data access | P0 | Business-level membership boundaries. |

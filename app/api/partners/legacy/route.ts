@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await attributeLegacyEntry(workspaceId, transactionId, ownerId, { name: access.member.name, userId: access.member.userId });
     await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'transaction',
-      title: 'Legacy row attributed', body: `${result.entryType === 'CAPITAL_CONTRIBUTION' ? 'Capital contribution' : 'Counter drawing'} of ₨ ${result.amount.toLocaleString('en-PK')} tagged to ${result.partnerName}`,
+      title: 'Legacy row attributed', body: `${result.entryType === 'CAPITAL_CONTRIBUTION' ? 'Capital contribution' : 'Counter drawing'} of PKR ${result.amount.toLocaleString('en-PK')} tagged to ${result.partnerName}`,
       href: '/partners' });
     return NextResponse.json({ ok: true, ...result }, { status: 201 });
   } catch (error) {

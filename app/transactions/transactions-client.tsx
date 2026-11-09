@@ -45,7 +45,7 @@ const kinds = [
 const ALL = '__all__';
 
 function formatPKR(value: number) {
-  return `₨ ${Math.abs(Number(value)).toLocaleString('en-PK')}`;
+  return `PKR ${Math.abs(Number(value)).toLocaleString('en-PK')}`;
 }
 
 function displayKind(value: string) {

@@ -70,8 +70,8 @@ const PRESETS: Array<{ value: RangePreset; label: string }> = [
   { value: 'this-year', label: 'This year' },
 ];
 
-const money = (value: number) => `₨ ${Math.abs(Math.round(value)).toLocaleString('en-PK')}`;
-const signed = (value: number) => `${value < 0 ? '−' : ''}₨ ${Math.abs(Math.round(value)).toLocaleString('en-PK')}`;
+const money = (value: number) => `PKR ${Math.abs(Math.round(value)).toLocaleString('en-PK')}`;
+const signed = (value: number) => `${value < 0 ? '−' : ''}PKR ${Math.abs(Math.round(value)).toLocaleString('en-PK')}`;
 
 function defaultRange(): DateRange {
   return resolveRange('this-month', new Date().toISOString().slice(0, 10));
@@ -233,12 +233,12 @@ function SummaryView({ report }: { report: SummaryReport }) {
         <Stat label="Left out on purpose" value={String(report.excludedCount)} foot="Transfers, owner money, loan principal, pending and voided rows" />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
         <CategoryTable title="Where income came from" subtitle="Cleared income grouped by category" rows={report.income} total={report.totals.income} totalLabel="Total income" />
         <CategoryTable title="Where money went" subtitle="Cleared expenses grouped by category" rows={report.expenses} total={report.totals.expenses} totalLabel="Total expenses" />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
         <section className="soft-card" aria-label="Cash movement by account">
           <div className="card-header-row"><div><div className="card-title">Cash movement by account</div><div className="card-subtitle">Cleared money actually received and paid, per account. Internal transfers are excluded here.</div></div></div>
           <div className="data-table-wrap report-table-wrap">
@@ -310,7 +310,7 @@ function ProfitView({ report }: { report: ProfitReport }) {
         <Stat label="Margin" value={totals.marginPct === null ? '-' : `${totals.marginPct}%`} foot="Income minus expenses as a share of income" />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" style={{ marginTop: 14 }}>
         <CategoryTable title="Income" subtitle="Cleared income by category" rows={report.income} total={totals.income} totalLabel="Total income" />
         <CategoryTable title="Expenses" subtitle="Cleared expenses by category" rows={report.expenses} total={totals.expenses} totalLabel="Total expenses" />
       </div>

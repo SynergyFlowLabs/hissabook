@@ -49,8 +49,8 @@ export default function LandingPage() {
               <div className="hero-amount" style={{ fontSize: 40, marginTop: 10 }}><small>PKR</small>865,420</div>
               <div className="hero-meta" style={{ marginTop: 2 }}>Total recorded balance · cleared entries</div>
               <div className="hero-chips" style={{ marginTop: 14 }}>
-                <div className="hero-chip"><div className="hero-chip-label"><ArrowDownLeft size={10} /> Income · 30d</div><div className="hero-chip-value" style={{ fontSize: 14 }}>₨ 1,240,500</div></div>
-                <div className="hero-chip"><div className="hero-chip-label"><ArrowUpRight size={10} /> Expenses · 30d</div><div className="hero-chip-value" style={{ fontSize: 14 }}>₨ 886,300</div></div>
+                <div className="hero-chip"><div className="hero-chip-label"><ArrowDownLeft size={10} /> Income · 30d</div><div className="hero-chip-value" style={{ fontSize: 14 }}>PKR 1,240,500</div></div>
+                <div className="hero-chip"><div className="hero-chip-label"><ArrowUpRight size={10} /> Expenses · 30d</div><div className="hero-chip-value" style={{ fontSize: 14 }}>PKR 886,300</div></div>
               </div>
             </div>
             <div className="showcase-card" style={{ marginTop: 12 }}>
@@ -59,9 +59,9 @@ export default function LandingPage() {
                 <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--positive)', background: 'var(--positive-soft)', padding: '3px 8px', borderRadius: 999 }}>CLEARED</span>
               </div>
               {[
-                { icon: ArrowDownLeft, tone: 'income', title: 'Client invoice, Studio shoot', meta: 'Today · Bank account', amount: '+₨ 350,000', cls: 'in' },
-                { icon: ArrowUpRight, tone: 'expense', title: 'Studio rent, November', meta: 'Yesterday · Bank account', amount: '−₨ 75,000', cls: '' },
-                { icon: HandCoins, tone: 'expense', title: 'Loan repayment, Shah Assoc.', meta: 'Nov 3 · Cash', amount: '−₨ 40,000', cls: '' },
+                { icon: ArrowDownLeft, tone: 'income', title: 'Client invoice, Studio shoot', meta: 'Today · Bank account', amount: '+PKR 350,000', cls: 'in' },
+                { icon: ArrowUpRight, tone: 'expense', title: 'Studio rent, November', meta: 'Yesterday · Bank account', amount: '−PKR 75,000', cls: '' },
+                { icon: HandCoins, tone: 'expense', title: 'Loan repayment, Shah Assoc.', meta: 'Nov 3 · Cash', amount: '−PKR 40,000', cls: '' },
               ].map((row, i) => (
                 <div className="showcase-row" key={i}>
                   <span className={`txn-icon ${row.tone}`} style={{ width: 36, height: 36, borderRadius: 13 }}><row.icon size={15} /></span>

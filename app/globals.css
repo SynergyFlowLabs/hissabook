@@ -199,9 +199,12 @@ button:disabled { cursor: not-allowed; }
 .breadcrumb strong { color: var(--ink); font-weight: 750; }
 .top-actions { display: flex; align-items: center; gap: 9px; }
 
+/* Bottom reserve follows the real pill: 7px padding + 46px item + 7px padding
+   + 14px offset = 74px, plus a 20px breathing gap and the device inset. The old
+   112px fell short once a card with tall content sat under the pill. */
 .content {
   max-width: 1400px; margin: 0 auto;
-  padding: 6px 16px calc(112px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 16px calc(94px + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 561px) { .content { padding-left: 20px; padding-right: 20px; } }
 @media (min-width: 901px) { .content { padding: 8px 22px 60px; } }
@@ -259,6 +262,7 @@ button:disabled { cursor: not-allowed; }
     linear-gradient(165deg, var(--deep-2) 0%, var(--deep) 48%, var(--deep-3) 100%);
   color: #eef6ea; padding: 20px 18px 18px; box-shadow: var(--shadow-lg);
   border: 1px solid #ffffff14; min-height: 240px; display: flex; flex-direction: column; border-radius: 24px;
+  min-width: 0;
 }
 @media (min-width: 561px) { .hero-panel { padding: 22px 22px 20px; } }
 @media (min-width: 901px) { .hero-panel { padding: 26px 26px 22px; border-radius: var(--radius-panel); min-height: 248px; } }
@@ -267,21 +271,31 @@ button:disabled { cursor: not-allowed; }
   border-radius: 50%; border: 1px solid #ffffff12; box-shadow: 0 0 0 26px #ffffff08, 0 0 0 56px #ffffff05; pointer-events: none;
 }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; position: relative; z-index: 1; }
-.hero-label { color: #b9c8b4; font-size: 10px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-.hero-workspace { display: inline-flex; align-items: center; gap: 8px; background: #ffffff12; border: 1px solid #ffffff1f; border-radius: 999px; padding: 6px 12px; font-size: 10px; font-weight: 700; color: #e6efe0; }
+.hero-label { color: #b9c8b4; font-size: 10px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Stays visible at every width: it was only missing from the phone screenshot
+   because the blown-out grid pushed it past the right edge. It shrinks with an
+   ellipsis rather than forcing the row wider than the card. */
+.hero-workspace { display: inline-flex; align-items: center; gap: 8px; background: #ffffff12; border: 1px solid #ffffff1f; border-radius: 999px; padding: 6px 12px; font-size: 10px; font-weight: 700; color: #e6efe0; max-width: 100%; min-width: 0; }
+.hero-workspace > svg { flex: 0 0 auto; }
 .hero-amount { font-family: var(--font-display); font-size: clamp(32px, 10vw, 42px); font-weight: 400; letter-spacing: -1.5px; margin-top: 14px; line-height: .98; font-variant-numeric: tabular-nums; position: relative; z-index: 1; overflow-wrap: anywhere; }
 @media (min-width: 561px) { .hero-amount { font-size: clamp(38px, 7vw, 50px); } }
 @media (min-width: 901px) { .hero-amount { font-size: clamp(38px, 4.6vw, 56px); letter-spacing: -2.6px; } }
-.hero-amount small { font-size: .42em; font-weight: 700; letter-spacing: 0; color: #cfe3c8; vertical-align: 8px; margin-right: 4px; }
+/* On its own row at 375px the amount needs room for "PKR 519,850" plus the
+   reveal button, so the two stack instead of shrinking the number. */
+.hero-amount-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; margin-top: 10px; }
+/* `max()` keeps the prefix from collapsing to 8px on the smallest phones while
+   still scaling it up with the amount on wide panels. */
+.hero-amount small { font-size: max(11px, .42em); font-weight: 700; letter-spacing: .02em; color: #cfe3c8; vertical-align: 8px; margin-right: 4px; }
 .hero-meta { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-top: 6px; color: #a9bba4; font-size: 10px; position: relative; z-index: 1; }
-.hero-amount-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; position: relative; z-index: 1; margin-top: 10px; }
 
-.hero-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; position: relative; z-index: 1; }
-.hero-chip { background: #24382c; border: 1px solid #ffffff1a; border-radius: 17px; padding: 11px 14px; min-width: 0; }
-.hero-chip-label { display: flex; align-items: center; gap: 6px; color: #a9bba4; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.hero-chips { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 18px; position: relative; z-index: 1; }
+@media (max-width: 400px) { .hero-chips { grid-template-columns: minmax(0, 1fr); } }
+.hero-chip { background: #24382c; border: 1px solid #ffffff1a; border-radius: 17px; padding: 11px 14px; min-width: 0; overflow: hidden; }
+.hero-chip-label { display: flex; align-items: center; gap: 6px; color: #a9bba4; font-size: 9.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; min-width: 0; }
+.hero-chip-label > svg { flex: 0 0 auto; }
 .hero-chip-value { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -.4px; margin-top: 5px; font-variant-numeric: tabular-nums; color: #f2f9ee; }
-.hero-chip-sub { color: #8fa88d; font-size: 8px; margin-top: 2px; }
-.hero-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 800; border-radius: 999px; padding: 3px 7px; margin-left: 6px; vertical-align: 1px; }
+.hero-chip-sub { color: #8fa88d; font-size: 9px; margin-top: 2px; }
+.hero-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; border-radius: 999px; padding: 3px 7px; margin-left: 6px; vertical-align: 1px; }
 .hero-trend.up { color: #c3f47a; background: #c9f24f1f; }
 .hero-trend.down { color: #ffb4a1; background: #ff8f6e14; }
 
@@ -289,17 +303,33 @@ button:disabled { cursor: not-allowed; }
 .account-stack { display: flex; align-items: center; }
 .account-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #24382c; color: #d8ead3; border: 2px solid var(--deep); font-size: 9px; font-weight: 800; margin-left: -8px; }
 .account-dot:first-child { margin-left: 0; }
-.hero-foot-note { color: #94a894; font-size: 8.5px; line-height: 1.5; max-width: 210px; }
+/* The note is explanatory only. At phone widths it wrapped to four lines and
+   pushed into the panel edge, so it holds one tidy column under the avatars. */
+.hero-foot-note { color: #94a894; font-size: 9px; line-height: 1.5; max-width: 230px; }
+@media (max-width: 560px) { .hero-foot { align-items: flex-start; gap: 10px; } .hero-foot-note { flex: 1 1 100%; max-width: none; } }
 
 /* ------------------------------------------------------------------ */
 /* Quick actions (circular, reference pattern)                          */
 /* ------------------------------------------------------------------ */
-.quick-actions { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-snap-type: x proximity; touch-action: pan-y; }
-.quick-actions > * { scroll-snap-align: start; }
+/* A horizontally scrolling row must look like a scroller, not a clipped grid.
+   The mask fades the last visible item so the row reads as "more to the right";
+   the 8px inset keeps the glow on the first circle from being cut. */
+.quick-actions {
+  display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px;
+  scrollbar-width: none; scroll-snap-type: x proximity; touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  /* Explicit zero: the six circles are ~506px of min-content, and an `auto`
+     track or flex item happily grows to that, which is what pushed the whole
+     overview wider than the phone (538px card inside a 412px viewport). */
+  min-width: 0; max-width: 100%;
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%);
+}
+.quick-actions > * { scroll-snap-align: start; flex: 0 0 auto; }
 .quick-actions::-webkit-scrollbar { display: none; }
 .quick-action {
-  display: grid; justify-items: center; gap: 9px; border: 0; background: transparent;
-  min-width: 76px; padding: 2px 2px 6px; border-radius: 18px; transition: transform .16s ease;
+  display: grid; justify-items: center; gap: 8px; border: 0; background: transparent;
+  min-width: 72px; padding: 2px 2px 6px; border-radius: 18px; transition: transform .16s ease;
 }
 @media (hover: hover) and (pointer: fine) { .quick-action:hover {  transform: translateY(-2px);  } }
 .quick-action-icon {
@@ -313,7 +343,7 @@ button:disabled { cursor: not-allowed; }
   box-shadow: var(--shadow-lime), inset 0 1.5px 0 #ffffffa0;
 }
 .quick-action.dark .quick-action-icon { background: var(--deep); color: var(--lime); box-shadow: var(--shadow-md); }
-.quick-action span:last-child { font-size: 9px; font-weight: 700; color: var(--ink-soft); text-align: center; line-height: 1.3; }
+.quick-action span:last-child { font-size: 10px; font-weight: 700; color: var(--ink-soft); text-align: center; line-height: 1.3; }
 .quick-action.primary span:last-child { color: var(--ink); }
 
 /* ------------------------------------------------------------------ */
@@ -321,10 +351,10 @@ button:disabled { cursor: not-allowed; }
 /* ------------------------------------------------------------------ */
 .soft-card {
   background: var(--card); border-radius: 20px; box-shadow: var(--shadow-md);
-  border: 1px solid #ffffff; padding: 16px;
+  border: 1px solid #ffffff; padding: 16px; min-width: 0;
 }
 @media (min-width: 561px) { .soft-card { padding: 20px 22px; border-radius: var(--radius-card); } }
-.card-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.card-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .card-title { font-size: 13px; font-weight: 800; letter-spacing: -.2px; }
 .card-subtitle { color: var(--muted); font-size: 10px; margin-top: 4px; }
 
@@ -365,7 +395,7 @@ button:disabled { cursor: not-allowed; }
 .account-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .account-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 14px; background: var(--card-soft); color: var(--ink-soft); flex: 0 0 auto; }
 .account-name { font-size: 11px; font-weight: 750; }
-.account-kind { font-size: 8px; color: var(--faint); margin-top: 3px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.account-kind { font-size: 9px; color: var(--faint); margin-top: 3px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
 .account-value { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .balance-track { height: 7px; background: var(--card-soft); border-radius: 999px; overflow: hidden; margin: 16px 0 6px; }
 .balance-track > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--lime-strong), var(--lime)); }
@@ -381,11 +411,11 @@ button:disabled { cursor: not-allowed; }
 .txn-icon.expense { background: var(--negative-soft); color: var(--negative); }
 .txn-icon.neutral { background: var(--neutral-soft); color: var(--ink-soft); }
 .txn-name { font-size: 11.5px; font-weight: 750; }
-.txn-sub { color: var(--faint); font-size: 8.5px; margin-top: 3px; font-weight: 600; }
+.txn-sub { color: var(--faint); font-size: 9.5px; margin-top: 3px; font-weight: 600; }
 .txn-amount { margin-left: auto; text-align: right; }
 .txn-amount-value { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 .txn-amount-value.in { color: var(--positive); }
-.txn-status { display: inline-flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 800; padding: 3px 8px; border-radius: 999px; margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+.txn-status { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 999px; margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
 .txn-status.cleared { background: var(--positive-soft); color: var(--positive); }
 .txn-status.pending { background: #fbf3d7; color: #9a7b12; }
 .txn-status.voided { background: var(--neutral-soft); color: var(--muted); }
@@ -398,7 +428,7 @@ button:disabled { cursor: not-allowed; }
 .owner-bar { height: 6px; border-radius: 999px; background: var(--card-soft); overflow: hidden; margin-top: 6px; }
 .owner-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--lime-strong), var(--lime)); border-radius: 999px; }
 .owner-share { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.owner-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; padding: 11px 13px; border-radius: 15px; background: var(--lime-soft); color: #57721f; font-size: 8.5px; line-height: 1.55; font-weight: 600; }
+.owner-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; padding: 11px 13px; border-radius: 15px; background: var(--lime-soft); color: #57721f; font-size: 9.5px; line-height: 1.55; font-weight: 600; }
 
 /* loans */
 .loan-list { display: grid; gap: 2px; margin-top: 6px; }
@@ -407,9 +437,9 @@ button:disabled { cursor: not-allowed; }
 .loan-icon { width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; background: var(--negative-soft); color: var(--negative); flex: 0 0 auto; }
 .loan-icon.receivable { background: var(--positive-soft); color: var(--positive); }
 .loan-name { font-size: 11.5px; font-weight: 750; }
-.loan-due { color: var(--faint); font-size: 8.5px; margin-top: 3px; font-weight: 600; }
+.loan-due { color: var(--faint); font-size: 9.5px; margin-top: 3px; font-weight: 600; }
 .loan-amount { margin-left: auto; text-align: right; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.loan-amount small { display: block; color: var(--faint); font-size: 8px; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: .06em; }
+.loan-amount small { display: block; color: var(--faint); font-size: 9px; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: .06em; }
 .loan-action {
   flex: 0 0 auto; border: 0; border-radius: 999px; height: 34px; padding: 0 15px;
   background: var(--lime); color: var(--lime-foreground); font-size: 10px; font-weight: 800;
@@ -425,12 +455,17 @@ button:disabled { cursor: not-allowed; }
   display: flex; position: fixed; z-index: 40; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
   align-items: center; gap: 2px; background: var(--deep-2);
   padding: 7px; border-radius: 999px; box-shadow: 0 18px 44px rgb(6 12 9 / .38); border: 1px solid rgb(255 255 255 / .10); max-width: calc(100vw - 24px);
+  overflow-x: auto; scrollbar-width: none;
 }
+.mobile-nav::-webkit-scrollbar { display: none; }
 .mobile-nav a {
   position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4; text-decoration: none;
-  font-size: 8px; font-weight: 700; border-radius: 999px; padding: 8px 15px; transition: color .2s ease; min-height: 46px; min-width: 60px; isolation: isolate;
+  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 8px 14px; transition: color .2s ease; min-height: 46px; min-width: 58px; isolation: isolate;
 }
-.mobile-nav a > * { position: relative; z-index: 1; }
+/* The pill is absolutely positioned decoration; the earlier `a > *` rule
+   matched it too and re-relative-positioned it, which stacked the pill under
+   the icon and left the active label dark-on-dark. Exclude it explicitly. */
+.mobile-nav a > *:not(.mobile-nav-pill) { position: relative; z-index: 1; }
 .mobile-nav a.active { color: var(--lime-foreground); }
 .mobile-nav a.active svg { color: var(--lime-foreground); }
 .mobile-nav-pill {
@@ -440,7 +475,7 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 901px) { .mobile-nav { display: none; } }
 
 /* footer note */
-.footer-note { color: var(--faint); font-size: 8.5px; text-align: center; margin: 26px auto 0; max-width: 560px; line-height: 1.7; }
+.footer-note { color: var(--faint); font-size: 10px; text-align: center; margin: 26px auto 0; max-width: 560px; line-height: 1.7; }
 
 /* loading screen */
 .loading-screen { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; color: var(--ink-soft); text-align: center; padding: 24px; background: var(--canvas); }
@@ -860,12 +895,12 @@ button:disabled { cursor: not-allowed; }
 .notif-nav-btn {
   position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4;
   background: transparent; border: 0; cursor: pointer;
-  font-size: 8px; font-weight: 700; border-radius: 999px; padding: 8px 15px; min-height: 46px; min-width: 60px;
+  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 8px 14px; min-height: 46px; min-width: 58px;
   font-family: inherit; transition: color .2s ease; isolation: isolate;
 }
 @media (hover: hover) and (pointer: fine) { .notif-nav-btn:hover {  color: #e7f3e2;  } }
 .notif-nav-btn .notif-badge { top: 2px; right: 6px; border-color: transparent; box-shadow: 0 0 0 2px rgb(16 27 21 / .85); }
-.notif-nav-label { font-size: 8px; letter-spacing: .02em; }
+.notif-nav-label { font-size: 9px; letter-spacing: .02em; }
 
 .notif-scrim { position: fixed; inset: 0; z-index: 65; background: rgb(6 12 9 / .55); }
 
