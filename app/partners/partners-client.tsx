@@ -114,8 +114,8 @@ type LegacyEntry = {
   createdBy: string;
 };
 
-const money = (amount: number) => `₨ ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
-const signed = (amount: number) => `${amount < 0 ? '−' : ''}₨ ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
+const money = (amount: number) => `PKR ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
+const signed = (amount: number) => `${amount < 0 ? '−' : ''}PKR ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const monthStartIso = () => `${todayIso().slice(0, 7)}-01`;
 const dateLabel = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -639,7 +639,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       if (!response.ok) throw new Error(payload.error ?? 'Could not save this movement.');
       sounds.shimmer();
       if (payload.capWarning) {
-        toast.info('Over the drawing cap', `Lifetime drawings now ₨ ${Number(payload.capWarning.drawnAfter).toLocaleString('en-PK')} vs a ${payload.capWarning.capPct}% cap on ₨ ${Number(payload.capWarning.accrued).toLocaleString('en-PK')} accrued. Recorded in the audit log.`);
+        toast.info('Over the drawing cap', `Lifetime drawings now PKR ${Number(payload.capWarning.drawnAfter).toLocaleString('en-PK')} vs a ${payload.capWarning.capPct}% cap on PKR ${Number(payload.capWarning.accrued).toLocaleString('en-PK')} accrued. Recorded in the audit log.`);
       } else {
         toast.ledger('Saved to partner ledger', movementMeta.title);
       }
@@ -739,7 +739,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             </section>
           )}
 
-          <section className="grid gap-4 xl:grid-cols-2" style={{ marginTop: 14 }} aria-label="Partners">
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" style={{ marginTop: 14 }} aria-label="Partners">
             {data.partners.map((partner) => {
               const overdrawn = partner.settleable < 0;
               return (
@@ -963,7 +963,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               {feFunders.length < activePartners.length && feFunders.length > 0 && (
                 <button type="button" className="text-link" style={{ fontSize: 10, marginTop: 8 }} onClick={() => setFeFunders([...feFunders, { ownerId: String(activePartners.find((partner) => !feFunders.some((funder) => funder.ownerId === String(partner.id)))?.id ?? ''), amount: '' }])}><Plus size={11} /> Another partner paid part of it</button>
               )}
-              <p className={`mt-2 text-[10px] font-bold ${feAmountInt > 0 && feTotal === feAmountInt ? 'text-[var(--positive)]' : 'text-[var(--muted)]'}`}>Funders total ₨ {feTotal.toLocaleString('en-PK')}{feAmountInt > 0 ? ` of ₨ ${feAmountInt.toLocaleString('en-PK')}` : ''}</p>
+              <p className={`mt-2 text-[10px] font-bold ${feAmountInt > 0 && feTotal === feAmountInt ? 'text-[var(--positive)]' : 'text-[var(--muted)]'}`}>Funders total PKR {feTotal.toLocaleString('en-PK')}{feAmountInt > 0 ? ` of PKR ${feAmountInt.toLocaleString('en-PK')}` : ''}</p>
             </div>
 
             <div className="form-field full"><Label htmlFor="fe-note">Note (optional)</Label><Input id="fe-note" maxLength={1000} value={feNote} onChange={(event) => setFeNote(event.target.value)} placeholder="Receipt, bill number, anything auditors should see" className="h-11 rounded-xl" /></div>

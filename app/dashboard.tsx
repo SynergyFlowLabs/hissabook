@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AnimatedAmount from '@/components/animated-amount';
+import { formatPKR, greetingFor } from '@/lib/format';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -41,10 +42,6 @@ type DashboardData = {
 };
 
 type ChartPoint = { day: string; income: number; expenses: number };
-
-function formatPKR(value: number) {
-  return `₨ ${Math.abs(value).toLocaleString('en-PK')}`;
-}
 
 function displayKind(value: string): TransactionKind {
   const labels: Record<string, TransactionKind> = {
@@ -91,7 +88,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return (
     <div className="chart-tooltip">
       <div className="chart-tooltip-label">{label ? new Date(`${label}T12:00:00`).toLocaleDateString('en-PK', { weekday: 'short', month: 'short', day: 'numeric' }) : ''}</div>
-      {payload.map((item) => <div className="chart-tooltip-value" key={item.name} style={{ color: item.name === 'Income' ? '#c9f24f' : '#e8ede4' }}>{item.name}: ₨ {Number(item.value).toLocaleString('en-PK')}k</div>)}
+      {payload.map((item) => <div className="chart-tooltip-value" key={item.name} style={{ color: item.name === 'Income' ? '#c9f24f' : '#e8ede4' }}>{item.name}: PKR {Number(item.value).toLocaleString('en-PK')}k</div>)}
     </div>
   );
 }
@@ -243,7 +240,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const expenseChange = percentChange(data.summary.expensesThisMonth, data.summary.expensesLastMonth);
   const netThisMonth = data.summary.incomeThisMonth - data.summary.expensesThisMonth;
   const dateHeading = new Date().toLocaleDateString('en-PK', { weekday: 'long', month: 'long', day: 'numeric' });
-  const hidden = (value: number) => (hideBalance ? '₨ ••••••' : formatPKR(value));
+  const hidden = (value: number) => (hideBalance ? 'PKR ••••••' : formatPKR(value));
 
   return (
     <div className="app-shell" id="overview">
@@ -261,14 +258,14 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           <section className="page-heading">
             <div>
               <span className="eyebrow"><span className="h-1.5 w-1.5 rounded-full bg-[var(--lime-strong)]" aria-hidden="true" />{dateHeading}</span>
-              <h1 className="page-title">Good morning, {userName.split(' ')[0] || 'there'} <span aria-hidden="true">✳</span></h1>
+              <h1 className="page-title">{greetingFor()}, {userName.split(' ')[0] || 'there'} <span aria-hidden="true">✳</span></h1>
               <p className="page-subtitle">Here’s what’s happening with {data.workspace.name} today.</p>
             </div>
             {canEdit(userRole) && <button className="lime-button" onClick={openDialog('Expense')}><Plus size={16} strokeWidth={2.6} /> Add transaction</button>}
           </section>
 
           {/* Hero balance card */}
-          <section className="grid gap-4 xl:grid-cols-12">
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="hero-panel xl:col-span-7" aria-label="Total business balance">
               <div className="hero-top">
                 <span className="hero-label"><Landmark size={13} /> Total business balance</span>
@@ -320,8 +317,8 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
                 )}
                 <a className="quick-action" href="/transactions" role="listitem"><span className="quick-action-icon"><Search size={20} /></span><span>Find entry</span></a>
               </div>
-              <div className="rounded-2xl bg-[var(--card-soft)] p-4 text-[10px] leading-relaxed text-[var(--muted)]">
-                <strong className="mb-1 flex items-center gap-1.5 text-[var(--ink)]"><ShieldCheck size={13} className="text-[var(--positive)]" /> Shared, transparent records</strong>
+              <div className="rounded-2xl bg-[var(--card-soft)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
+                <strong className="mb-1 flex items-center gap-1.5 text-[12px] text-[var(--ink)]"><ShieldCheck size={14} className="text-[var(--positive)]" /> Shared, transparent records</strong>
                 Everyone with access sees the same numbers. Share passes are logged; viewers can never edit.
               </div>
             </div>
@@ -341,7 +338,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             </div>
             <div className="stat-card">
               <div className="stat-top"><span className="stat-label">Net cash flow</span><span className="stat-icon lime"><ArrowLeftRight size={16} /></span></div>
-              <div className="stat-value" style={{ color: netThisMonth >= 0 ? 'var(--positive)' : 'var(--negative)' }}><AnimatedAmount value={netThisMonth} format={(n) => `${n >= 0 ? '+' : '−'}${hideBalance ? '₨ ••••••' : formatPKR(Math.abs(n))}`} /></div>
+              <div className="stat-value" style={{ color: netThisMonth >= 0 ? 'var(--positive)' : 'var(--negative)' }}><AnimatedAmount value={netThisMonth} format={(n) => `${n >= 0 ? '+' : '−'}${hideBalance ? 'PKR ••••••' : formatPKR(Math.abs(n))}`} /></div>
               <div className="stat-foot"><span>Income minus expenses, this month</span></div>
             </div>
             <div className="stat-card">
@@ -352,10 +349,10 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           </section>
 
           {/* Chart + accounts */}
-          <section className="grid gap-4 xl:grid-cols-12" style={{ marginTop: 14 }}>
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12" style={{ marginTop: 14 }}>
             <div className="soft-card chart-panel xl:col-span-7" id="reports">
               <div className="card-header-row">
-                <div><div className="card-title">Money in vs money out</div><div className="card-subtitle">Cleared income and expenses · amounts in thousands (₨k)</div></div>
+                <div><div className="card-title">Money in vs money out</div><div className="card-subtitle">Cleared income and expenses · amounts in thousands (PKR k)</div></div>
                 <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
                   <TabsList className="rounded-full bg-[var(--card-soft)] p-1">
                     {(['7 days', '30 days', '90 days'] as const).map((item) => <TabsTrigger key={item} value={item} className="rounded-full text-[10px] font-bold data-[state=active]:bg-[var(--deep)] data-[state=active]:text-[var(--lime)]">{item.replace(' days', 'D')}</TabsTrigger>)}
@@ -395,7 +392,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           </section>
 
           {/* Transactions + ownership */}
-          <section className="grid gap-4 xl:grid-cols-12" style={{ marginTop: 14 }}>
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12" style={{ marginTop: 14 }}>
             <div className="soft-card transactions-panel xl:col-span-7" id="transactions">
               <div className="card-header-row">
                 <div><div className="card-title">Recent transactions</div><div className="card-subtitle">Your latest saved business activity</div></div>

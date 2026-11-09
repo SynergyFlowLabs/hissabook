@@ -214,10 +214,10 @@ export async function postPartnerMovement(workspaceId: number, input: PostMoveme
         names.set(split.ownerId, partner.name);
       }
       const splitTotal = splits.reduce((sum, split) => sum + split.amount, 0);
-      if (splitTotal !== amount) throw new MovementError(`Splits add up to ₨ ${splitTotal.toLocaleString('en-PK')}, not ₨ ${amount.toLocaleString('en-PK')}. Make them equal.`);
+      if (splitTotal !== amount) throw new MovementError(`Splits add up to PKR ${splitTotal.toLocaleString('en-PK')}, not PKR ${amount.toLocaleString('en-PK')}. Make them equal.`);
       const treatAs = input.treatAs === 'capital' ? 'capital' : 'advance';
       const clearingId = await getOrCreateClearingAccount(workspaceId);
-      const funderSummary = splits.map((split) => `${names.get(split.ownerId)} ₨ ${split.amount.toLocaleString('en-PK')}`).join(' + ');
+      const funderSummary = splits.map((split) => `${names.get(split.ownerId)} PKR ${split.amount.toLocaleString('en-PK')}`).join(' + ');
       const note = [funderSummary, (input.note ?? '').trim()].filter(Boolean).join(' · ').slice(0, 1000);
       const partnerId = splits.length === 1 ? splits[0].ownerId : null;
       const transactionId = await insertTransaction(workspaceId, clearingId, 'EXPENSE', amount, description,
@@ -231,7 +231,7 @@ export async function postPartnerMovement(workspaceId: number, input: PostMoveme
         }
       }
       await audit(workspaceId, transactionId, 'PARTNER_EXPENSE_FRONTED', { amount, description, treatAs, splits }, actorName);
-      return { transactionId, title: 'Partner fronted expense', body: `₨ ${amount.toLocaleString('en-PK')} · ${description}` };
+      return { transactionId, title: 'Partner fronted expense', body: `PKR ${amount.toLocaleString('en-PK')} · ${description}` };
     }
 
     if (input.kind === 'drawing' || input.kind === 'reimburse' || input.kind === 'contribution' || input.kind === 'capital-return') {
@@ -260,32 +260,32 @@ export async function postPartnerMovement(workspaceId: number, input: PostMoveme
         const transactionId = await insertTransaction(workspaceId, base.accountId, 'WITHDRAWAL', amount, `${partner.name} · Counter drawing`, 'Partner drawing', '', note, date, actorName, partnerId, 'ACCOUNT');
         await insertEntry(workspaceId, partnerId, 'CASH_WITHDRAWAL', 'DEBIT', amount, transactionId, date, note || 'Counter drawing', actorName);
         await audit(workspaceId, transactionId, 'PARTNER_DRAWING', { amount, accountId, partnerId, ...(capWarning ? { capWarning } : {}) }, actorName);
-        return { transactionId, title: 'Counter drawing recorded', body: `₨ ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}`, capWarning };
+        return { transactionId, title: 'Counter drawing recorded', body: `PKR ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}`, capWarning };
       }
       if (input.kind === 'reimburse') {
         const positions = await getPartnerPositions(workspaceId);
         const pos = positionFromLines(positions.get(partnerId) ?? []);
         const outstanding = pos.frontedOutstanding;
-        if (amount > outstanding) throw new MovementError(`Reimbursement exceeds ${partner.name}'s outstanding claims by ₨ ${(amount - outstanding).toLocaleString('en-PK')}.`);
+        if (amount > outstanding) throw new MovementError(`Reimbursement exceeds ${partner.name}'s outstanding claims by PKR ${(amount - outstanding).toLocaleString('en-PK')}.`);
         const transactionId = await insertTransaction(workspaceId, base.accountId, 'WITHDRAWAL', amount, `${partner.name} · Expense reimbursed`, 'Partner reimbursement', '', note, date, actorName, partnerId, 'ACCOUNT');
         await insertEntry(workspaceId, partnerId, 'ADVANCE_REIMBURSED', 'DEBIT', amount, transactionId, date, note || 'Expense reimbursed', actorName);
         await audit(workspaceId, transactionId, 'PARTNER_REIMBURSED', { amount, accountId, partnerId }, actorName);
-        return { transactionId, title: 'Partner reimbursed', body: `₨ ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
+        return { transactionId, title: 'Partner reimbursed', body: `PKR ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
       }
       if (input.kind === 'contribution') {
         const transactionId = await insertTransaction(workspaceId, base.accountId, 'CONTRIBUTION', amount, `${partner.name} · Capital`, 'Owner funding', '', note, date, actorName, partnerId, 'ACCOUNT');
         await insertEntry(workspaceId, partnerId, 'CAPITAL_CONTRIBUTION', 'CREDIT', amount, transactionId, date, note || 'Capital contribution', actorName);
         await audit(workspaceId, transactionId, 'PARTNER_CONTRIBUTION', { amount, accountId, partnerId }, actorName);
-        return { transactionId, title: 'Capital contribution recorded', body: `₨ ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
+        return { transactionId, title: 'Capital contribution recorded', body: `PKR ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
       }
       // capital-return
       const positions = await getPartnerPositions(workspaceId);
       const pos = positionFromLines(positions.get(partnerId) ?? []);
-      if (amount > pos.capitalBalance) throw new MovementError(`Return exceeds ${partner.name}'s capital balance of ₨ ${pos.capitalBalance.toLocaleString('en-PK')}.`);
+      if (amount > pos.capitalBalance) throw new MovementError(`Return exceeds ${partner.name}'s capital balance of PKR ${pos.capitalBalance.toLocaleString('en-PK')}.`);
       const transactionId = await insertTransaction(workspaceId, base.accountId, 'WITHDRAWAL', amount, `${partner.name} · Capital return`, 'Capital return', '', note, date, actorName, partnerId, 'ACCOUNT');
       await insertEntry(workspaceId, partnerId, 'CAPITAL_RETURN', 'DEBIT', amount, transactionId, date, note || 'Capital returned', actorName);
       await audit(workspaceId, transactionId, 'PARTNER_CAPITAL_RETURN', { amount, accountId, partnerId }, actorName);
-      return { transactionId, title: 'Capital returned', body: `₨ ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
+      return { transactionId, title: 'Capital returned', body: `PKR ${amount.toLocaleString('en-PK')} · ${partner.name} · ${account.name}` };
     }
 
     throw new MovementError('Unknown movement kind.');
@@ -985,7 +985,7 @@ export async function postSettlement(workspaceId: number, input: SettlementInput
       const raise = apportion(workings.goodwillValue, weights);
       for (let i = 0; i < ownerIds.length; i += 1) {
         if (raise[i] <= 0) continue;
-        await insertEntry(workspaceId, ownerIds[i], 'CORRECTION', 'CREDIT', raise[i], null, asOf, `Goodwill raised (share of ₨ ${workings.goodwillValue.toLocaleString('en-PK')})`, actorName);
+        await insertEntry(workspaceId, ownerIds[i], 'CORRECTION', 'CREDIT', raise[i], null, asOf, `Goodwill raised (share of PKR ${workings.goodwillValue.toLocaleString('en-PK')})`, actorName);
       }
       const continuingIndexes = ownerIds.map((id, index) => ({ id, index })).filter(({ id }) => id !== partnerId);
       if (continuingIndexes.length > 0) {

@@ -22,7 +22,7 @@ type InventoryData = {
 type FormMode = 'item' | 'itemEdit' | 'movement';
 type MovementType = 'RECEIPT' | 'ISSUE' | 'RETURN' | 'ADJUSTMENT';
 
-const money = (amount: number) => `₨ ${Math.abs(amount).toLocaleString('en-PK')}`;
+const money = (amount: number) => `PKR ${Math.abs(amount).toLocaleString('en-PK')}`;
 const shortDate = (date: string) => new Date(date).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function InventoryClient({ userName, role }: { userName: string; role: string }) {

@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       const account = await db.prepare('SELECT id FROM accounts WHERE id = ? AND workspace_id = ?').get(accountId, workspaceId);
       if (!account) return NextResponse.json({ error: 'Choose a valid business account.' }, { status: 400 });
     }
-    if (unitCost !== null && unitCost > 0 && Math.round(quantity * unitCost) < 1) return NextResponse.json({ error: 'Receipt total must be at least ₨ 1.' }, { status: 400 });
+    if (unitCost !== null && unitCost > 0 && Math.round(quantity * unitCost) < 1) return NextResponse.json({ error: 'Receipt total must be at least PKR 1.' }, { status: 400 });
 
     const createMovement = db.transaction(async () => {
       let transactionId: number | null = null;
