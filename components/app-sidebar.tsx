@@ -2,7 +2,7 @@
 
 import {
   ArrowRight, Boxes, ChevronDown, HandCoins, LayoutDashboard,
-  ArrowLeftRight, Wallet, UsersRound, FileText, LogOut,
+  ArrowLeftRight, Menu, Wallet, UsersRound, FileText, LogOut,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signOut } from 'next-auth/react';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import SoundControl from '@/components/sound-control';
 import NotificationButton from '@/components/notification-button';
 import NotificationPanel from '@/components/notification-panel';
+import MobileMenu from '@/components/mobile-menu';
 import { useNotifications } from '@/lib/use-notifications';
 import { useState } from 'react';
 
@@ -51,6 +52,7 @@ export default function AppSidebar({
   loanCount?: number;
 }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const notif = useNotifications();
   const toggleNotif = () => setNotifOpen((open) => !open);
   const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
@@ -107,7 +109,29 @@ export default function AppSidebar({
           );
         })}
         <NotificationButton variant="nav" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
+        {/* Everything the pill cannot hold: Partners, Reports, the remaining
+            workspace links, profile and sign out. */}
+        <button
+          type="button"
+          className={`mobile-nav-menu ${menuOpen ? 'active' : ''}`}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          aria-haspopup="dialog"
+          onClick={() => setMenuOpen(true)}
+        >
+          <Menu size={17} strokeWidth={2} /><span>Menu</span>
+        </button>
       </nav>
+      <MobileMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        workspaceName={workspaceName}
+        businessType={businessType}
+        userName={userName}
+        userRole={userRole}
+        current={current}
+        loanCount={loanCount}
+      />
       <NotificationPanel
         open={notifOpen}
         onClose={() => setNotifOpen(false)}

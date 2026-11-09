@@ -124,6 +124,30 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(reserve).toBeGreaterThan(74);
   });
 
+  it('centres the pill with insets, never a translate plus a scroll container', async () => {
+    const css = await read('app/globals.css');
+    const start = css.indexOf('.mobile-nav {');
+    const rule = css.slice(start, css.indexOf('}', start));
+    // translateX(-50%) on an element with overflow-x:auto is what pushed the
+    // last item past the right edge on /team: it became a scroll container
+    // clipped to a shrunk width around a point outside its own box.
+    expect(rule).not.toContain('translateX(-50%)');
+    expect(rule).not.toContain('overflow-x: auto');
+    expect(rule).toContain('left: 10px');
+    expect(rule).toContain('right: 10px');
+    expect(rule).toContain('width: fit-content');
+    expect(rule).toContain('margin-inline: auto');
+  });
+
+  it('leaves room for six items on a 320px phone', async () => {
+    const css = await read('app/globals.css');
+    const narrow = css.slice(css.indexOf('@media (max-width: 389px)'), css.indexOf('/* Menu trigger'));
+    expect(narrow).toContain('.mobile-nav a, .mobile-nav-menu');
+    expect(narrow).toContain('min-width: 44px');
+    // The least-used label gives way first, so the icons and hit areas stay.
+    expect(narrow).toContain('.mobile-nav-menu span { display: none; }');
+  });
+
   it('does not re-position the active pill with the generic child rule', async () => {
     const css = await read('app/globals.css');
     // `a > *` used to match .mobile-nav-pill and override position: absolute,
@@ -131,6 +155,46 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(css).toContain('.mobile-nav a > *:not(.mobile-nav-pill)');
     const pill = css.slice(css.indexOf('.mobile-nav-pill {'), css.indexOf('.mobile-nav-pill {') + 200);
     expect(pill).toContain('position: absolute;');
+  });
+});
+
+describe('quick actions are swipeable, not just scrollable', () => {
+  it('does not forbid the browser from claiming horizontal pans', async () => {
+    const css = await read('app/globals.css');
+    const start = css.indexOf('.quick-actions {');
+    const block = css.slice(start, css.indexOf('.quick-action {'));
+    // touch-action: pan-y made the row unswipeable on a phone even though it had
+    // overflow-x: auto: the browser kept every horizontal pan for itself.
+    expect(block).not.toContain('touch-action: pan-y');
+    expect(block).toContain('touch-action: pan-x pan-y');
+  });
+});
+
+describe('every screen is reachable on a phone (mobile menu)', () => {
+  it('offers a menu trigger in the bottom pill', async () => {
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).toContain('<MobileMenu');
+    expect(sidebar).toContain('aria-label="Open menu"');
+    expect(sidebar).toContain('aria-haspopup="dialog"');
+  });
+
+  it('lists the destinations the pill has no room for, plus profile and sign out', async () => {
+    const menu = await read('components/mobile-menu.tsx');
+    // The sidebar is display:none below 901px, so anything not in the pill is
+    // unreachable unless the menu carries it.
+    for (const href of ["'/partners'", "'/reports'", "'/inventory'", "'/team'", "'/transactions'"]) {
+      expect(menu).toContain(href);
+    }
+    expect(menu).toContain('Sign out');
+    expect(menu).toContain('signOut(');
+    expect(menu).toContain('role="dialog"');
+    // Team is role-gated exactly as it is in the sidebar.
+    expect(menu).toContain("['OWNER', 'ADMIN', 'PAYROLL']");
+  });
+
+  it('is hidden from the desktop layout', async () => {
+    const css = await read('app/globals.css');
+    expect(css).toMatch(/@media \(min-width: 901px\) \{ \.mmenu, \.mmenu-scrim \{ display: none; \} \}/);
   });
 });
 
