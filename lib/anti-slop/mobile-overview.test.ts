@@ -343,6 +343,60 @@ describe('navigation is client-side, not a full page reload', () => {
   });
 });
 
+describe('every data-driven screen shows a skeleton, not a spinner sentence', () => {
+  const screens = [
+    'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
+    'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
+    'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
+  ];
+
+  it('uses the shared skeleton primitives', async () => {
+    for (const screen of screens) {
+      const source = await read(screen);
+      expect({ screen, usesSkeleton: source.includes('@/components/skeletons') || source.includes('DashboardSkeleton') })
+        .toEqual({ screen, usesSkeleton: true });
+    }
+  });
+
+  it('draws the All activity table as skeleton rows while loading', async () => {
+    // The specific request: the ledger used to render a single "Loading
+    // activity…" cell, which read as an empty table rather than work in progress.
+    const ledger = await read('app/transactions/transactions-client.tsx');
+    expect(ledger).toContain('<SkTableRows');
+    expect(ledger).not.toContain('Loading activity…');
+    // Changing a filter must also show motion, not freeze the old rows silently.
+    expect(ledger).toContain('is-refreshing');
+    expect(ledger).toContain('aria-busy');
+  });
+
+  it('has a route-level fallback for each authenticated screen', async () => {
+    for (const route of ['transactions', 'team', 'inventory', 'partners', 'reports']) {
+      const source = await read(`app/${route}/loading.tsx`);
+      expect({ route, wired: source.includes('@/components/app-loading') }).toEqual({ route, wired: true });
+    }
+  });
+
+  it('keeps the route fallback out of the marketing and auth pages', async () => {
+    // A root loading.tsx would draw a dashboard-shaped block over the landing
+    // page and the sign-in forms. It must stay scoped to the app routes.
+    const rootFiles = ['app/loading.tsx'];
+    for (const file of rootFiles) {
+      let exists = true;
+      try { await read(file); } catch { exists = false; }
+      expect({ file, exists }).toEqual({ file, exists: false });
+    }
+  });
+
+  it('reserves the skeleton for motion-sensitive users', async () => {
+    const css = await read('app/globals.css');
+    expect(css).toContain('.sk {');
+    expect(css).toContain('@keyframes sk-shimmer');
+    // The shimmer must stop under prefers-reduced-motion.
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toContain('.sk { animation: none;');
+  });
+});
+
 describe('quick actions are swipeable, not just scrollable', () => {
   it('does not forbid the browser from claiming horizontal pans', async () => {
     const css = await read('app/globals.css');

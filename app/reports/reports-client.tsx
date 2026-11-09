@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { Sk, SkLines, SkStatus } from '@/components/skeletons';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, FileText, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -168,7 +169,35 @@ export default function ReportsClient({ userName, userRole }: { userName: string
           </section>
 
           {error ? <div className="soft-card" role="alert" style={{ marginTop: 14 }}><div className="card-title">This report could not be built</div><p className="card-subtitle">{error}</p><Button variant="outline" className="rounded-full" style={{ marginTop: 10 }} onClick={() => setReload((value) => value + 1)}>Try again</Button></div> : null}
-          {loading && !payload ? <div className="soft-card" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}><Loader2 size={16} className="animate-spin" /><span className="card-subtitle">Building the report…</span></div> : null}
+          {loading && !payload ? (
+            <>
+              <SkStatus label="Building the report" />
+              <div style={{ marginTop: 14, display: 'grid', gap: 14 }} aria-hidden="true">
+                <div className="sk-kpi">
+                  {[0, 1, 2, 3].map((index) => (
+                    <div key={index} className="sk-card" style={{ gap: 11 }}>
+                      <Sk w={index % 2 ? 88 : 112} h={9} />
+                      <Sk w={`${56 - (index % 3) * 7}%`} h={21} radius={7} />
+                    </div>
+                  ))}
+                </div>
+                <div className="soft-card" style={{ display: 'grid', gap: 14 }}>
+                  <Sk w={180} h={11} />
+                  <Sk h={132} radius={14} />
+                </div>
+                <div className="soft-card" style={{ display: 'grid', gap: 13 }}>
+                  <Sk w={150} h={11} />
+                  {[0, 1, 2, 3, 4].map((index) => (
+                    <div key={index} className="sk-split">
+                      <Sk w={`${52 - index * 4}%`} h={9} />
+                      <Sk w={64} h={9} />
+                    </div>
+                  ))}
+                  <SkLines count={2} gap={7} />
+                </div>
+              </div>
+            </>
+          ) : null}
 
           <div className="report-body">
             {payload && kind === 'summary' ? <SummaryView report={payload as SummaryReport} /> : null}

@@ -21,6 +21,7 @@ import AnimatedAmount from '@/components/animated-amount';
 import { formatPKR, greetingFor } from '@/lib/format';
 import { primeWorkspaceContext } from '@/lib/use-workspace-context';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
+import DashboardSkeleton from '@/components/dashboard-skeleton';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -266,14 +267,20 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   };
 
   if (!data) {
-    return (
-      <div className="loading-screen">
-        <div className="brand-mark" aria-hidden="true" style={{width: 52, height: 52, borderRadius: 17}}><img src="/logo.svg" alt="" width={52} height={52} /></div>
-        <strong>{loadError ? 'Your records could not be loaded' : 'Opening your business books…'}</strong>
-        <span>{loadError || 'Preparing your workspace'}</span>
-        {loadError && <Button variant="outline" className="rounded-full" onClick={() => window.location.reload()}>Try again</Button>}
-      </div>
-    );
+    // A real error keeps the explicit screen with a retry; there is nothing to
+    // skeleton because waiting will not help.
+    if (loadError) {
+      return (
+        <div className="loading-screen">
+          <div className="brand-mark" aria-hidden="true" style={{width: 52, height: 52, borderRadius: 17}}><img src="/logo.svg" alt="" width={52} height={52} /></div>
+          <strong>Your records could not be loaded</strong>
+          <span>{loadError}</span>
+          <Button variant="outline" className="rounded-full" onClick={() => window.location.reload()}>Try again</Button>
+        </div>
+      );
+    }
+    // Otherwise draw the page and let the numbers fill in.
+    return <DashboardSkeleton dateHeading={new Date().toLocaleDateString('en-PK', { weekday: 'long', month: 'long', day: 'numeric' })} />;
   }
 
   const incomeChange = percentChange(data.summary.incomeThisMonth, data.summary.incomeLastMonth);

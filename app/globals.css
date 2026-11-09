@@ -1307,3 +1307,65 @@ button:active, [role="button"]:active { transform: scale(.97); }
   .topbar .breadcrumb { font-size: 9px; }
   .topbar .top-actions { flex: 1 1 auto; justify-content: flex-end; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Skeleton loaders                                                    */
+/* ------------------------------------------------------------------ */
+/* One shimmer for the whole app. Previously only the notification panel had
+   a skeleton; every other screen either showed a full-screen spinner-ish
+   "loading" sentence or a bare "Loading activity…" table row, so switching to
+   a screen that was still fetching looked like a broken or empty page rather
+   than work in progress. Skeletons draw the real layout immediately so the
+   content does not jump into place when it lands.
+   Same gradient and timing as the notification skeleton, so the whole product
+   breathes at one rhythm. */
+.sk {
+  --sk-tint: rgb(13 26 19 / .07);
+  --sk-tint-strong: rgb(13 26 19 / .15);
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sk-tint) 0%, var(--sk-tint-strong) 40%, var(--sk-tint) 80%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.4s infinite linear;
+}
+@keyframes sk-shimmer { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+
+/* Text lines. Widths default to full; set one inline for a ragged block. */
+.sk-line { height: 10px; }
+.sk-line.sk-sm { height: 8px; }
+.sk-line.sk-lg { height: 13px; }
+.sk-stack { display: grid; gap: 8px; }
+
+/* On dark surfaces (the hero balance card) lighten the tint instead. */
+.sk.sk-on-dark { --sk-tint: rgb(255 255 255 / .09); --sk-tint-strong: rgb(255 255 255 / .2); }
+
+/* Table placeholder: rows of cells that match `.data-table` rhythm so the
+   header stays put and nothing reflows when real rows arrive. */
+.sk-row td { padding: 12px 10px; }
+.sk-row .sk { width: 100%; }
+.sk-row td.sk-narrow .sk { width: 62%; }
+.sk-row td.sk-tiny .sk { width: 34%; }
+.sk-row td.sk-amount .sk { width: 72%; margin-left: auto; }
+
+/* Card/list placeholder used by team, inventory, partners and reports. */
+.sk-card { display: grid; gap: 10px; padding: 16px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); }
+.sk-list { display: grid; gap: 10px; }
+.sk-list-row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); }
+.sk-avatar { width: 38px; height: 38px; border-radius: 12px; flex: 0 0 auto; }
+.sk-grow { flex: 1; min-width: 0; }
+.sk-split { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+.sk-kpi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 701px) { .sk-kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Announce once, so screen readers get "loading" without reading 20 bars. */
+.sk-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* A sliding gradient is decorative motion; hold it still but keep the shape. */
+  .sk { animation: none; background: var(--sk-tint-strong); }
+}
+
+/* While a filter or page change is in flight the previous rows stay readable but
+   visibly stale, so the tap has an immediate effect instead of appearing to do
+   nothing until the response lands. */
+.data-table-wrap.is-refreshing { opacity: .55; transition: opacity .12s ease; }
