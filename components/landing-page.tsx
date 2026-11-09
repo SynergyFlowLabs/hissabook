@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import {
   ArrowRight, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Boxes,
   FileText, HandCoins, ShieldCheck, UsersRound, Wallet, PieChart, CircleCheck,
@@ -9,13 +8,13 @@ export default function LandingPage() {
     <main className="landing-page">
       {/* Nav */}
       <header className="landing-nav">
-        <Link className="landing-brand" href="/" aria-label="Hisaabook home">
+        <a className="landing-brand" href="/" aria-label="Hisaabook home">
           <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
           <span><strong>hisaabook</strong><small>Business, in balance</small></span>
-        </Link>
+        </a>
         <nav className="landing-nav-links" aria-label="Main navigation">
-          <Link className="ghost-pill" href="/login">Sign in</Link>
-          <Link className="lime-button" style={{ height: 40, fontSize: 11, padding: '0 18px', textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={14} /></Link>
+          <a className="ghost-pill" href="/login">Sign in</a>
+          <a className="lime-button" style={{ height: 40, fontSize: 11, padding: '0 18px', textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={14} /></a>
         </nav>
       </header>
 
@@ -26,8 +25,8 @@ export default function LandingPage() {
           <h1>Know where your business <span className="marker"><em className="serif-accent">stands.</em><svg viewBox="0 0 220 22" fill="none" preserveAspectRatio="none" aria-hidden="true"><path d="M4 15C58 7 152 5 216 12" stroke="#c9f24f" strokeWidth="9" strokeLinecap="round" opacity="0.95" /></svg></span></h1>
           <p className="landing-description">Cash, loans, owners, stock and team, all recorded in one shared ledger your whole business can trust. Built for Pakistani founders and the people they start with.</p>
           <div className="landing-actions">
-            <Link className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={16} /></Link>
-            <Link className="dark-button" style={{ textDecoration: 'none' }} href="/login">Try the demo <ArrowRight size={15} /></Link>
+            <a className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={16} /></a>
+            <a className="dark-button" style={{ textDecoration: 'none' }} href="/login">Try the demo <ArrowRight size={15} /></a>
           </div>
           <div className="landing-note"><ShieldCheck size={15} style={{ color: 'var(--positive)' }} /> Private workspace · Owner-controlled access · PKR-native</div>
           <div className="landing-proof" aria-label="What Hisaabook tracks">
@@ -114,8 +113,8 @@ export default function LandingPage() {
           <h2>Your books, in balance.</h2>
           <p>Set up the owner account in minutes. Invite your bookkeeper, your co-founder or your accountant when you’re ready.</p>
           <div className="landing-actions" style={{ justifyContent: 'center', marginTop: 0 }}>
-            <Link className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Create your workspace <ArrowRight size={16} /></Link>
-            <Link className="ghost-pill" style={{ background: 'transparent', borderColor: '#ffffff2e', color: '#dcead8' }} href="/login">Sign in instead</Link>
+            <a className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Create your workspace <ArrowRight size={16} /></a>
+            <a className="ghost-pill" style={{ background: 'transparent', borderColor: '#ffffff2e', color: '#dcead8' }} href="/login">Sign in instead</a>
           </div>
         </div>
       </section>

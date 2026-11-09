@@ -235,10 +235,42 @@ describe('navigation is client-side, not a full page reload', () => {
     }
   });
 
+  it('hides the shell from visitors who are not signed in', async () => {
+    // `/` is both the marketing landing page and the dashboard, so a path-only
+    // hide-list drew the sidebar and the mobile pill over the landing hero. The
+    // session is the honest signal; this asserts the shell is gated on it and not
+    // on a list that happens to omit `/`.
+    const layout = await read('app/layout.tsx');
+    expect(layout).toContain('currentSession()');
+    expect(layout).toContain('signedIn');
+    expect(layout).not.toContain('<AppShell />');
+    const gate = await read('components/shell-gate.tsx');
+    expect(gate).toContain('signedIn === false');
+    expect(gate).toContain("from '@/auth'");
+    // The landing page must never render the authenticated shell itself.
+    const landing = await read('components/landing-page.tsx');
+    expect(landing).not.toContain('AppSidebar');
+    expect(landing).not.toContain('mobile-nav');
+  });
+
+  it('keeps the landing page CTAs working without the client bundle', async () => {
+    // A marketing page's primary actions must not depend on hydration: if the
+    // bundle fails to boot, a <Link> CTA becomes a dead button, while a plain
+    // anchor still navigates. This is the "Try the demo does nothing" report.
+    const landing = await read('components/landing-page.tsx');
+    expect(landing).not.toContain("from 'next/link'");
+    expect(landing).not.toContain('<Link');
+    const anchors = landing.match(/<a\s[^>]*href="[^"]*"/g) ?? [];
+    for (const target of ['/login', '/setup']) {
+      expect({ target, found: anchors.some((a) => a.includes(`href="${target}"`)) }).toEqual({ target, found: true });
+    }
+  });
+
   it('keeps the shell mounted once, in the root layout', async () => {
     const layout = await read('app/layout.tsx');
-    expect(layout).toContain('<AppShell');
-    expect(layout).toContain("from '@/components/app-shell'");
+    // The shell is still mounted from the layout, now through the session gate.
+    expect(layout).toContain('<ShellGate');
+    expect(layout).toContain("from '@/components/shell-gate'");
     // No screen may mount the shell itself, or it unmounts on navigation again.
     for (const screen of screens) {
       expect({ screen, shell: (await read(screen)).includes('<AppSidebar') }).toEqual({ screen, shell: false });
