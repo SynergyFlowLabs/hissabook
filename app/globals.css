@@ -971,6 +971,8 @@ button:active, [role="button"]:active { transform: scale(.97); }
   .access-toggle { min-height: 44px; padding: 10px 13px; }
   .push-toggle { height: 44px; padding: 0 20px; }
   .notif-trigger { min-width: 44px; min-height: 44px; }
+  .ghost-pill { min-height: 44px; padding: 0 16px; }
+  .text-link { min-height: 44px; }
 }
 
 

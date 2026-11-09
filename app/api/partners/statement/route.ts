@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { csvAttachment, csvNum } from '@/lib/csv';
 
 
 export const runtime = 'nodejs';
@@ -28,15 +29,6 @@ const TYPE_LABEL: Record<string, string> = {
   CORRECTION: 'Correction',
 };
 const CAPITAL_TYPES = new Set(['CAPITAL_CONTRIBUTION', 'CAPITAL_RETURN']);
-
-function csvCell(value: unknown) {
-  const text = String(value ?? '');
-  const looksLikePlainNumber = /^-?\d+(\.\d+)?$/.test(text.trim());
-  const safe = looksLikePlainNumber ? text : /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
-  return `"${safe.replaceAll('"', '""')}"`;
-}
-/** Plain integer amounts must not trip the formula-injection guard (no leading = + - @ semantics for numbers). */
-const csvNum = (value: number) => String(Math.trunc(Number(value) || 0));
 
 export async function GET(request: NextRequest) {
   const access = await requireWorkspaceMember();
@@ -88,7 +80,7 @@ export async function GET(request: NextRequest) {
   if (csv) {
     const headers = ['Date', 'Type', 'Bucket', 'Direction', 'Amount (PKR)', 'Current account balance (PKR)', 'Capital balance (PKR)', 'Note'];
     const body = ledger.map((row) => [row.date, row.label, row.bucket, row.direction === 'CREDIT' ? 'In (firm owes partner)' : 'Out (partner takes)',
-      csvNum(row.amount), csvNum(row.runningCurrent), csvNum(row.runningCapital), row.note].map((cell) => (typeof cell === 'number' ? String(cell) : csvCell(cell))).join(','));
+      csvNum(row.amount), csvNum(row.runningCurrent), csvNum(row.runningCapital), row.note]);
     const meta = [
       `Partner statement - ${partner.name} (${partner.role})`,
       `Period ${from} to ${to}`,
@@ -96,7 +88,7 @@ export async function GET(request: NextRequest) {
       `Closing balance - current ${current}, capital ${capital}`,
       `Prepared by Hisaabook · ${new Date().toISOString()}`,
     ];
-    const file = `\uFEFF${[meta.map(csvCell).join(','), headers.map(csvCell).join(','), ...body].join('\r\n')}`;
+    const file = csvAttachment(meta, headers, body);
     return new NextResponse(file, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',

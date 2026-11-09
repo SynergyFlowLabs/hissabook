@@ -504,6 +504,41 @@ async function seedPartnerDemoIfEmpty(workspaceId: number) {
     await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, split_share, note, transaction_date, created_by)
       VALUES (?, ?, 'ADVANCE_REIMBURSED', 'DEBIT', ?, ?, NULL, ?, ?, ?)`)
       .run(workspaceId, hamza.id, 10000, Number(reimbursed.lastInsertRowid), 'Expense reimbursed', reimburseDate, DEMO_USER_NAME);
+    // Last month's basis and its posted profit distribution, so the Partners page
+    // opens with a realistic appropriation history (same idempotence guard as above).
+    const now = new Date();
+    const lastMonthRef = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15));
+    const lastMonth = lastMonthRef.toISOString().slice(0, 7);
+    const lmYear = Number(lastMonth.slice(0, 4));
+    const lmMonth = Number(lastMonth.slice(5, 7));
+    const lastDay = new Date(Date.UTC(lmYear, lmMonth, 0)).toISOString().slice(0, 10);
+    const bank = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ? AND is_system = 0').get(workspaceId, 'Business bank') as { id: number } | undefined;
+    if (bank) {
+      const incomeDate = `${lastMonth}-08T12:00:00.000Z`;
+      const expenseDate = `${lastMonth}-18T12:00:00.000Z`;
+      const closeDate = `${lastDay}T12:00:00.000Z`;
+      await db.prepare(insertTxn).run(workspaceId, Number(bank.id), 'INCOME', 60000, 'Retainer - Cedar & Co', 'Client payment', incomeDate, DEMO_USER_NAME, null, null);
+      await db.prepare(insertTxn).run(workspaceId, Number(bank.id), 'EXPENSE', 14000, 'Studio costs (last month)', 'Tools & software', expenseDate, DEMO_USER_NAME, null, null);
+      const dist = await db.prepare(`INSERT INTO profit_distributions (workspace_id, period_from, period_to, basis_profit, salary_total, interest_capital_total, interest_drawings_total, residual_distributed, status, workings_json, note, created_by)
+        VALUES (?, ?, ?, ?, 0, 0, 0, ?, 'POSTED', ?, ?, ?)`)
+        .run(workspaceId, `${lastMonth}-01`, lastDay, 46000, 46000,
+          JSON.stringify({ demoSeed: true, from: `${lastMonth}-01`, to: lastDay, basisProfit: 46000, residual: 46000 }),
+          'Demo distribution (last month)', DEMO_USER_NAME);
+      const distributionId = Number(dist.lastInsertRowid);
+      const shareByName: Record<string, { amount: number; share: number }> = {
+        'Areeba Khan': { amount: 20700, share: 0.45 },
+        'Hamza Malik': { amount: 16100, share: 0.35 },
+        'Sara Ahmed': { amount: 9200, share: 0.2 },
+      };
+      for (const owner of owners) {
+        const line = shareByName[owner.name];
+        if (!line) continue;
+        await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, distribution_id, split_share, note, transaction_date, created_by)
+          VALUES (?, ?, 'PROFIT_SHARE', 'CREDIT', ?, NULL, ?, ?, ?, ?, ?)`)
+          .run(workspaceId, owner.id, line.amount, distributionId, line.share,
+            `Distribution #${distributionId} · ${lastMonth}-01 to ${lastDay}`, closeDate, DEMO_USER_NAME);
+      }
+    }
     await db.prepare("INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, NULL, 'DEMO_PARTNER_SEEDED', 'Demo partner movements initialized', ?)")
       .run(workspaceId, DEMO_USER_NAME);
   } catch (error) {
