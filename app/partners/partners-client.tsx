@@ -1,9 +1,9 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowRight, ArrowUpRight, Download, HandCoins, LogOut, PieChart, Plus, Printer, SlidersHorizontal,
-  Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
+  ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Download, HandCoins, History, LogOut, PieChart, Plus, Printer,
+  SlidersHorizontal, Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
 } from 'lucide-react';
 import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
@@ -102,6 +102,17 @@ type StatementPayload = {
   summary: { fronted: number; reimbursed: number; drawings: number };
 };
 type MovementKind = 'drawing' | 'contribution' | 'capital-return' | 'reimburse';
+type LegacyEntry = {
+  transactionId: number;
+  type: 'CONTRIBUTION' | 'WITHDRAWAL';
+  amount: number;
+  description: string;
+  category: string;
+  accountName: string;
+  date: string;
+  note: string;
+  createdBy: string;
+};
 
 const money = (amount: number) => `₨ ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
 const signed = (amount: number) => `${amount < 0 ? '−' : ''}₨ ${Math.abs(Math.round(amount)).toLocaleString('en-PK')}`;
@@ -230,6 +241,24 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   const [exitError, setExitError] = useState('');
   const [exitConfirmMismatch, setExitConfirmMismatch] = useState(false);
 
+  // legacy unattributed (pre-partners) rows
+  const [legacyEntries, setLegacyEntries] = useState<LegacyEntry[]>([]);
+  const [legacyLoading, setLegacyLoading] = useState(false);
+  const [legacyChoice, setLegacyChoice] = useState<Record<number, string>>({});
+  const [legacyBusyId, setLegacyBusyId] = useState<number | null>(null);
+  const [legacyShowAll, setLegacyShowAll] = useState(false);
+
+  // Remember what opened a dialog so focus lands back on it after Esc/close.
+  const openerRef = useRef<HTMLElement | null>(null);
+  const rememberOpener = () => { if (typeof document !== 'undefined') openerRef.current = document.activeElement as HTMLElement | null; };
+  const restoreOpener = () => {
+    const target = openerRef.current;
+    openerRef.current = null;
+    if (target && typeof target.focus === 'function') {
+      window.setTimeout(() => target.focus({ preventScroll: true }), 0);
+    }
+  };
+
   const activePartners = useMemo(() => (data?.partners ?? []).filter((partner) => partner.status === 'active'), [data]);
   const totals = useMemo(() => {
     const list = data?.partners ?? [];
@@ -241,9 +270,10 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     };
   }, [data]);
 
-  const openAddPartner = () => { setFormError(''); setNpName(''); setNpRole('Partner'); setNpShare('50'); setNpDate(todayIso()); setNpUserId('none'); setAddOpen(true); };
-  const openShare = () => { if (!data) return; setFormError(''); setShareInputs(Object.fromEntries(data.partners.map((partner) => [partner.id, String(partner.share)]))); setShareDate(todayIso()); setShareNote(''); setShareOpen(true); };
+  const openAddPartner = () => { rememberOpener(); setFormError(''); setNpName(''); setNpRole('Partner'); setNpShare('50'); setNpDate(todayIso()); setNpUserId('none'); setAddOpen(true); };
+  const openShare = () => { if (!data) return; rememberOpener(); setFormError(''); setShareInputs(Object.fromEntries(data.partners.map((partner) => [partner.id, String(partner.share)]))); setShareDate(todayIso()); setShareNote(''); setShareOpen(true); };
   const openFronted = () => {
+    rememberOpener();
     setFormError(''); setFeAmount(''); setFeDescription(''); setFeCategory('Rent & utilities');
     setFeDate(todayIso()); setFeNote(''); setFeTreatAs('advance');
     const first = activePartners[0];
@@ -251,6 +281,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     setFrontedOpen(true);
   };
   const openMovement = (kind: MovementKind, partnerId: number) => {
+    rememberOpener();
     setFormError(''); setMovementKind(kind); setMovementPartnerId(partnerId);
     setMAmount(kind === 'reimburse'
       ? String(activePartners.find((partner) => partner.id === partnerId)?.frontedOutstanding ?? '')
@@ -259,7 +290,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     setMDate(todayIso()); setMNote('');
     setMovementOpen(true);
   };
-  const openStatement = (partnerId: number) => { setStatementPartnerId(partnerId); setStatement(null); setStatementFrom(monthStartIso()); setStatementTo(todayIso()); setStatementOpen(true); };
+  const openStatement = (partnerId: number) => { rememberOpener(); setStatementPartnerId(partnerId); setStatement(null); setStatementFrom(monthStartIso()); setStatementTo(todayIso()); setStatementOpen(true); };
 
   const loadDistributions = useCallback(async () => {
     setHistoryLoading(true);
@@ -272,15 +303,61 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     } finally { setHistoryLoading(false); }
   }, []);
 
+  const loadLegacy = useCallback(async () => {
+    setLegacyLoading(true);
+    try {
+      const response = await fetch('/api/partners/legacy', { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const entries = Array.isArray(payload.entries) ? payload.entries as LegacyEntry[] : [];
+        setLegacyEntries(entries);
+        setLegacyChoice((current) => {
+          const next: Record<number, string> = {};
+          for (const entry of entries) {
+            const kept = current[entry.transactionId];
+            next[entry.transactionId] = kept && kept !== 'none' ? kept : '';
+          }
+          return next;
+        });
+      }
+    } catch {
+      // The tray is auxiliary: a failure must never block the partner page.
+    } finally { setLegacyLoading(false); }
+  }, []);
+
+  const attributeLegacy = async (entry: LegacyEntry) => {
+    const chosen = legacyChoice[entry.transactionId];
+    const ownerId = Number(chosen);
+    if (!Number.isSafeInteger(ownerId) || ownerId <= 0) {
+      toast.info('Choose a partner first', 'Pick whose money this row is, then tag it. Nothing is guessed from names.');
+      return;
+    }
+    setLegacyBusyId(entry.transactionId);
+    try {
+      const response = await fetch('/api/partners/legacy', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: entry.transactionId, ownerId }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Could not attribute this row.');
+      sounds.shimmer();
+      toast.success('Legacy row attributed', `${entry.type === 'CONTRIBUTION' ? 'Capital contribution' : 'Counter drawing'} of ${money(entry.amount)} is now on ${payload.partnerName ?? 'the partner'}'s hisaab.`);
+      await load();
+      await loadLegacy();
+    } catch (error) {
+      toast.info('Could not attribute this row', error instanceof Error ? error.message : 'Please try again.');
+    } finally { setLegacyBusyId(null); }
+  };
+
   useEffect(() => {
     if (!data) return;
     void loadDistributions();
+    if (canManage) void loadLegacy();
     // load once when the page data is ready
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(data)]);
 
   const openDeed = () => {
     if (!data) return;
+    rememberOpener();
     setFormError('');
     setDeedSalary(data.settings.partnerSalaryEnabled);
     setDeedICap(data.settings.interestOnCapitalEnabled);
@@ -339,6 +416,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
 
   const openDistribution = () => {
     if (!data) return;
+    rememberOpener();
     setDistError(''); setDistPreview(null); setDistNote(''); setConfirmMismatch(false);
     setSalaryInputs(Object.fromEntries(activePartners.map((partner) => [partner.id, ''])));
     applyDistPreset('month');
@@ -410,6 +488,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   const exitPartner = useMemo(() => (data?.partners ?? []).find((partner) => partner.id === exitPartnerId) ?? null, [data, exitPartnerId]);
   const openExit = (partnerId: number) => {
     if (!data) return;
+    rememberOpener();
     setExitPartnerId(partnerId); setExitAsOf(todayIso()); setExitMode(data.settings.settlementMethod);
     setExitGoodwill('0'); setExitGoodwillMethod('RAISE_WRITEOFF'); setExitRevaluations([]); setExitRevaluationId(1);
     setExitPreview(null); setExitError(''); setExitConfirmMismatch(false); setExitOpen(true);
@@ -718,6 +797,57 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             )}
           </section>
 
+          {canManage && (legacyEntries.length > 0 || legacyLoading) && (
+            <section className="soft-card" style={{ marginTop: 14 }} aria-label="Unattributed legacy entries">
+              <div className="card-header-row">
+                <div>
+                  <h2 className="card-title"><History size={15} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Unattributed (pre-partners)</h2>
+                  <p className="card-subtitle">Contributions and withdrawals recorded before partners existed. They sit outside every partner hisaab until you tag them, one row at a time.</p>
+                </div>
+                <span className="legacy-count">{legacyLoading ? 'Loading…' : `${legacyEntries.length} ${legacyEntries.length === 1 ? 'row' : 'rows'}`}</span>
+              </div>
+              <p className="field-hint" style={{ marginTop: 4 }}>Hisaabook never guesses an owner from a description. Tagging posts the matching partner entry and locks the row.</p>
+              <div className="legacy-list">
+                {(legacyShowAll ? legacyEntries : legacyEntries.slice(0, 6)).map((entry) => (
+                  <div className="legacy-row" key={entry.transactionId}>
+                    <div className="legacy-main">
+                      <div className="legacy-title">
+                        <span className="legacy-type">{entry.type === 'CONTRIBUTION' ? 'Contribution' : 'Withdrawal'}</span>
+                        <span className="status-chip legacy">Unattributed</span>
+                      </div>
+                      <div className="legacy-desc">{entry.description || 'No description'}</div>
+                      <div className="cell-sub">{dateLabel(entry.date)} · {entry.accountName}{entry.note ? ` · ${entry.note}` : ''}</div>
+                    </div>
+                    <div className="legacy-side">
+                      <span className="legacy-amount">{money(entry.amount)}</span>
+                      <div className="legacy-tag">
+                        <label className="sr-only" htmlFor={`legacy-partner-${entry.transactionId}`}>Partner for this row</label>
+                        <Select value={legacyChoice[entry.transactionId] || 'none'}
+                          onValueChange={(value) => setLegacyChoice({ ...legacyChoice, [entry.transactionId]: value })}>
+                          <SelectTrigger id={`legacy-partner-${entry.transactionId}`} className="h-10 rounded-xl legacy-select"><SelectValue placeholder="Choose partner" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Choose partner</SelectItem>
+                            {activePartners.map((partner) => <SelectItem value={String(partner.id)} key={partner.id}>{partner.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <button type="button" className="lime-button legacy-tag-button"
+                          disabled={legacyBusyId === entry.transactionId || !legacyChoice[entry.transactionId] || legacyChoice[entry.transactionId] === 'none'}
+                          onClick={() => void attributeLegacy(entry)}>
+                          <Check size={14} strokeWidth={2.8} />{legacyBusyId === entry.transactionId ? 'Tagging…' : 'Tag'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {legacyEntries.length > 6 && (
+                <button type="button" className="text-link" style={{ fontSize: 10, marginTop: 10 }} onClick={() => setLegacyShowAll(!legacyShowAll)}>
+                  {legacyShowAll ? 'Show fewer rows' : `Show all ${legacyEntries.length} rows`} <ArrowRight size={11} />
+                </button>
+              )}
+            </section>
+          )}
+
           <section className="soft-card" style={{ marginTop: 14 }} aria-label="Distribution history">
             <div className="card-header-row">
               <div>
@@ -752,7 +882,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </main>
 
       {/* Add partner dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Add a partner</DialogTitle>
@@ -776,7 +906,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Share change dialog */}
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+      <Dialog open={shareOpen} onOpenChange={(open) => { setShareOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Record share change</DialogTitle>
@@ -799,7 +929,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Fronted expense dialog */}
-      <Dialog open={frontedOpen} onOpenChange={setFrontedOpen}>
+      <Dialog open={frontedOpen} onOpenChange={(open) => { setFrontedOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Partner paid out of pocket</DialogTitle>
@@ -844,7 +974,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Generic movement dialog (drawing / contribution / capital-return / reimburse) */}
-      <Dialog open={movementOpen} onOpenChange={setMovementOpen}>
+      <Dialog open={movementOpen} onOpenChange={(open) => { setMovementOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">{movementMeta.title}</DialogTitle>
@@ -871,7 +1001,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Statement dialog */}
-      <Dialog open={statementOpen} onOpenChange={setStatementOpen}>
+      <Dialog open={statementOpen} onOpenChange={(open) => { setStatementOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Partner statement</DialogTitle>
@@ -907,8 +1037,8 @@ export default function PartnersClient({ userName, role }: { userName: string; r
         </DialogContent>
       </Dialog>
       {/* Exit settlement dialog */}
-      <Dialog open={exitOpen} onOpenChange={setExitOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl">
+      <Dialog open={exitOpen} onOpenChange={(open) => { setExitOpen(open); if (!open) restoreOpener(); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('exit-date')?.focus(); }}>
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Exit settlement{exitPartner ? ` - ${exitPartner.name}` : ''}</DialogTitle>
             <DialogDescription>Computes everything the partner is owed or owes, in the s.48 order: losses first, then advances, then capital, then the residue. Preview posts nothing; the ledger changes only on confirm.</DialogDescription>
@@ -930,10 +1060,10 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <Label>Revaluation lines (optional)</Label>
             <p className="field-hint">Assets and liabilities at fair value. A positive delta increases asset values, a negative delta reduces them. Split by the exit-date PSR.</p>
             {exitRevaluations.map((line) => (
-              <div className="mt-2 flex items-center gap-2" key={line.id}>
-                <Input placeholder="e.g. Delivery van revalued" aria-label="Revaluation description" maxLength={80} value={line.description} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, description: event.target.value } : row)); setExitPreview(null); }} className="h-10 rounded-xl" />
-                <Input type="number" step="1" inputMode="numeric" placeholder="+/-" aria-label="Revaluation delta in PKR" value={line.delta} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, delta: event.target.value } : row)); setExitPreview(null); }} className="h-10 w-32 rounded-xl tabular-nums" />
-                <button type="button" className="ghost-pill" aria-label="Remove revaluation line" onClick={() => { setExitRevaluations(exitRevaluations.filter((row) => row.id !== line.id)); setExitPreview(null); }}><X size={12} /></button>
+              <div className="exit-reval-row" key={line.id}>
+                <Input className="exit-reval-desc h-10 rounded-xl" placeholder="e.g. Delivery van revalued" aria-label="Revaluation description" maxLength={80} value={line.description} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, description: event.target.value } : row)); setExitPreview(null); }} />
+                <Input className="exit-reval-delta h-10 rounded-xl tabular-nums" type="number" step="1" inputMode="numeric" placeholder="+/-" aria-label="Revaluation delta in PKR" value={line.delta} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, delta: event.target.value } : row)); setExitPreview(null); }} />
+                <button type="button" className="ghost-pill exit-reval-remove" aria-label="Remove revaluation line" onClick={() => { setExitRevaluations(exitRevaluations.filter((row) => row.id !== line.id)); setExitPreview(null); }}><X size={12} /></button>
               </div>
             ))}
             {exitRevaluations.length < 24 && <button type="button" className="text-link" style={{ fontSize: 10, marginTop: 8 }} onClick={() => { setExitRevaluations([...exitRevaluations, { id: exitRevaluationId, description: '', delta: '' }]); setExitRevaluationId(exitRevaluationId + 1); }}>+ Add revaluation line</button>}
@@ -983,8 +1113,8 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Deed settings dialog */}
-      <Dialog open={deedOpen} onOpenChange={setDeedOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
+      <Dialog open={deedOpen} onOpenChange={(open) => { setDeedOpen(open); if (!open) restoreOpener(); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('deed-salary')?.focus(); }}>
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Deed terms</DialogTitle>
             <DialogDescription>What your partnership deed allows, as data. Everything stays off until you turn it on; Hisaabook never invents terms you have not agreed.</DialogDescription>
@@ -1020,7 +1150,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Distribution dialog */}
-      <Dialog open={distOpen} onOpenChange={setDistOpen}>
+      <Dialog open={distOpen} onOpenChange={(open) => { setDistOpen(open); if (!open) restoreOpener(); }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Distribute profit</DialogTitle>
@@ -1097,7 +1227,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       </Dialog>
 
       {/* Void distribution dialog */}
-      <Dialog open={voidTarget !== null} onOpenChange={(open) => { if (!open) setVoidTarget(null); }}>
+      <Dialog open={voidTarget !== null} onOpenChange={(open) => { if (!open) { setVoidTarget(null); restoreOpener(); } }}>
         <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold tracking-tight">Void distribution #{voidTarget}</DialogTitle>
