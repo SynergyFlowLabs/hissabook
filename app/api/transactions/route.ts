@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       .all(workspaceId, workspaceId, ...filterValues, limit + 1, offset) as ActivityRow[];
     const hasMore = transactions.length > limit;
     transactions.length = Math.min(transactions.length, limit);
-    const accounts = await db.prepare('SELECT id, name FROM accounts WHERE workspace_id = ? ORDER BY name').all(workspaceId);
+    const accounts = await db.prepare('SELECT id, name FROM accounts WHERE workspace_id = ? AND is_system = 0 ORDER BY name').all(workspaceId);
     const categories = await db.prepare(`SELECT category FROM (
       SELECT DISTINCT category FROM transactions WHERE workspace_id = ?
       UNION SELECT DISTINCT CASE WHEN l.direction = 'PAYABLE' THEN 'Loan repayment' ELSE 'Loan collection' END AS category

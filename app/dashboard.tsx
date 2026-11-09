@@ -29,6 +29,7 @@ type DashboardData = {
   accounts: Array<{ id: number; name: string; type: string; currency: string; openingBalance: number; balance: number }>;
   transactions: Array<{ id: number; title: string; category: string; date: string; amount: number; kind: string; account: string; destinationAccount: string | null; status: string; counterparty: string; note: string }>;
   owners: Array<{ id: number; name: string; role: string; share: number; effectiveAt: string }>;
+  partnerPositions?: Record<number, { settleable: number; capitalBalance: number; netValue: number }>;
   loans: Array<{ id: number; direction: string; name: string; counterparty: string; principal: number; outstanding: number; dueAt: string | null; repaidAmount: number; repaymentCount: number; lastRepaymentAt: string | null }>;
   summary: { cashBalance: number; incomeThisMonth: number; expensesThisMonth: number; incomeLastMonth: number; expensesLastMonth: number; outstandingLoans: number; activeLoans: number };
   chart: Array<{ day: string; income: number; expenses: number }>;
@@ -423,9 +424,9 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card owners-panel xl:col-span-5" id="owners">
               <div className="card-header-row">
                 <div><div className="card-title">Ownership overview</div><div className="card-subtitle">Recorded shares in {data.workspace.name}</div></div>
-                <button className="text-link" onClick={() => toast.info('Ownership history is coming next.', 'Share changes will be attributable here.')}>View details <ArrowRight size={12} /></button>
+            <a className="text-link" href="/partners">Partners & shares <ArrowRight size={12} /></a>
               </div>
-              <div style={{ marginTop: 8 }}>{data.owners.map((owner) => <div className="owner-row" key={owner.id}><div className="owner-avatar">{initials(owner.name)}</div><div className="owner-info"><div className="owner-name">{owner.name}{owner.name.trim().toLowerCase() === userName.trim().toLowerCase() && <span className="ml-1.5 text-[8px] font-bold uppercase tracking-wide text-[var(--faint)]">· You</span>}</div><div className="owner-bar"><span style={{ width: `${Math.min(100, Number(owner.share) || 0)}%` }} /></div></div><div className="owner-share">{Number(owner.share).toLocaleString('en-PK')}%</div></div>)}</div>
+              <div style={{ marginTop: 8 }}>{data.owners.map((owner) => { const position = data.partnerPositions?.[owner.id]; return <div className="owner-row" key={owner.id}><div className="owner-avatar">{initials(owner.name)}</div><div className="owner-info"><div className="owner-name">{owner.name}{owner.name.trim().toLowerCase() === userName.trim().toLowerCase() && <span className="ml-1.5 text-[8px] font-bold uppercase tracking-wide text-[var(--faint)]">· You</span>}</div><div className="owner-bar"><span style={{ width: `${Math.min(100, Number(owner.share) || 0)}%` }} /></div>{position && <div className="owner-position">{position.settleable >= 0 ? `${hidden(position.settleable)} due to partner` : `${hidden(-position.settleable)} overdrawn`}</div>}</div><div className="owner-share">{Number(owner.share).toLocaleString('en-PK')}%</div></div>; })}</div>
               <div className="owner-note"><ShieldCheck size={14} className="mt-0.5 shrink-0" /><span>Shares are recorded as agreed by your team. Contributions and ownership are tracked separately.</span></div>
             </div>
           </section>

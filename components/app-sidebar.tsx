@@ -24,7 +24,7 @@ const workspaceLinks = [
 const manageLinks = [
   { label: 'Inventory', href: '/inventory', icon: Boxes, key: 'inventory' },
   { label: 'Team & salaries', href: '/team', icon: UsersRound, key: 'team' },
-  { label: 'Owners', href: '/#owners', icon: UsersRound, key: 'owners' },
+  { label: 'Partners', href: '/partners', icon: UsersRound, key: 'partners' },
   { label: 'Reports', href: '/#reports', icon: FileText, key: 'reports' },
 ];
 
@@ -86,7 +86,7 @@ export default function AppSidebar({
         <div className="help-card">
           <div className="help-title">Invite your accountant</div>
           <div className="help-copy">Give them view access. No passwords shared, and access can be revoked anytime.</div>
-          <a href="/#owners" className="help-link">Manage workspace access <ArrowRight size={11} /></a>
+          <a href="/partners" className="help-link">Manage partners & shares <ArrowRight size={11} /></a>
         </div>
         <div className="user-profile">
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>

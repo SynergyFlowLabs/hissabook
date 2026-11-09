@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import postgres, { type Sql, type TransactionSql } from 'postgres';
+import { positionFromLines, type PositionLine } from '@/lib/partners/ledger';
 import { hashPassword } from '@/lib/passwords';
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_USER_NAME, DEMO_WORKSPACE_NAME, DEMO_WORKSPACE_SLUG } from '@/lib/demo-account';
 
@@ -240,6 +241,70 @@ const schemaSql = `
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS owner_share_changes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      owner_id INTEGER NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+      share REAL NOT NULL CHECK (share >= 0 AND share <= 100),
+      effective_at TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_by TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS profit_distributions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      period_from TEXT NOT NULL,
+      period_to TEXT NOT NULL,
+      basis_profit INTEGER NOT NULL,
+      salary_total INTEGER NOT NULL DEFAULT 0,
+      interest_capital_total INTEGER NOT NULL DEFAULT 0,
+      interest_drawings_total INTEGER NOT NULL DEFAULT 0,
+      residual_distributed INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'POSTED' CHECK (status IN ('POSTED','VOID')),
+      workings_json TEXT NOT NULL DEFAULT '{}',
+      note TEXT NOT NULL DEFAULT '',
+      created_by TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK (period_to >= period_from)
+    );
+    CREATE TABLE IF NOT EXISTS partner_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      owner_id INTEGER NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+      entry_type TEXT NOT NULL CHECK (entry_type IN (
+        'CAPITAL_CONTRIBUTION','CAPITAL_RETURN',
+        'EXPENSE_PAID','ADVANCE_REIMBURSED',
+        'CASH_WITHDRAWAL',
+        'INTEREST_ON_CAPITAL','INTEREST_ON_DRAWINGS','PARTNER_SALARY','PARTNER_COMMISSION',
+        'PROFIT_SHARE','LOSS_SHARE',
+        'SETTLEMENT','CORRECTION'
+      )),
+      direction TEXT NOT NULL CHECK (direction IN ('CREDIT','DEBIT')),
+      amount INTEGER NOT NULL CHECK (amount > 0),
+      transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+      distribution_id INTEGER REFERENCES profit_distributions(id) ON DELETE SET NULL,
+      split_share REAL,
+      note TEXT NOT NULL DEFAULT '',
+      transaction_date TEXT NOT NULL,
+      created_by TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS workspace_partner_settings (
+      workspace_id INTEGER PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+      partner_salary_enabled INTEGER NOT NULL DEFAULT 0,
+      interest_on_capital_enabled INTEGER NOT NULL DEFAULT 0,
+      interest_on_capital_pct REAL,
+      interest_on_drawings_enabled INTEGER NOT NULL DEFAULT 0,
+      interest_on_drawings_pct REAL,
+      drawing_cap_pct REAL NOT NULL DEFAULT 70,
+      settlement_method TEXT NOT NULL DEFAULT 'PAY' CHECK (settlement_method IN ('PAY','LOAN')),
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS partner_entries_ws_owner_idx ON partner_entries(workspace_id, owner_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS partner_entries_distribution_idx ON partner_entries(workspace_id, distribution_id);
+    CREATE INDEX IF NOT EXISTS owner_share_changes_ws_owner_idx ON owner_share_changes(workspace_id, owner_id, effective_at);
+    CREATE INDEX IF NOT EXISTS profit_distributions_ws_period_idx ON profit_distributions(workspace_id, period_to DESC);
     CREATE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members(user_id, active);
     CREATE INDEX IF NOT EXISTS notifications_workspace_idx ON notifications(workspace_id, id DESC);
     CREATE INDEX IF NOT EXISTS notifications_kind_idx ON notifications(workspace_id, kind, created_at);
@@ -285,12 +350,30 @@ const postgresTransactionContext = new AsyncLocalStorage<TransactionSql>();
 const sqliteTransactionContext = new AsyncLocalStorage<boolean>();
 let sqliteQueue: Promise<void> = Promise.resolve();
 
+function ensureColumn(db: Database.Database, table: string, column: string, ddl: string) {
+  const info = db.pragma(`table_info(${table})`) as Array<{ name: string }>;
+  if (!info.some((row) => row.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
 function createSqliteDatabase() {
   mkdirSync(dirname(databasePath), { recursive: true });
   const db = globalForDatabase.hisaabookSqlite ?? new Database(databasePath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(schemaSql);
+  ensureColumn(db, 'owners', 'user_id', 'user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+  ensureColumn(db, 'owners', 'status', "status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','exited'))");
+  ensureColumn(db, 'owners', 'exited_at', 'exited_at TEXT');
+  ensureColumn(db, 'transactions', 'partner_id', 'partner_id INTEGER REFERENCES owners(id) ON DELETE SET NULL');
+  ensureColumn(db, 'transactions', 'funding_kind', "funding_kind TEXT CHECK (funding_kind IN ('ACCOUNT','PARTNER_ADVANCE','PARTNER_CAPITAL'))");
+  ensureColumn(db, 'accounts', 'is_system', 'is_system INTEGER NOT NULL DEFAULT 0');
+  // Baseline PSR history rows for existing owners (idempotent).
+  db.exec(`INSERT INTO owner_share_changes (workspace_id, owner_id, share, effective_at, note, created_by)
+    SELECT o.workspace_id, o.id, o.share, substr(o.effective_at, 1, 10), 'Baseline share at migration', 'migration'
+    FROM owners o
+    WHERE NOT EXISTS (SELECT 1 FROM owner_share_changes osc WHERE osc.owner_id = o.id)`);
   if (process.env.NODE_ENV !== 'production') globalForDatabase.hisaabookSqlite = db;
   return db;
 }
@@ -386,6 +469,48 @@ export const db = {
   },
 };
 
+async function seedPartnerDemoIfEmpty(workspaceId: number) {
+  try {
+    const existing = await db.prepare('SELECT COUNT(*) AS count FROM partner_entries WHERE workspace_id = ?').get(workspaceId) as { count: number };
+    // Baseline PSR history rows for demo partners (idempotent).
+    await db.prepare(`INSERT INTO owner_share_changes (workspace_id, owner_id, share, effective_at, note, created_by)
+      SELECT o.workspace_id, o.id, o.share, substr(o.effective_at, 1, 10), 'Baseline share (demo seed)', 'migration'
+      FROM owners o
+      WHERE o.workspace_id = ? AND NOT EXISTS (SELECT 1 FROM owner_share_changes osc WHERE osc.owner_id = o.id)`).run(workspaceId);
+    if (Number(existing.count) > 0) return;
+    const owners = await db.prepare('SELECT id, name FROM owners WHERE workspace_id = ?').all(workspaceId) as Array<{ id: number; name: string }>;
+    const hamza = owners.find((owner) => owner.name === 'Hamza Malik');
+    const sara = owners.find((owner) => owner.name === 'Sara Ahmed');
+    const cash = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ? AND is_system = 0').get(workspaceId, 'Cash in hand') as { id: number } | undefined;
+    if (!hamza || !sara || !cash) return;
+    // One hidden clearing account anchors partner-funded expenses.
+    await db.prepare(`INSERT INTO accounts (workspace_id, name, account_type, currency, opening_balance, is_system)
+      VALUES (?, 'Partner out-of-pocket (clearing)', 'PARTNER_ADVANCE', 'PKR', 0, 1) ON CONFLICT (workspace_id, name) DO NOTHING`).run(workspaceId);
+    const clearing = await db.prepare('SELECT id FROM accounts WHERE workspace_id = ? AND name = ?').get(workspaceId, 'Partner out-of-pocket (clearing)') as { id: number };
+    const insertTxn = `INSERT INTO transactions (workspace_id, account_id, type, amount, description, category, transaction_date, status, created_by, partner_id, funding_kind)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'CLEARED', ?, ?, ?)`;
+    const frontDate = `${dayOffset(2).slice(0, 10)}T12:00:00.000Z`;
+    const drawDate = `${dayOffset(1).slice(0, 10)}T12:00:00.000Z`;
+    const reimburseDate = `${dayOffset(0).slice(0, 10)}T12:00:00.000Z`;
+    const fronted = await db.prepare(insertTxn).run(workspaceId, Number(clearing.id), 'EXPENSE', 18500, 'Electricity + water tanker', 'Rent & utilities', frontDate, DEMO_USER_NAME, hamza.id, 'PARTNER_ADVANCE');
+    await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, split_share, note, transaction_date, created_by)
+      VALUES (?, ?, 'EXPENSE_PAID', 'CREDIT', ?, ?, 1, ?, ?, ?)`)
+      .run(workspaceId, hamza.id, 18500, Number(fronted.lastInsertRowid), 'Electricity + water tanker', frontDate, DEMO_USER_NAME);
+    const drawing = await db.prepare(insertTxn).run(workspaceId, Number(cash.id), 'WITHDRAWAL', 25000, 'Sara Ahmed · Counter drawing', 'Partner drawing', drawDate, DEMO_USER_NAME, sara.id, 'ACCOUNT');
+    await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, split_share, note, transaction_date, created_by)
+      VALUES (?, ?, 'CASH_WITHDRAWAL', 'DEBIT', ?, ?, NULL, ?, ?, ?)`)
+      .run(workspaceId, sara.id, 25000, Number(drawing.lastInsertRowid), 'Counter drawing', drawDate, DEMO_USER_NAME);
+    const reimbursed = await db.prepare(insertTxn).run(workspaceId, Number(cash.id), 'WITHDRAWAL', 10000, 'Hamza Malik · Expense reimbursed', 'Partner reimbursement', reimburseDate, DEMO_USER_NAME, hamza.id, 'ACCOUNT');
+    await db.prepare(`INSERT INTO partner_entries (workspace_id, owner_id, entry_type, direction, amount, transaction_id, split_share, note, transaction_date, created_by)
+      VALUES (?, ?, 'ADVANCE_REIMBURSED', 'DEBIT', ?, ?, NULL, ?, ?, ?)`)
+      .run(workspaceId, hamza.id, 10000, Number(reimbursed.lastInsertRowid), 'Expense reimbursed', reimburseDate, DEMO_USER_NAME);
+    await db.prepare("INSERT INTO audit_events (workspace_id, transaction_id, action, details, actor) VALUES (?, NULL, 'DEMO_PARTNER_SEEDED', 'Demo partner movements initialized', ?)")
+      .run(workspaceId, DEMO_USER_NAME);
+  } catch (error) {
+    console.error('Demo partner seed failed', error);
+  }
+}
+
 function dayOffset(daysAgo: number) {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
@@ -432,7 +557,9 @@ export async function ensureDemoWorkspace(workspaceId?: number) {
     return workspaceId;
   });
 
-  return await seed();
+  const seededId = await seed();
+  await seedPartnerDemoIfEmpty(seededId);
+  return seededId;
 }
 
 export async function ensurePublicDemoAccount() {
@@ -496,6 +623,7 @@ export async function ensurePublicDemoAccount() {
   });
   const workspaceId = await provision();
   await ensureDemoModuleData(workspaceId);
+  await seedPartnerDemoIfEmpty(workspaceId);
   return workspaceId;
 }
 
@@ -662,7 +790,7 @@ export async function getInventoryData(selectedWorkspaceId?: number) {
   const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   await ensureDemoModuleData(workspaceId);
   const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? AND is_system = 0 ORDER BY id').all(workspaceId);
   const items = await db.prepare(`SELECT i.id, i.name, i.sku, i.category, i.unit, i.reorder_level AS reorderLevel, i.active,
     COALESCE(SUM(m.quantity_delta), 0) AS stockOnHand,
     CASE WHEN COALESCE(SUM(m.quantity_delta), 0) <= i.reorder_level THEN 1 ELSE 0 END AS lowStock
@@ -683,7 +811,7 @@ export async function getTeamData(selectedWorkspaceId?: number) {
   const workspaceId = await ensureDemoWorkspace(selectedWorkspaceId);
   await ensureDemoModuleData(workspaceId);
   const workspace = await db.prepare('SELECT id, name, currency FROM workspaces WHERE id = ?').get(workspaceId);
-  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+  const accounts = await db.prepare('SELECT id, name, currency FROM accounts WHERE workspace_id = ? AND is_system = 0 ORDER BY id').all(workspaceId);
   const today = new Date().toISOString().slice(0, 10);
   const employeeRows = await db.prepare(`SELECT e.id, e.name, e.job_title AS jobTitle, e.employee_ref AS employeeRef,
     e.start_date AS startDate, e.end_date AS endDate, e.active,
@@ -758,7 +886,7 @@ export async function getDashboardData(selectedWorkspaceId?: number) {
       ELSE 0 END) FROM transactions t WHERE t.workspace_id = a.workspace_id AND t.status = 'CLEARED' AND (t.account_id = a.id OR t.destination_account_id = a.id)), 0)
       + COALESCE((SELECT SUM(CASE WHEN l.direction = 'PAYABLE' THEN -lr.principal_amount WHEN l.direction = 'RECEIVABLE' THEN lr.principal_amount ELSE 0 END)
         FROM loan_repayments lr JOIN loans l ON l.id = lr.loan_id WHERE lr.workspace_id = a.workspace_id AND lr.account_id = a.id), 0) AS balance
-    FROM accounts a WHERE a.workspace_id = ? ORDER BY a.id`).all(workspaceId);
+    FROM accounts a WHERE a.workspace_id = ? AND a.is_system = 0 ORDER BY a.id`).all(workspaceId);
   const transactions = await db.prepare(`SELECT * FROM (
     SELECT t.id, t.description AS title, t.category, t.transaction_date AS date,
       t.amount, t.type AS kind, a.name AS account, destination.name AS destinationAccount,
@@ -777,6 +905,18 @@ export async function getDashboardData(selectedWorkspaceId?: number) {
     WHERE lr.workspace_id = ?
   ) activity ORDER BY substr(date, 1, 10) DESC, id DESC LIMIT 30`).all(workspaceId, workspaceId) as DashboardTransaction[];
   const owners = await db.prepare('SELECT id, name, role, share, effective_at AS effectiveAt FROM owners WHERE workspace_id = ? ORDER BY id').all(workspaceId);
+  const positionRows = await db.prepare(`SELECT owner_id AS ownerId, entry_type AS entryType, direction, SUM(amount) AS total
+    FROM partner_entries WHERE workspace_id = ? GROUP BY owner_id, entry_type, direction`).all(workspaceId) as Array<{ ownerId: number; entryType: string; direction: 'CREDIT' | 'DEBIT'; total: number }>;
+  const linesByOwner = new Map<number, PositionLine[]>();
+  for (const row of positionRows) {
+    const list = linesByOwner.get(row.ownerId) ?? [];
+    list.push({ entryType: row.entryType, direction: row.direction, amount: Number(row.total) });
+    linesByOwner.set(row.ownerId, list);
+  }
+  const partnerPositions = Object.fromEntries((owners as Array<{ id: number }>).map((owner) => {
+    const position = positionFromLines(linesByOwner.get(owner.id) ?? []);
+    return [owner.id, { settleable: position.settleable, capitalBalance: position.capitalBalance, netValue: position.netValue }];
+  }));
   const loans = await db.prepare(`SELECT l.id, l.direction, l.name, l.counterparty, l.principal, l.outstanding, l.due_at AS dueAt,
       COALESCE(SUM(r.principal_amount), 0) AS repaidAmount, COUNT(r.id) AS repaymentCount,
       MAX(r.transaction_date) AS lastRepaymentAt
@@ -817,6 +957,7 @@ export async function getDashboardData(selectedWorkspaceId?: number) {
     accounts,
     transactions,
     owners,
+    partnerPositions,
     loans,
     summary: {
       cashBalance,

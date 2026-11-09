@@ -975,6 +975,41 @@ button:active, [role="button"]:active { transform: scale(.97); }
 
 
 /* ------------------------------------------------------------------ */
+/* Partners page                                                      */
+/* ------------------------------------------------------------------ */
+.partner-card { display: flex; flex-direction: column; }
+.partner-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.partner-stat { background: var(--card-soft); border: 1px solid var(--line); border-radius: 15px; padding: 10px 12px; min-width: 0; }
+.partner-stat span { display: block; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.partner-stat strong { display: block; margin-top: 5px; font-size: 13px; font-weight: 800; letter-spacing: -.2px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.partner-positive { color: var(--positive); }
+.partner-negative { color: var(--negative); }
+.partner-movements { margin-top: 12px; display: grid; gap: 2px; }
+.partner-movement-row { display: flex; align-items: center; gap: 9px; padding: 6px 2px; border-bottom: 1px dashed var(--line); }
+.partner-movement-row:last-child { border-bottom: 0; }
+.partner-movement-icon { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; }
+.partner-movement-icon.credit { background: var(--positive-soft); color: var(--positive); }
+.partner-movement-icon.debit { background: var(--negative-soft); color: var(--negative); }
+.partner-movement-text { min-width: 0; flex: 1; }
+.partner-movement-text strong { display: block; font-size: 10px; font-weight: 750; }
+.partner-movement-text small { display: block; font-size: 8px; color: var(--faint); font-weight: 600; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.partner-movement-amount { font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.partner-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; padding-top: 12px; align-items: center; }
+.owner-position { margin-top: 6px; font-size: 8.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.statement-print { border: 1px solid var(--line-strong); border-radius: 16px; padding: 14px; background: var(--card); }
+.statement-meta strong { font-size: 12px; }
+.statement-summary { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.statement-summary span { font-size: 9px; font-weight: 800; background: var(--card-soft); border: 1px solid var(--line); padding: 4px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.statement-closing { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+@media print {
+  body * { visibility: hidden; }
+  .statement-print, .statement-print * { visibility: visible; }
+  .statement-print { position: absolute; inset: 0; border: 0; padding: 24px; }
+  .no-print, .no-print * { display: none !important; }
+}
+
+/* ------------------------------------------------------------------ */
 /* Topbar search on narrow phones: flex instead of fixed width          */
 /* ------------------------------------------------------------------ */
 @media (max-width: 560px) {
