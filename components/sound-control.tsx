@@ -12,7 +12,7 @@ const VOLUME_STEPS: Array<{ value: SoundState['volume']; label: string }> = [
   { value: 2, label: 'Full' },
 ];
 
-/** Compact sounds & haptics control. Opens a small glass popover; persisted per device. */
+/** Compact sounds & haptics control. Opens a small popover menu; persisted per device. */
 export default function SoundControl({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<SoundState>(DEFAULT_SOUND_STATE);
@@ -66,7 +66,7 @@ export default function SoundControl({ className = '' }: { className?: string })
           <motion.div
             role="dialog"
             aria-label="Sounds and haptics"
-            className="glass-menu absolute bottom-full left-0 z-50 mb-2 w-64 p-3"
+            className="panel-menu absolute bottom-full left-0 z-50 mb-2 w-64 p-3"
             initial={{ opacity: 0, y: 10, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}

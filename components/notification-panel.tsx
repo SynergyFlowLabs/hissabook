@@ -121,7 +121,7 @@ export default function NotificationPanel({
             role="dialog"
             aria-modal={isMobile}
             aria-label="Notifications"
-            className="notif-panel glass"
+            className="notif-panel panel"
             initial={isMobile ? { y: 420, opacity: 0.6 } : { opacity: 0, y: -12, scale: 0.96 }}
             animate={isMobile ? { y: 0, opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={isMobile ? { y: 420, opacity: 0.6 } : { opacity: 0, y: -8, scale: 0.97 }}

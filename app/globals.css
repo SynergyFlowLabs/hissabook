@@ -24,6 +24,8 @@
   --deep-2: #1e2f25;
   --deep-3: #0f1a14;
 
+  --lime-glow: 0 0 0 1px rgb(201 242 79 / .5), 0 8px 28px rgb(201 242 79 / .22);
+
   --positive: #1e7b4f;
   --positive-soft: #e1f2e6;
   --negative: #c05c3a;
@@ -188,8 +190,7 @@ button:disabled { cursor: not-allowed; }
 .topbar {
   height: calc(60px + env(safe-area-inset-top, 0px)); display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; padding-top: env(safe-area-inset-top, 0px); gap: 14px; position: sticky; top: 0; z-index: 15;
-  background: color-mix(in srgb, var(--canvas) 84%, transparent); backdrop-filter: blur(30px) saturate(1.85) brightness(1.02);
-  -webkit-backdrop-filter: blur(30px) saturate(1.85) brightness(1.02);
+  background: var(--canvas);
 }
 @media (min-width: 901px) { .topbar { height: 72px; padding: 0 22px; padding-top: 0; } }
 @media (min-width: 1181px) { .topbar { padding: 0 34px; } }
@@ -276,7 +277,7 @@ button:disabled { cursor: not-allowed; }
 .hero-amount-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; position: relative; z-index: 1; margin-top: 10px; }
 
 .hero-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; position: relative; z-index: 1; }
-.hero-chip { background: #ffffff0f; border: 1px solid #ffffff1a; border-radius: 17px; padding: 11px 14px; backdrop-filter: blur(2px); min-width: 0; }
+.hero-chip { background: #24382c; border: 1px solid #ffffff1a; border-radius: 17px; padding: 11px 14px; min-width: 0; }
 .hero-chip-label { display: flex; align-items: center; gap: 6px; color: #a9bba4; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .hero-chip-value { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -.4px; margin-top: 5px; font-variant-numeric: tabular-nums; color: #f2f9ee; }
 .hero-chip-sub { color: #8fa88d; font-size: 8px; margin-top: 2px; }
@@ -422,9 +423,8 @@ button:disabled { cursor: not-allowed; }
 /* bottom pill nav (mobile) — the reference pattern */
 .mobile-nav {
   display: flex; position: fixed; z-index: 40; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
-  align-items: center; gap: 2px; background: linear-gradient(165deg, rgb(29 47 38 / .84), rgb(14 24 19 / .88));
-  backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
-  padding: 7px; border-radius: 999px; box-shadow: var(--glass-shadow-deep); border: 1px solid rgb(255 255 255 / .12); max-width: calc(100vw - 24px);
+  align-items: center; gap: 2px; background: var(--deep-2);
+  padding: 7px; border-radius: 999px; box-shadow: 0 18px 44px rgb(6 12 9 / .38); border: 1px solid rgb(255 255 255 / .10); max-width: calc(100vw - 24px);
 }
 .mobile-nav a {
   position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4; text-decoration: none;
@@ -740,64 +740,33 @@ button:disabled { cursor: not-allowed; }
 .showcase-mini-amount { font-family: var(--font-display); font-weight: 400; letter-spacing: -.5px; }
 
 /* ------------------------------------------------------------------ */
-/* iOS-style glass material (PR: motion + glass)                        */
+/* Solid overlay surfaces (glass material removed per owner direction)  */
 /* ------------------------------------------------------------------ */
-:root {
-  /* iOS "Frosted" material — content behind must become an unreadable wash.
-     Tint is intentionally heavy; the blur finishes the job. */
-  --glass-surface: linear-gradient(168deg, rgb(255 255 255 / .92), rgb(246 251 243 / .84));
-  --glass-surface-deep: linear-gradient(165deg, rgb(29 47 38 / .78), rgb(16 27 21 / .82));
-  --glass-menu-surface: linear-gradient(170deg, rgb(255 255 255 / .97), rgb(247 251 244 / .93));
-  --glass-chip: rgb(255 255 255 / .72);
-  --glass-border: rgb(255 255 255 / .78);
-  --glass-border-deep: rgb(255 255 255 / .14);
-  --glass-blur: blur(30px) saturate(1.85) brightness(1.02);
-  --glass-blur-heavy: blur(42px) saturate(2) brightness(1.02);
-  --glass-shadow: 0 18px 48px rgb(13 26 19 / .24), inset 0 1px 0 rgb(255 255 255 / .8);
-  --glass-shadow-deep: 0 22px 60px rgb(6 12 9 / .46), inset 0 1px 0 rgb(255 255 255 / .12);
-  --lime-glow: 0 0 0 1px rgb(201 242 79 / .5), 0 8px 28px rgb(201 242 79 / .22);
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 18px 44px rgb(13 26 19 / .16);
 }
-
-.glass {
-  background: var(--glass-surface);
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-.glass-deep {
-  background: var(--glass-surface-deep);
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border-deep);
-  box-shadow: var(--glass-shadow-deep);
-}
-.glass-chip {
-  background: var(--glass-chip);
-  backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .6);
-}
-.glass-menu {
-  background: var(--glass-menu-surface);
-  backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 24px 60px rgb(13 26 19 / .3), inset 0 1px 0 rgb(255 255 255 / .9);
+.panel-menu {
+  background: var(--popover);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 20px 48px rgb(13 26 19 / .2);
   border-radius: 18px;
 }
-/* dialog content renders as a light frosted sheet */
-.glass-dialog {
-  background: linear-gradient(168deg, rgb(255 255 255 / .96), rgb(247 251 244 / .92));
-  backdrop-filter: var(--glass-blur-heavy); -webkit-backdrop-filter: var(--glass-blur-heavy);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 28px 80px rgb(13 26 19 / .34), inset 0 1px 0 rgb(255 255 255 / .9);
+/* dialog content renders as a solid sheet */
+.panel-dialog {
+  background: var(--popover);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 64px rgb(13 26 19 / .22);
 }
 
-/* focus-visible stays unmistakably visible on glass */
-.glass:focus-visible, .glass-chip:focus-visible, .glass-menu:focus-visible {
-  outline: none; box-shadow: var(--glass-shadow), 0 0 0 3px var(--lime);
+/* focus-visible stays unmistakably visible */
+.panel:focus-visible, .panel-menu:focus-visible {
+  outline: none; box-shadow: 0 0 0 3px var(--lime), 0 18px 44px rgb(13 26 19 / .16);
 }
 
 /* ------------------------------------------------------------------ */
-/* Sileo toast — brand skin (deep frost + lime accents)               */
+/* Sileo toast — brand skin (deep solid fill + lime accents)            */
 /* ------------------------------------------------------------------ */
 :root {
   --sileo-state-success: #c9f24f;
@@ -810,7 +779,6 @@ button:disabled { cursor: not-allowed; }
   --sileo-duration: 560ms;
 }
 [data-sileo-toast] {
-  backdrop-filter: blur(30px) saturate(1.9); -webkit-backdrop-filter: blur(30px) saturate(1.9);
   border-radius: 20px !important;
   border: 1px solid rgb(255 255 255 / .10) !important;
   box-shadow: 0 22px 60px rgb(4 10 7 / .5), inset 0 1px 0 rgb(255 255 255 / .10) !important;
@@ -821,19 +789,6 @@ button:disabled { cursor: not-allowed; }
 /* ------------------------------------------------------------------ */
 /* Accessibility fallbacks                                              */
 /* ------------------------------------------------------------------ */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-chip, .glass-menu, .glass-dialog { background: rgb(255 255 255 / .97); }
-  .glass-deep, .mobile-nav { background: rgb(18 29 23 / .97); }
-  [data-sileo-toast] { background: rgb(18 29 23 / .97) !important; }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-chip, .glass-menu, .glass-dialog, .mobile-nav, [data-sileo-toast] {
-    backdrop-filter: none; -webkit-backdrop-filter: none;
-  }
-  .glass, .glass-chip, .glass-menu, .glass-dialog { background: #f7faf5; }
-  .glass-deep, .mobile-nav { background: #14211a; }
-  .topbar { background: var(--canvas); backdrop-filter: none; -webkit-backdrop-filter: none; }
-}
 @media (prefers-reduced-motion: reduce) {
   .mobile-nav-pill { transition: none; }
   .loan-action, .quick-action, .waterfall-row { transition: none !important; }
@@ -888,7 +843,7 @@ button:disabled { cursor: not-allowed; }
 .notif-nav-btn .notif-badge { top: 2px; right: 6px; border-color: transparent; box-shadow: 0 0 0 2px rgb(16 27 21 / .85); }
 .notif-nav-label { font-size: 8px; letter-spacing: .02em; }
 
-.notif-scrim { position: fixed; inset: 0; z-index: 65; background: rgb(6 12 9 / .48); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.notif-scrim { position: fixed; inset: 0; z-index: 65; background: rgb(6 12 9 / .55); }
 
 .notif-panel {
   position: fixed; z-index: 70; top: 62px; right: 12px;
