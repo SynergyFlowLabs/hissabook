@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 const asideCopy = {
   login: {
     eyebrow: 'WELCOME BACK',
-    title: 'Your business books, in balance.',
+    title: <>Your business books,{' '}<em className="serif-accent serif-lime">in balance.</em></>,
     body: 'Pick up right where you left off — every balance, loan, share and salary obligation, exactly as you recorded it.',
     points: [
       'Owner-controlled access — add your bookkeeper, co-founder or accountant with the role they need.',
@@ -22,7 +22,7 @@ const asideCopy = {
   },
   setup: {
     eyebrow: 'FIRST-TIME SETUP',
-    title: 'Set up your business in minutes.',
+    title: <>Set up your business{' '}<em className="serif-accent serif-lime">in minutes.</em></>,
     body: 'Create the owner account, name your workspace, and start recording. You can invite your team later — start solo if you want.',
     points: [
       'Five minutes to your first entry — no credit card, no onboarding calls.',

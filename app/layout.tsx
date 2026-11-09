@@ -1,4 +1,8 @@
 import type { Metadata, Viewport } from 'next';
+import '@fontsource-variable/inter';
+import '@fontsource/archivo-black';
+import '@fontsource/instrument-serif';
+import '@fontsource/instrument-serif/400-italic.css';
 import './globals.css';
 
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
