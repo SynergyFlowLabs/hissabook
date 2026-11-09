@@ -1004,3 +1004,10 @@ button, [role="button"], .mobile-nav a, .quick-action, .loan-action,
 @media (pointer: coarse) {
   input, select, textarea { font-size: 16px !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Press feedback (mobile-native §5) — press response on pointerdown    */
+/* ------------------------------------------------------------------ */
+button, [role="button"] { transition: transform .12s ease; }
+button:active, [role="button"]:active { transform: scale(.97); }
+.mobile-nav a:active, .quick-action:active { transform: scale(.94); }
