@@ -8,6 +8,7 @@ import 'sileo/styles.css';
 import MotionProvider from '@/components/motion-provider';
 import AppToaster from '@/components/app-toaster';
 import PwaRegister from '@/components/pwa-register';
+import AppShell from '@/components/app-shell';
 
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -109,7 +110,18 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" dir="ltr">
-      <body><MotionProvider>{children}<PwaRegister /><AppToaster /></MotionProvider></body>
+      <body>
+        <MotionProvider>
+          {/* The shell (sidebar + bottom pill + mobile menu) mounts once here, so
+              client-side navigation never unmounts it. Previously it lived inside
+              every screen, which restarted the notification poll and rebuilt the
+              nav on each route change. */}
+          <AppShell />
+          {children}
+          <PwaRegister />
+          <AppToaster />
+        </MotionProvider>
+      </body>
     </html>
   );
 }

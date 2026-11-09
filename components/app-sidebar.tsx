@@ -4,8 +4,11 @@ import {
   ArrowRight, Boxes, ChevronDown, HandCoins, LayoutDashboard,
   ArrowLeftRight, Menu, Wallet, UsersRound, FileText, LogOut,
 } from 'lucide-react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { signOut } from 'next-auth/react';
+import { clearCache } from '@/lib/route-cache';
+import { resetWorkspaceContext } from '@/lib/use-workspace-context';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import SoundControl from '@/components/sound-control';
@@ -14,6 +17,7 @@ import NotificationPanel from '@/components/notification-panel';
 import MobileMenu from '@/components/mobile-menu';
 import TopbarNotifPortal from '@/components/topbar-notif-portal';
 import { useNotifications } from '@/lib/use-notifications';
+import { useWorkspaceContext } from '@/lib/use-workspace-context';
 import { useState } from 'react';
 
 const workspaceLinks = [
@@ -37,21 +41,12 @@ const mobileLinks = [
   { label: 'Team', href: '/team', icon: UsersRound, key: 'team' },
 ];
 
-export default function AppSidebar({
-  workspaceName,
-  businessType,
-  userName,
-  userRole,
-  current,
-  loanCount = 0,
-}: {
-  workspaceName: string;
-  businessType: string;
-  userName: string;
-  userRole: string;
-  current: string;
-  loanCount?: number;
-}) {
+export default function AppSidebar({ current }: { current: string }) {
+  // Identity comes from the shared store so the shell can live in the root
+  // layout and survive navigation; `current` is derived from the pathname by
+  // AppShell. Both used to be props from each page, which is what forced the
+  // shell to be remounted on every route change.
+  const { workspaceName, businessType, role: userRole, loanCount, userName } = useWorkspaceContext();
   const [notifOpen, setNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const notif = useNotifications();
@@ -60,10 +55,10 @@ export default function AppSidebar({
   const canViewTeam = ['OWNER', 'ADMIN', 'PAYROLL'].includes(userRole);
   const roleLabel: Record<string, string> = { OWNER: 'Owner', ADMIN: 'Admin', BOOKKEEPER: 'Bookkeeper', VIEWER: 'Viewer', PAYROLL: 'Payroll' };
   const renderLink = ({ label, href, icon: Icon, key }: { label: string; href: string; icon: typeof LayoutDashboard; key: string }) => (
-    <a key={key} className={`nav-link ${key === current ? 'active' : ''}`} href={href} aria-current={key === current ? 'page' : undefined}>
+    <Link key={key} className={`nav-link ${key === current ? 'active' : ''}`} href={href} aria-current={key === current ? 'page' : undefined}>
       <Icon size={17} strokeWidth={1.9} /><span>{label}</span>
       {key === 'loans' && loanCount > 0 && <span className="nav-badge">{loanCount}</span>}
-    </a>
+    </Link>
   );
   const visibleWorkspace = workspaceLinks;
   const visibleManage = manageLinks.filter((link) => link.key !== 'team' || canViewTeam);
@@ -72,10 +67,10 @@ export default function AppSidebar({
   return (
     <>
       <aside className="sidebar">
-        <a href="/#overview" className="brand" aria-label="Hisaabook home">
+        <Link href="/#overview" className="brand" aria-label="Hisaabook home">
           <span className="brand-mark"><img src="/logo.svg" alt="" width={38} height={38} /></span>
           <span className="brand-copy"><span className="brand-name">hisaabook</span><span className="brand-caption">Business, in balance</span></span>
-        </a>
+        </Link>
         <button className="workspace-switcher" onClick={() => window.alert('Multiple business workspaces are planned for a future release.')} aria-label={`Workspace: ${workspaceName}`}>
           <span className="workspace-avatar">{initials(workspaceName)}</span>
           <span className="workspace-meta"><span className="workspace-name">{workspaceName}</span><span className="workspace-type">{businessType}</span></span>
@@ -89,24 +84,24 @@ export default function AppSidebar({
         <div className="help-card">
           <div className="help-title">Invite your accountant</div>
           <div className="help-copy">Give them view access. No passwords shared, and access can be revoked anytime.</div>
-          <a href="/partners" className="help-link">Manage partners & shares <ArrowRight size={11} /></a>
+          <Link href="/partners" className="help-link">Manage partners & shares <ArrowRight size={11} /></Link>
         </div>
         <div className="user-profile">
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>
           <div className="profile-meta"><div className="profile-name">{userName}</div><div className="profile-role">{roleLabel[userRole] ?? 'Member'}</div></div>
           <NotificationButton variant="sidebar" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
           <SoundControl />
-          <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => signOut({ redirectTo: '/login' })}><LogOut size={16} /></Button>
+          <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => { clearCache(); resetWorkspaceContext(); void signOut({ redirectTo: '/login' }); }}><LogOut size={16} /></Button>
         </div>
       </aside>
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {visibleMobile.map(({ label, href, icon: Icon, key }) => {
           const active = key === current;
           return (
-            <a key={key} href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+            <Link key={key} href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
               {active && <motion.span layoutId="mobile-nav-pill" className="mobile-nav-pill" aria-hidden="true" transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }} />}
               <Icon size={17} strokeWidth={2} /><span>{label}</span>
-            </a>
+            </Link>
           );
         })}
         {/* Everything the pill cannot hold: Partners, Reports, the remaining

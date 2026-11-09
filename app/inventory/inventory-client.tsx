@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { readCache, writeCache } from '@/lib/route-cache';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Archive, Boxes, Check, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react';
-import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,9 +26,14 @@ type MovementType = 'RECEIPT' | 'ISSUE' | 'RETURN' | 'ADJUSTMENT';
 const money = (amount: number) => `PKR ${Math.abs(amount).toLocaleString('en-PK')}`;
 const shortDate = (date: string) => new Date(date).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
 
+/** Cached across navigation so returning to Inventory paints instantly. */
+const INVENTORY_CACHE = 'inventory';
+
 export default function InventoryClient({ userName, role }: { userName: string; role: string }) {
   const canManageInventory = ['OWNER', 'ADMIN', 'BOOKKEEPER'].includes(role);
-  const [data, setData] = useState<InventoryData | null>(null);
+  // Seeded from the cache so returning to this screen does not re-show the
+  // full-screen "Loading inventory" state for data the browser already has.
+  const [data, setData] = useState<InventoryData | null>(() => readCache<InventoryData>(INVENTORY_CACHE));
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -54,7 +60,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
     const response = await fetch('/api/inventory', { cache: 'no-store' });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not load inventory.');
-    setData(result as InventoryData);
+    setData(result as InventoryData); writeCache(INVENTORY_CACHE, result as InventoryData);
     if (result.items[0]) setItemId((current: string) => current || String(result.items[0].id));
     if (result.accounts[0]) setAccountId((current: string) => current || String(result.accounts[0].id));
   };
@@ -76,7 +82,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
       const response = await fetch(`/api/inventory/items/${item.id}`, { method: 'DELETE' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not archive this item.');
-      setData(result as InventoryData); toast.success('Item archived', 'Its movement history was kept.');
+      setData(result as InventoryData); writeCache(INVENTORY_CACHE, result as InventoryData); toast.success('Item archived', 'Its movement history was kept.');
     } catch (reason) { toast.error('Could not archive this item.', reason instanceof Error ? reason.message : undefined); }
   };
   const openMovementForm = (selectedId?: number) => {
@@ -96,7 +102,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
       const response = await fetch(endpoint, { method: mode === 'itemEdit' ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not save this record.');
-      setData(result as InventoryData);
+      setData(result as InventoryData); writeCache(INVENTORY_CACHE, result as InventoryData);
       if (result.items[0]) setItemId(String(result.items[0].id));
       if (result.accounts[0]) setAccountId(String(result.accounts[0].id));
       setDialogOpen(false);
@@ -110,10 +116,9 @@ export default function InventoryClient({ userName, role }: { userName: string; 
 
   return (
     <div className="app-shell" id="overview">
-      <AppSidebar workspaceName={data.workspace.name} businessType="Inventory" userName={userName} userRole={role} current="inventory" />
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumb"><a href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</a><span aria-hidden="true">›</span><strong>Inventory</strong></div>
+          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Inventory</strong></div>
           <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
         </header>
         <div className="content">

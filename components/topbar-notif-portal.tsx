@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import NotificationButton from '@/components/notification-button';
 
 /**
@@ -16,6 +17,12 @@ import NotificationButton from '@/components/notification-button';
  *
  * Falls back to the bottom pill if no slot exists, so a screen that has not
  * adopted the slot cannot silently lose the bell.
+ *
+ * The slot is re-resolved when the page changes. The shell now lives in the root
+ * layout and survives client-side navigation, while the slot belongs to whichever
+ * screen is mounted: on a route change the old slot is detached and a new one is
+ * created. A one-shot lookup would leave the bell pointing at a detached node and
+ * drop it from the topbar after the first navigation.
  */
 export default function TopbarNotifPortal({
   unreadCount,
@@ -27,12 +34,26 @@ export default function TopbarNotifPortal({
   onToggle: () => void;
 }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // The topbar mounts in the same commit as the sidebar, so it is present by
-    // the time effects run; no observer needed.
-    setSlot(document.querySelector<HTMLElement>('.topbar-notif-slot'));
-  }, []);
+    // Keyed on the route: each screen ships its own slot, so the node we portalled
+    // into last time is detached by the time the new screen commits. Re-querying
+    // here keeps the bell in the new topbar instead of dropping it after one tap.
+    const find = () => document.querySelector<HTMLElement>('.topbar-notif-slot');
+    setSlot(find());
+    // A screen can commit its topbar a tick after the route change (suspense or a
+    // deferred child); observe for the slot to appear rather than racing it.
+    if (find()) return;
+    const observer = new MutationObserver(() => {
+      const next = find();
+      if (!next) return;
+      setSlot(next);
+      observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pathname]);
 
   const bell = (
     <NotificationButton
