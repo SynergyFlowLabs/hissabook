@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getWorkspaceMember } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
 import { createWorkspaceNotification } from '@/lib/notifications';
-import { getPartnerOverview } from '@/lib/partners/store';
+import { getDeedSettings, getPartnerOverview } from '@/lib/partners/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,13 +26,13 @@ export async function GET() {
     const members = await db.prepare(`SELECT u.id AS userId, u.display_name AS name
       FROM workspace_members m JOIN users u ON u.id = m.user_id
       WHERE m.workspace_id = ? AND m.active = 1 ORDER BY u.display_name`).all(workspaceId);
-    const settingsRow = await db.prepare('SELECT drawing_cap_pct AS drawingCapPct FROM workspace_partner_settings WHERE workspace_id = ?').get(workspaceId) as { drawingCapPct: number } | undefined;
+    const settings = await getDeedSettings(workspaceId);
     return NextResponse.json({
       workspace,
       accounts,
       partners,
       members,
-      settings: { drawingCapPct: Number(settingsRow?.drawingCapPct ?? 70) },
+      settings,
     }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Failed to load partner overview', error);
