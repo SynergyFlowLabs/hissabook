@@ -3,6 +3,8 @@ import { createWorkspaceInvitation, getWorkspaceAccessData } from '@/lib/databas
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
 import { createInvitationToken, hashInvitationToken } from '@/lib/invitation-tokens';
 import { DEMO_EMAIL } from '@/lib/demo-account';
+import { createWorkspaceNotification } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   try {
     const id = await createWorkspaceInvitation({ workspaceId: access.member.workspaceId, email, name, role, tokenHash: hashInvitationToken(token), expiresAt, createdBy: access.member.userId, actor: access.member.name });
+    await createWorkspaceNotification({ workspaceId: access.member.workspaceId, actorUserId: access.member.userId, kind: 'invitation', title: 'Invitation sent', body: `${email} · ${role}`, href: '/' });
     return NextResponse.json({ id, token, expiresAt }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'ALREADY_A_MEMBER') return NextResponse.json({ error: 'This person already has a workspace membership. Update or reactivate them from the member list.' }, { status: 409 });

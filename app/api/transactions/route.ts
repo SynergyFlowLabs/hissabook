@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getDashboardData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification, money } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -223,6 +225,22 @@ export async function POST(request: NextRequest) {
     });
 
     const id = await createTransaction();
+    {
+      const TYPE_COPY: Record<string, { title: string; kind: 'transaction' | 'loan' }> = {
+        INCOME: { title: 'Income recorded', kind: 'transaction' },
+        EXPENSE: { title: 'Expense recorded', kind: 'transaction' },
+        CONTRIBUTION: { title: 'Contribution recorded', kind: 'transaction' },
+        WITHDRAWAL: { title: 'Withdrawal recorded', kind: 'transaction' },
+        TRANSFER: { title: 'Transfer completed', kind: 'transaction' },
+        LOAN_RECEIVED: { title: 'Loan taken', kind: 'loan' },
+        LOAN_GIVEN: { title: 'Loan given', kind: 'loan' },
+      };
+      const copy = TYPE_COPY[type] ?? { title: 'Entry recorded', kind: 'transaction' as const };
+      const who = body.counterparty?.trim();
+      await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: copy.kind, title: copy.title,
+        body: `${money(amount)} · ${description}${who ? ` · ${who.slice(0, 120)}` : ''}`,
+        href: copy.kind === 'loan' ? '/#loans' : '/transactions' });
+    }
     const result = await getDashboardData(access.member.workspaceId);
     return NextResponse.json({ ...result, createdTransactionId: id }, { status: 201 });
   } catch (error) {

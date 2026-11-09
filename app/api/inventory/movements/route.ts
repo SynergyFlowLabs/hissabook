@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getInventoryData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification, money } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const workspaceId = await ensureDemoWorkspace(access.member.workspaceId);
-    const item = await db.prepare('SELECT id, name, unit FROM inventory_items WHERE id = ? AND workspace_id = ? AND active = 1').get(itemId, workspaceId) as { id: number; name: string; unit: string } | undefined;
+    const item = await db.prepare('SELECT id, name, unit, reorder_level FROM inventory_items WHERE id = ? AND workspace_id = ? AND active = 1').get(itemId, workspaceId) as { id: number; name: string; unit: string; reorder_level: number } | undefined;
     if (!item) return NextResponse.json({ error: 'This inventory item was not found or is inactive.' }, { status: 404 });
     const current = await db.prepare('SELECT COALESCE(SUM(quantity_delta), 0) AS stock FROM inventory_movements WHERE item_id = ?').get(itemId) as { stock: number };
     const delta = type === 'ISSUE' || (type === 'ADJUSTMENT' && body.adjustmentDirection === 'DECREASE') ? -quantity : quantity;
@@ -68,6 +70,18 @@ export async function POST(request: NextRequest) {
         .run(workspaceId, itemId, transactionId, type, delta, unitCost, body.counterparty?.trim().slice(0, 120) || '', body.note?.trim().slice(0, 1000) || '', `${date}T12:00:00.000Z`);
     });
     await createMovement();
+    {
+      const newStock = current.stock + delta;
+      const movementTitle: Record<string, string> = { RECEIPT: 'Stock received', ISSUE: 'Stock issued', RETURN: 'Stock returned', ADJUSTMENT: 'Stock adjusted' };
+      await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'inventory',
+        title: movementTitle[type ?? ''] ?? 'Stock updated',
+        body: `${item.name} · ${delta > 0 ? '+' : ''}${delta} ${item.unit}`, href: '/inventory' });
+      if (item.reorder_level > 0 && current.stock >= item.reorder_level && newStock < item.reorder_level) {
+        await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'reminder',
+          title: `Low stock: ${item.name}`, body: `${newStock} ${item.unit} left · reorder at ${item.reorder_level}`,
+          href: '/inventory', dedupeKey: `stock-cross:${workspaceId}:${itemId}:${new Date().toISOString().slice(0, 10)}` });
+      }
+    }
     return NextResponse.json(await getInventoryData(access.member.workspaceId), { status: 201 });
   } catch (error) {
     console.error('Failed to record inventory movement', error);

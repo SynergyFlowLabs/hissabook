@@ -139,3 +139,17 @@ This inventory covers the intended product, not an implementation. Priority labe
 - Payment initiation or bank feeds.
 
 Any financial, legal, tax, or compliance-related module requires targeted discovery and qualified review before being represented as authoritative.
+
+## 12. Notifications and alerts
+
+Hisaabook ships an in-app notification center and optional Web Push alerts. Both are workspace-scoped; reading state is per user.
+
+| Feature | Priority | Notes |
+|---|---:|---|
+| In-app notification center | P1 | Bell in the sidebar footer (desktop) and in the bottom pill nav (mobile). Today/Earlier grouping, unread rail, optimistic mark-read, `Mark all read`, cursor-paginated history, 25 s polling gated by tab visibility with focus revalidate. |
+| Notification triggers | P1 | Transactions posted/voided, loan repayments, inventory movements and low-stock, team archive/reactivate, salary periods paid and low-coverage pay, workspace member add/remove/role change, invitation create/accept/decline. |
+| Smart reminders (cron) | P1 | Daily Vercel Cron (`/api/cron/reminders`, Hobby plan once per day, `0 8 * * *`): salary due within 7 days (dedupe per user+period), overdue/undelivered salary payment detection, low-stock items. Fail-closed: returns 503 without `CRON_SECRET`; Vercel calls it with a Bearer token. |
+| Web Push (browser + installed PWA) | P1 | `public/sw.js` push-only service worker; VAPID keys in env; per-device enrollment in the notification panel footer and a one-time first-save permission prime. Supports Chrome/Edge/Firefox/Safari and iOS/iPadOS 16.4+ home-screen PWAs (install sheet shown when needed). Dead endpoints (404/410) are pruned automatically. |
+| Opt-out and honesty | P0 | Push is strictly opt-in per device. Toggles, iOS install instructions and blocked-permission states are surfaced in the panel; `SW push` degrades silently to in-app only when VAPID is unconfigured. |
+
+Out of scope (v1): email/SMS/WhatsApp notifications, push-based document delivery, rich notification images, per-category mute preferences, and offline data caching (the service worker is push-only).

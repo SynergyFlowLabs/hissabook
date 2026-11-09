@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Briefcase,
+  ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Briefcase,
   Check, Eye, EyeOff, HandCoins, Landmark, MoreHorizontal, Plus,
   Search, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Wallet,
 } from 'lucide-react';
@@ -17,6 +17,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AnimatedAmount from '@/components/animated-amount';
+import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
+import { toast } from '@/lib/toast';
+import { sounds } from '@/lib/sounds';
 
 type TransactionKind = 'Income' | 'Expense' | 'Contribution' | 'Withdrawal' | 'Loan received' | 'Loan given' | 'Loan repayment' | 'Loan collection' | 'Transfer';
 type Period = '7 days' | '30 days' | '90 days';
@@ -104,7 +108,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState<Period>('30 days');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -151,11 +154,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const maxIncome = Math.max(0, ...chartData.map((point) => point.income));
   const isOutgoing = kind === 'Expense' || kind === 'Withdrawal' || kind === 'Loan given';
 
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 3200);
-  };
-
   const openDialog = (preset: TransactionKind) => () => {
     setKind(preset);
     setSaveError('');
@@ -184,8 +182,18 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       if (!response.ok) throw new Error(result.error ?? 'Could not save this transaction.');
       setData(result as DashboardData);
       setDialogOpen(false); resetTransactionForm();
-      showToast('Transaction saved to your business ledger.');
+      toast.ledger('Saved to ledger', 'Transaction recorded and posted to your books.');
+      maybePrimePushAfterLedgerSave(() => {
+        toast.ask('Get alerts on this device?', 'New ledger activity and salary reminders, pushed to you.', 'Enable', () => {
+          void (async () => {
+            const outcome = await subscribeThisDevice();
+            if (outcome.ok) { sounds.shimmer(); toast.success('Alerts enabled', 'This device will hear about new activity.'); }
+            else { toast.warning('Could not enable alerts', outcome.reason === 'denied' ? 'Allow notifications in the browser site settings.' : 'Try again from the bell icon.'); }
+          })();
+        });
+      });
     } catch (error) {
+      sounds.error();
       setSaveError(error instanceof Error ? error.message : 'Could not save this transaction.');
     } finally {
       setSaving(false);
@@ -209,8 +217,8 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not record the loan repayment.');
       setData(result as DashboardData); setRepaymentOpen(false); setRepaymentLoan(null);
-      showToast(repaymentLoan.direction === 'PAYABLE' ? 'Loan repayment recorded.' : 'Loan collection recorded.');
-    } catch (error) { setRepaymentError(error instanceof Error ? error.message : 'Could not record the loan repayment.'); }
+      toast.ledger(repaymentLoan.direction === 'PAYABLE' ? 'Repayment recorded' : 'Collection recorded', 'The outstanding balance has been updated.');
+    } catch (error) { sounds.error(); setRepaymentError(error instanceof Error ? error.message : 'Could not record the loan repayment.'); }
     finally { setRepaymentSaving(false); }
   };
 
@@ -240,7 +248,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           <div className="top-actions">
             {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-44 rounded-full bg-white text-xs sm:w-52" />}
             <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
-            <Button variant="outline" size="icon" className="relative rounded-full bg-white" aria-label="Notifications" onClick={() => showToast('You’re all caught up.')}><Bell size={16} /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#c2452d] ring-2 ring-white" /></Button>
           </div>
         </header>
 
@@ -262,19 +269,19 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
                 <span className="hero-workspace"><Briefcase size={12} /> {data.workspace.name}</span>
               </div>
               <div className="hero-amount-row">
-                <div className="hero-amount"><small>PKR</small>{hideBalance ? '••••••' : Math.abs(data.summary.cashBalance).toLocaleString('en-PK')}</div>
+                <div className="hero-amount"><small>PKR</small><AnimatedAmount value={hideBalance ? 0 : Math.abs(data.summary.cashBalance)} format={(n) => hideBalance ? '••••••' : Math.abs(n).toLocaleString('en-PK')} /></div>
                 <button onClick={() => setHideBalance((value) => !value)} aria-label={hideBalance ? 'Show balance' : 'Hide balance'} style={{ background: '#ffffff14', border: '1px solid #ffffff1f', color: '#cfe0c9', borderRadius: 999, width: 40, height: 40, display: 'grid', placeItems: 'center', flex: 0 }}>{hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               <div className="hero-meta">Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'} · {data.workspace.businessType || 'Business'} · Cleared records only</div>
               <div className="hero-chips">
                 <div className="hero-chip">
                   <div className="hero-chip-label"><ArrowDownLeft size={11} /> Income this month</div>
-                  <div className="hero-chip-value">{hidden(data.summary.incomeThisMonth)}</div>
+                  <div className="hero-chip-value"><AnimatedAmount value={data.summary.incomeThisMonth} format={hidden} /></div>
                   <div className="hero-chip-sub">Recorded cleared income</div>
                 </div>
                 <div className="hero-chip">
                   <div className="hero-chip-label"><ArrowUpRight size={11} /> Spent this month</div>
-                  <div className="hero-chip-value">{hidden(data.summary.expensesThisMonth)}</div>
+                  <div className="hero-chip-value"><AnimatedAmount value={data.summary.expensesThisMonth} format={hidden} /></div>
                   <div className="hero-chip-sub">Recorded cleared expenses</div>
                 </div>
               </div>
@@ -318,22 +325,22 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           <section className="stat-grid" style={{ marginTop: 14 }} aria-label="Business summary">
             <div className="stat-card">
               <div className="stat-top"><span className="stat-label">Income this month</span><span className="stat-icon green"><ArrowDownLeft size={16} /></span></div>
-              <div className="stat-value">{hidden(data.summary.incomeThisMonth)}</div>
+              <div className="stat-value"><AnimatedAmount value={data.summary.incomeThisMonth} format={hidden} /></div>
               <div className="stat-foot">{incomeChange === null ? <span>No comparison yet</span> : <><span className={`delta ${incomeChange < 0 ? 'down' : 'up'}`}>{incomeChange < 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />} {Math.abs(incomeChange)}%</span><span>vs. last month</span></>}</div>
             </div>
             <div className="stat-card">
               <div className="stat-top"><span className="stat-label">Expenses this month</span><span className="stat-icon terra"><ArrowUpRight size={16} /></span></div>
-              <div className="stat-value">{hidden(data.summary.expensesThisMonth)}</div>
+              <div className="stat-value"><AnimatedAmount value={data.summary.expensesThisMonth} format={hidden} /></div>
               <div className="stat-foot">{expenseChange === null ? <span>No comparison yet</span> : <><span className={`delta ${expenseChange > 0 ? 'down' : 'up'}`}>{expenseChange > 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />} {Math.abs(expenseChange)}%</span><span>vs. last month</span></>}</div>
             </div>
             <div className="stat-card">
               <div className="stat-top"><span className="stat-label">Net cash flow</span><span className="stat-icon lime"><ArrowLeftRight size={16} /></span></div>
-              <div className="stat-value" style={{ color: netThisMonth >= 0 ? 'var(--positive)' : 'var(--negative)' }}>{netThisMonth >= 0 ? '+' : '−'}{hidden(netThisMonth)}</div>
+              <div className="stat-value" style={{ color: netThisMonth >= 0 ? 'var(--positive)' : 'var(--negative)' }}><AnimatedAmount value={netThisMonth} format={(n) => `${n >= 0 ? '+' : '−'}${hideBalance ? '₨ ••••••' : formatPKR(Math.abs(n))}`} /></div>
               <div className="stat-foot"><span>Income minus expenses, this month</span></div>
             </div>
             <div className="stat-card">
               <div className="stat-top"><span className="stat-label">Outstanding loans</span><span className="stat-icon slate"><HandCoins size={16} /></span></div>
-              <div className="stat-value">{hidden(data.summary.outstandingLoans)}</div>
+              <div className="stat-value"><AnimatedAmount value={data.summary.outstandingLoans} format={hidden} /></div>
               <div className="stat-foot"><span>{data.summary.activeLoans} active {data.summary.activeLoans === 1 ? 'obligation' : 'obligations'}</span></div>
             </div>
           </section>
@@ -369,7 +376,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card accounts-panel xl:col-span-5" id="accounts">
               <div className="card-header-row">
                 <div><div className="card-title">Where your money is</div><div className="card-subtitle">Recorded balance across business accounts</div></div>
-                <Button variant="ghost" size="icon" className="rounded-full text-[var(--muted)]" aria-label="Account options" onClick={() => showToast('Account management is being built.')}><MoreHorizontal size={17} /></Button>
+                <Button variant="ghost" size="icon" className="rounded-full text-[var(--muted)]" aria-label="Account options" onClick={() => toast.info('Account management is being built.', 'We’ll let you know when it lands.')}><MoreHorizontal size={17} /></Button>
               </div>
               <div className="mt-4 flex items-end justify-between gap-3">
                 <div><div className="text-[10px] font-bold uppercase tracking-[.1em] text-[var(--faint)]">Total recorded</div><div className="mt-1 text-[26px] font-extrabold leading-none tracking-[-1px] tabular-nums">{hidden(data.summary.cashBalance)}</div></div>
@@ -416,7 +423,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="soft-card owners-panel xl:col-span-5" id="owners">
               <div className="card-header-row">
                 <div><div className="card-title">Ownership overview</div><div className="card-subtitle">Recorded shares in {data.workspace.name}</div></div>
-                <button className="text-link" onClick={() => showToast('Ownership history and edits are coming next.')}>View details <ArrowRight size={12} /></button>
+                <button className="text-link" onClick={() => toast.info('Ownership history is coming next.', 'Share changes will be attributable here.')}>View details <ArrowRight size={12} /></button>
               </div>
               <div style={{ marginTop: 8 }}>{data.owners.map((owner) => <div className="owner-row" key={owner.id}><div className="owner-avatar">{initials(owner.name)}</div><div className="owner-info"><div className="owner-name">{owner.name}{owner.name.trim().toLowerCase() === userName.trim().toLowerCase() && <span className="ml-1.5 text-[8px] font-bold uppercase tracking-wide text-[var(--faint)]">· You</span>}</div><div className="owner-bar"><span style={{ width: `${Math.min(100, Number(owner.share) || 0)}%` }} /></div></div><div className="owner-share">{Number(owner.share).toLocaleString('en-PK')}%</div></div>)}</div>
               <div className="owner-note"><ShieldCheck size={14} className="mt-0.5 shrink-0" /><span>Shares are recorded as agreed by your team. Contributions and ownership are tracked separately.</span></div>
@@ -515,7 +522,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           </form>
         </DialogContent>
       </Dialog>
-      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }

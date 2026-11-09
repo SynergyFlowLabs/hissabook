@@ -30,6 +30,37 @@ const schemaSql = `
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('transaction', 'loan', 'inventory', 'salary', 'member', 'invitation', 'reminder')),
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      href TEXT NOT NULL DEFAULT '/',
+      dedupe_key TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_reads (
+      notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (notification_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      user_agent TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS workspace_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -210,6 +241,11 @@ const schemaSql = `
     );
 
     CREATE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members(user_id, active);
+    CREATE INDEX IF NOT EXISTS notifications_workspace_idx ON notifications(workspace_id, id DESC);
+    CREATE INDEX IF NOT EXISTS notifications_kind_idx ON notifications(workspace_id, kind, created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_dedupe_idx ON notifications(dedupe_key) WHERE dedupe_key IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS notification_reads_user_idx ON notification_reads(user_id);
+    CREATE INDEX IF NOT EXISTS push_subscriptions_workspace_idx ON push_subscriptions(workspace_id, user_id);
     CREATE INDEX IF NOT EXISTS workspace_invitations_workspace_idx ON workspace_invitations(workspace_id, accepted_at, revoked_at, expires_at);
     CREATE UNIQUE INDEX IF NOT EXISTS workspace_invitations_pending_email_idx ON workspace_invitations(workspace_id, email) WHERE accepted_at IS NULL AND revoked_at IS NULL;
     CREATE INDEX IF NOT EXISTS transactions_workspace_date_idx ON transactions(workspace_id, transaction_date DESC);

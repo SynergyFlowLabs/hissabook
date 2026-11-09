@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from 'next';
+import '@fontsource-variable/inter';
+import '@fontsource/archivo-black';
+import '@fontsource/instrument-serif';
+import '@fontsource/instrument-serif/400-italic.css';
 import './globals.css';
+import 'sileo/styles.css';
+import MotionProvider from '@/components/motion-provider';
+import AppToaster from '@/components/app-toaster';
+import PwaRegister from '@/components/pwa-register';
 
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -100,7 +108,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" dir="ltr">
-      <body>{children}</body>
+      <body><MotionProvider>{children}<PwaRegister /><AppToaster /></MotionProvider></body>
     </html>
   );
 }

@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/lib/toast';
+import { sounds } from '@/lib/sounds';
 
 type InventoryData = {
   workspace: { id: number; name: string; currency: string };
@@ -32,7 +34,6 @@ export default function InventoryClient({ userName, role }: { userName: string; 
   const [mode, setMode] = useState<FormMode>('item');
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [toast, setToast] = useState('');
   const [search, setSearch] = useState('');
   const [itemName, setItemName] = useState('');
   const [sku, setSku] = useState('');
@@ -62,7 +63,6 @@ export default function InventoryClient({ userName, role }: { userName: string; 
 
   const filteredItems = useMemo(() => (data?.items ?? []).filter((item) => `${item.name} ${item.sku} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [data, search]);
   const selectedItem = data?.items.find((item) => String(item.id) === itemId);
-  const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 3000); };
 
   const openItemForm = () => { setMode('item'); setFormError(''); setDialogOpen(true); };
   const openEditItem = (item: InventoryData['items'][number]) => {
@@ -76,8 +76,8 @@ export default function InventoryClient({ userName, role }: { userName: string; 
       const response = await fetch(`/api/inventory/items/${item.id}`, { method: 'DELETE' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not archive this item.');
-      setData(result as InventoryData); showToast('Item archived. Its movement history was kept.');
-    } catch (reason) { showToast(reason instanceof Error ? reason.message : 'Could not archive this item.'); }
+      setData(result as InventoryData); toast.success('Item archived', 'Its movement history was kept.');
+    } catch (reason) { toast.error('Could not archive this item.', reason instanceof Error ? reason.message : undefined); }
   };
   const openMovementForm = (selectedId?: number) => {
     setMode('movement'); setFormError(''); setMovementType('RECEIPT'); setQuantity(''); setUnitCost(''); setCounterparty(''); setNote('');
@@ -101,8 +101,8 @@ export default function InventoryClient({ userName, role }: { userName: string; 
       if (result.accounts[0]) setAccountId(String(result.accounts[0].id));
       setDialogOpen(false);
       if (isItemForm) { setItemName(''); setSku(''); setCategory('General'); setUnit('pcs'); setReorderLevel('0'); setEditingItemId(null); }
-      showToast(mode === 'itemEdit' ? 'Inventory item updated.' : mode === 'item' ? 'Inventory item created.' : 'Stock movement recorded.');
-    } catch (reason) { setFormError(reason instanceof Error ? reason.message : 'Could not save this record.'); }
+      if (isItemForm) { toast.success(mode === 'itemEdit' ? 'Item updated' : 'Item created'); } else { toast.ledger('Stock movement recorded', 'Quantities and valuation were updated.'); }
+    } catch (reason) { sounds.error(); setFormError(reason instanceof Error ? reason.message : 'Could not save this record.'); }
     finally { setSaving(false); }
   };
 
@@ -211,7 +211,6 @@ export default function InventoryClient({ userName, role }: { userName: string; 
           </form>
         </DialogContent>
       </Dialog>
-      {toast && <div role="status" className="toast">{toast}</div>}
     </div>
   );
 }

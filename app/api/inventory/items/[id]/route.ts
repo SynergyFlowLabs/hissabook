@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getInventoryData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .run(name, body.sku?.trim().slice(0, 40) || '', body.category?.trim().slice(0, 60) || 'General', unit, reorderLevel, id, workspaceId);
     await db.prepare('INSERT INTO audit_events (workspace_id, action, details) VALUES (?, ?, ?)')
       .run(workspaceId, 'INVENTORY_ITEM_UPDATED', JSON.stringify({ itemId: id, name, reorderLevel }));
+    await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'inventory', title: 'Inventory item updated', body: name, href: '/inventory' });
     return NextResponse.json(await getInventoryData(access.member.workspaceId));
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) return NextResponse.json({ error: 'Another item already uses that name.' }, { status: 409 });
@@ -53,6 +56,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!result.changes) return NextResponse.json({ error: 'Active inventory item not found.' }, { status: 404 });
     await db.prepare('INSERT INTO audit_events (workspace_id, action, details) VALUES (?, ?, ?)')
       .run(workspaceId, 'INVENTORY_ITEM_ARCHIVED', JSON.stringify({ itemId: id }));
+    const archivedRow = await db.prepare('SELECT name FROM inventory_items WHERE id = ?').get(id) as { name: string } | undefined;
+    await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'inventory', title: 'Item archived', body: archivedRow?.name ?? 'Inventory item archived', href: '/inventory' });
     return NextResponse.json(await getInventoryData(access.member.workspaceId));
   } catch (error) {
     console.error('Failed to archive inventory item', error);

@@ -23,7 +23,7 @@ export default function LandingPage() {
       <section className="landing-hero">
         <div className="landing-copy">
           <span className="landing-eyebrow"><i />SIMPLE BOOKKEEPING FOR GROWING BUSINESSES</span>
-          <h1>Know where your business <span className="marker">stands.<svg viewBox="0 0 220 22" fill="none" preserveAspectRatio="none" aria-hidden="true"><path d="M4 15C58 7 152 5 216 12" stroke="#c9f24f" strokeWidth="9" strokeLinecap="round" opacity="0.95" /></svg></span></h1>
+          <h1>Know where your business <span className="marker"><em className="serif-accent">stands.</em><svg viewBox="0 0 220 22" fill="none" preserveAspectRatio="none" aria-hidden="true"><path d="M4 15C58 7 152 5 216 12" stroke="#c9f24f" strokeWidth="9" strokeLinecap="round" opacity="0.95" /></svg></span></h1>
           <p className="landing-description">Cash, loans, owners, stock and team — recorded in one shared ledger your whole business can trust. Built for Pakistani founders and the people they start with.</p>
           <div className="landing-actions">
             <Link className="lime-button" style={{ textDecoration: 'none' }} href="/setup">Set up your business <ArrowRight size={16} /></Link>

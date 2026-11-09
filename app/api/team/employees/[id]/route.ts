@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureDemoWorkspace, getTeamData } from '@/lib/database';
 import { requireWorkspaceMember, ROLE } from '@/lib/authorization';
+import { createWorkspaceNotification } from '@/lib/notifications';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,6 +55,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .run(workspaceId, body.active === false ? 'EMPLOYEE_DEACTIVATED' : body.active === true ? 'EMPLOYEE_REACTIVATED' : 'EMPLOYEE_UPDATED', JSON.stringify({ employeeId: id, name, jobTitle, active: body.active ?? Boolean(current.active), salaryChanged: body.monthlySalary !== undefined }));
     });
     await updateEmployee();
+    {
+      const employeeUpdate = body.active === false ? 'Employee archived' : body.active === true ? 'Employee reactivated' : 'Employee updated';
+      await createWorkspaceNotification({ workspaceId, actorUserId: access.member.userId, kind: 'salary', title: employeeUpdate, body: name, href: '/team' });
+    }
     return NextResponse.json(await getTeamData(access.member.workspaceId));
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) return NextResponse.json({ error: 'Another employee already uses that name or salary effective date.' }, { status: 409 });

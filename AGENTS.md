@@ -17,6 +17,7 @@ Guidance for AI agents and humans working in this repository. Hisaabook (hisaabo
 - PWA/branding: `app/manifest.ts`, icons in `public/icons/` (maskable + any), logo at `public/logo.svg`, AI-generated social card `app/opengraph-image.png`, full head metadata in `app/layout.tsx`. Styles are mobile-first — write base rules for small screens and `min-width` media queries for larger ones.
 - Auth: Auth.js v5 (`next-auth`) credentials + signed sessions. Server-side role checks in `lib/authorization.ts` and `lib/page-auth.ts` — always enforce permissions server-side; the UI role flags are only for presentation.
 - Storage: local SQLite (`better-sqlite3`) for dev/preview, Supabase PostgreSQL (`postgres`, transaction pooler) in production. Schema + RLS in `supabase/migrations/`.
+- Notifications: in-app center (bell UI, `notifications`/`notification_reads` tables) with per-user read state and workspace broadcast, plus opt-in Web Push (`push_subscriptions`, VAPID env vars, `public/sw.js`). Smart reminders run via Vercel Cron hitting `/api/cron/reminders` (Bearer `CRON_SECRET`; production only on Hobby).
 - State: server-rendered where possible; client components (`'use client'`) only for interactivity. Data fetching from client components uses the `/api/*` route handlers.
 
 ## Commands
@@ -27,6 +28,8 @@ npm run dev          # dev server on 0.0.0.0:3000
 npm run build        # production build (also type-checks)
 npm start            # serve production build
 ```
+
+Required env (see `.env.example`): `AUTH_SECRET`, `DATABASE_URL` (prod) or local SQLite, `CRON_SECRET` (cron Bearer token; without it the cron route returns 503), and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` + `VAPID_SUBJECT` (web push; without them push silently no-ops and enrollment hides itself). Local smoke: `npm run dev`, log in as `demo@hisaabook.example` / `HisaabookDemo2026!`, then exercise the bell and `/api/notifications`.
 
 There is no test runner yet; `npm run build` is the verification gate. Exercise changed flows manually (the public demo login is the fastest way in) and say so in your final message.
 
@@ -84,7 +87,7 @@ Review a skill's `SKILL.md` before relying on it; skills run with full agent per
 
 ## Working conventions
 
-- **Branch:** all session work happens on `arena/f30105f8-hissabook`. Don't switch branches, and don't rename it.
+- **Branch:** all session work happens on `arena/286a1db9-hissabook`. Don't switch branches, and don't rename it.
 - **Functionality first:** the redesign is presentation + component-library work. Preserve API contracts (`/api/*`), role gating, and data derivation rules (pending transactions never affect balances).
 - **Server components by default**; `'use client'` only where interactivity requires it.
 - **Never** log secrets, commit `data/`, `*.sqlite`, or `.env*` files. `.env.example` documents required variables.
