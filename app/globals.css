@@ -638,7 +638,7 @@ button:disabled { cursor: not-allowed; }
 .ledger-search-control { position: relative; display: block; }
 .ledger-search-control > svg { position: absolute; left: 13px; top: 13px; color: var(--faint); pointer-events: none; }
 .ledger-search-control input { padding-left: 36px; }
-.ledger-table-wrap { width: 100%; overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 18px; }
+.ledger-table-wrap { width: 100%; min-width: 0; contain: inline-size paint; overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 18px; }
 .ledger-table { min-width: 1000px; }
 .ledger-table th { background: var(--card-soft); color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
 .ledger-kind { display: inline-flex; align-items: center; gap: 6px; color: var(--positive); font-size: 9px; font-weight: 800; white-space: nowrap; }
@@ -809,7 +809,10 @@ button:disabled { cursor: not-allowed; }
 @media print {
   .report-body, .report-body * { visibility: visible; }
   .report-body { position: static; }
-  .report-body .data-table-wrap { overflow: visible; border: 0; border-radius: 0; background: #fff; }
+  /* Print turns the wrapper back into plain flow, so the screen-time containment
+     (which stops a wide table from widening the layout viewport) has to go too:
+     paint containment would clip a table taller than one printed page. */
+  .report-body .data-table-wrap { overflow: visible; contain: none; border: 0; border-radius: 0; background: #fff; }
   .report-body .data-table { min-width: 0; width: 100%; font-size: 8.5pt; }
   .report-body .data-table th { background: #f2f4ef !important; color: #333 !important; }
   .report-body .data-table thead { display: table-header-group; }
@@ -829,24 +832,27 @@ button:disabled { cursor: not-allowed; }
 .currency-badge { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--lime-soft); color: #57721f; border: 1px solid #dcebba; font-size: 9px; font-weight: 800; letter-spacing: .09em; }
 
 .data-table-wrap {
-  /* A 720px table inside a 380px card must scroll inside the card, never widen
-     the page. `min-width: 0` is what stops the table's intrinsic width from
-     propagating up through the flex/grid parents and pushing the whole layout
-     (and with it every `position: fixed` element) past the viewport. */
+  /* A 720px table inside a 345px card must scroll inside the card and never
+     widen the page. */
   width: 100%;
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  /* The decisive one. `overflow-x: auto` makes this a scroll container, but the
-     table's 720px intrinsic width can still reach the initial containing block
-     on mobile, and a fixed element then centres itself in that wider box instead
-     of the screen: measured 182px from the left, exactly what a 736px (720 + 16)
-     page predicts, on a 411px phone. Inline-size containment forbids the child's
-     width from contributing to this element's inline size at all, so the page
-     cannot be wider than the screen in the first place. */
-  contain: inline-size;
+  /* `contain: inline-size` alone was not enough. It stops the table from
+     contributing to this element's *inline size*, but on a phone whose layout
+     viewport is `auto`, the table's min-content width is still propagated to the
+     *initial containing block*: measured with the real data on a 411px screen the
+     document came out 645px wide (720px table + card padding + page padding), so
+     `window.innerWidth` itself reported 645 and the fixed bottom pill, which is
+     laid out against that box, ran 195px past the right edge and lost its last
+     item. The skeleton looked fine because a 6-column placeholder table is
+     narrower than the real 7-column one.
+     `paint` containment also makes this a paint boundary, so the table's overflow
+     can no longer reach the containing block. Verified: the page stays 411px wide
+     and the table still scrolls horizontally inside its card. */
+  contain: inline-size paint;
   margin-top: 14px;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -1346,7 +1352,7 @@ button:active, [role="button"]:active { transform: scale(.97); }
     position: static; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
     background: #fff; box-shadow: none; font-size: 10pt; line-height: 1.45; color: #111;
   }
-  .statement-print .data-table-wrap { overflow: visible; border: 0; border-radius: 0; margin-top: 8pt; background: #fff; }
+  .statement-print .data-table-wrap { overflow: visible; contain: none; border: 0; border-radius: 0; margin-top: 8pt; background: #fff; }
   .statement-print .data-table { min-width: 0; width: 100%; font-size: 8.5pt; border-collapse: collapse; }
   .statement-print .data-table th { background: #f2f4ef !important; color: #333 !important; border-bottom: 1px solid #ccc; padding: 5pt 6pt; }
   .statement-print .data-table td { padding: 5pt 6pt; border-top: 1px solid #e2e2e2; }
