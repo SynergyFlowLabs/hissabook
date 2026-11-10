@@ -36,7 +36,13 @@ export default function AppLoading() {
             ))}
           </section>
           <section className="soft-card" style={{ marginTop: 14 }}>
-            <table className="data-table"><tbody><SkTableRows rows={6} columns={5} /></tbody></table>
+            {/* Wrapped like every real table. Bare, the skeleton table's 720px
+                min-width widened the page while a route was loading, which is
+                exactly when the fixed bottom bar drifted off-centre: the bar was
+                centred in the widened box, not the screen. */}
+            <div className="data-table-wrap" style={{ marginTop: 0 }}>
+              <table className="data-table"><tbody><SkTableRows rows={6} columns={5} /></tbody></table>
+            </div>
           </section>
         </div>
       </main>

@@ -124,19 +124,56 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
     expect(reserve).toBeGreaterThan(74);
   });
 
-  it('centres the pill with insets, never a translate plus a scroll container', async () => {
+  it('places the bar with insets only, never a width that resolves elsewhere', async () => {
     const css = await read('app/globals.css');
     const start = css.indexOf('.mobile-nav {');
     const rule = css.slice(start, css.indexOf('}', start));
-    // translateX(-50%) on an element with overflow-x:auto is what pushed the
-    // last item past the right edge on /team: it became a scroll container
-    // clipped to a shrunk width around a point outside its own box.
+    // Two ways to get this wrong, both seen on /team. A centring transform
+    // centres around a point outside the element's own box once it becomes a
+    // scroll container. A `fit-content` width plus auto margins centres the bar
+    // inside whatever containing block the fixed element resolves against, so
+    // when that box is wider than the screen the bar drifts right and clips its
+    // last item. Insets alone cannot drift: the box is the screen minus 10px.
     expect(rule).not.toContain('translateX(-50%)');
     expect(rule).not.toContain('overflow-x: auto');
-    expect(rule).toContain('left: 10px');
-    expect(rule).toContain('right: 10px');
-    expect(rule).toContain('width: fit-content');
-    expect(rule).toContain('margin-inline: auto');
+    expect(rule).not.toContain('width: fit-content');
+    expect(rule).not.toContain('margin-inline: auto');
+    expect(rule).toContain('inset: auto 10px');
+    expect(rule).toContain('width: auto');
+    expect(rule).toContain('justify-content: center');
+  });
+
+  it('contains the page so no screen can widen the layout viewport', async () => {
+    // The bar is fixed, but a child wider than the screen still widens the
+    // layout viewport on some mobile engines and drags every fixed element with
+    // it. `overflow-x: clip` alone does not establish that. The scroll container
+    // also has to stop the table's intrinsic 720px from propagating upward.
+    const css = await read('app/globals.css');
+    // `.data-table-wrap {` also appears as a one-line override inside two
+    // @media print blocks, at both the start and the end of the file. Anchor on
+    // the real rule by its first declaration instead of by position.
+    const wrap = css.slice(css.indexOf('.data-table-wrap {\n  /* A 720px table'));
+    const block = wrap.slice(0, wrap.indexOf('}'));
+    expect(block).toContain('min-width: 0');
+    expect(block).toContain('max-width: 100%');
+    expect(block).toContain('overflow-x: auto');
+    // Scroll containers alone left the table's 720px intrinsic width reaching
+    // the containing block, which put the fixed bar 182px from the left on a
+    // 411px phone. Inline-size containment is what actually stops it.
+    expect(block).toContain('contain: inline-size');
+    // And the shell itself must never be allowed to lay out wider than the screen.
+    expect(css).toMatch(/\.app-shell\s*\{[^}]*max-width: 100v[whw]/);
+  });
+
+  it('never renders a bare wide table, not even in a skeleton', async () => {
+    // A `.data-table` has min-width: 720px. Rendered without the scroll wrapper
+    // it widens the whole page, and the fixed bar then centres in that wider box.
+    // The route-level skeleton did exactly this, so the bar drifted precisely
+    // while a screen was loading.
+    const loading = await read('components/app-loading.tsx');
+    const tableAt = loading.indexOf('<table className="data-table">');
+    expect(tableAt).toBeGreaterThan(-1);
+    expect(loading.slice(Math.max(0, tableAt - 120), tableAt)).toContain('data-table-wrap');
   });
 
   it('leaves room for five items on a 320px phone', async () => {
@@ -485,6 +522,56 @@ describe('account management exists instead of a placeholder toast', () => {
       expect({ file, gated: source.includes('ROLE.OWNER') && source.includes('ROLE.ADMIN') })
         .toEqual({ file, gated: true });
     }
+  });
+});
+
+describe('partner shares and profit sharing are wired end to end', () => {
+  it('exposes a share change and a distribution control on the page', async () => {
+    // Both surfaces must be reachable without an API console: the owner records
+    // a new split, then appropriates the period's profit through it.
+    const client = await read('app/partners/partners-client.tsx');
+    expect(client).toContain('Record share change');
+    expect(client).toContain('Distribute profit');
+    expect(client).toContain('/api/partners/distribution');
+  });
+
+  it('gates shares and distributions to owners and admins', async () => {
+    for (const file of ['app/api/partners/distribution/route.ts', 'app/api/partners/movement/route.ts', 'app/api/partners/settings/route.ts']) {
+      const source = await read(file);
+      expect({ file, gated: source.includes('ROLE.OWNER') }).toEqual({ file, gated: true });
+      expect({ file, admin: source.includes('ROLE.ADMIN') }).toEqual({ file, admin: true });
+    }
+  });
+
+  it('recomputes shares from effective-dated history, never a stored total', async () => {
+    // A share change is a new dated row; historical splits recompute from those
+    // rows so a past distribution can never silently change its meaning.
+    const schema = await read('lib/database.ts');
+    expect(schema).toContain('CREATE TABLE IF NOT EXISTS owner_share_changes');
+    expect(schema).toContain('effective_at');
+    const ledger = await read('lib/partners/ledger.ts');
+    expect(ledger).toContain('dayWeightedPsr');
+    expect(ledger).toContain('shareAt');
+  });
+
+  it('cannot post the same period twice', async () => {
+    // Guarded in the database, not just in a route handler: a double tap, a
+    // retry or a duplicate seed must not appropriate one period twice.
+    const schema = await read('lib/database.ts');
+    expect(schema).toContain('profit_distributions_active_period_idx');
+    expect(schema).toMatch(/UNIQUE INDEX[^;]*profit_distributions[\s\S]{0,200}status = 'POSTED'/);
+  });
+
+  it('reverses the partner entries when a distribution is voided', async () => {
+    const store = await read('lib/partners/store.ts');
+    const voidFn = store.slice(store.indexOf('export async function voidDistribution'));
+    expect(voidFn).toContain("status = 'VOID'");
+    // The ledger is append-only: a void does not delete the posted lines, it
+    // posts the opposite entry for each one, so the partner's balance returns to
+    // where it was while the history of what was posted stays readable.
+    expect(voidFn).toContain("'CORRECTION'");
+    expect(voidFn).toContain('flipped');
+    expect(voidFn).not.toMatch(/DELETE FROM partner_entries/);
   });
 });
 
