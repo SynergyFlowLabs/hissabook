@@ -48,7 +48,9 @@ describe('the ledger shows records, not a wall of filters', () => {
     // blank white rectangle on iOS.
     expect(client).toContain('className="form-field ledger-dates"');
     expect(client).toContain('className="ledger-date-pair"');
-    expect(client).toContain('ledger-date-hint');
+    // Both boxes are the shared calendar field, labelled while empty.
+    expect(client).toContain('placeholder="From"');
+    expect(client).toContain('placeholder="To"');
     expect(client).toContain('aria-label="From date"');
     expect(client).toContain('aria-label="To date"');
   });

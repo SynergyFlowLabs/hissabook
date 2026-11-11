@@ -1,7 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+
+import { DateField } from '@/components/date-field';
 import { Sk, SkLines, SkStatus } from '@/components/skeletons';
+
 import Topbar from '@/components/topbar';
 import { useEffect, useMemo, useState } from 'react';
 import { Download, FileText, RefreshCw } from 'lucide-react';
@@ -162,8 +165,8 @@ export default function ReportsClient({ userName, userRole }: { userName: string
                   <SelectContent>{PRESETS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}<SelectItem value="custom">Custom</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="report-from" className="form-label">From</Label><Input id="report-from" type="date" value={from} max={to} onChange={(event) => { setFrom(event.target.value); setPreset('custom'); }} /></div>
-              <div className="form-field"><Label htmlFor="report-to" className="form-label">To</Label><Input id="report-to" type="date" value={to} min={from} onChange={(event) => { setTo(event.target.value); setPreset('custom'); }} /></div>
+              <div className="form-field"><Label htmlFor="report-from" className="form-label">From</Label><DateField id="report-from" value={from} max={to} onChange={(value) => { setFrom(value); setPreset('custom'); }} /></div>
+              <div className="form-field"><Label htmlFor="report-to" className="form-label">To</Label><DateField id="report-to" value={to} min={from} onChange={(value) => { setTo(value); setPreset('custom'); }} /></div>
             </div>
             {payload ? <p className="field-hint" style={{ marginTop: 10 }}>{payload.meta.workspace} · {payload.meta.label} · {payload.meta.currency}</p> : null}
           </section>

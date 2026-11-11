@@ -10,7 +10,10 @@ import {
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+
+import { DateField } from '@/components/date-field';
 import { Button } from '@/components/ui/button';
+
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -591,7 +594,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
                 </Select>
               </div>
               <div className="form-field"><Label htmlFor="txn-amount">Amount (PKR)</Label><Input id="txn-amount" type="number" min="1" step="1" required placeholder="e.g. 12,500" value={amount} onChange={(event) => setAmount(event.target.value)} /><span className="field-hint">Whole PKR amounts for now.</span></div>
-              <div className="form-field"><Label htmlFor="txn-date">Date</Label><Input id="txn-date" type="date" required value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="txn-date">Date</Label><DateField id="txn-date" value={transactionDate} onChange={setTransactionDate} /></div>
               <div className="form-field full"><Label htmlFor="txn-description">Description</Label><Input id="txn-description" required maxLength={160} placeholder="What was this transaction for?" value={description} onChange={(event) => setDescription(event.target.value)} /></div>
               <div className="form-field"><Label htmlFor="txn-category">Category</Label>
                 <Select value={category} onValueChange={setCategory}>
@@ -613,7 +616,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
               </div>}
               {(kind === 'Loan received' || kind === 'Loan given') && <>
                 <div className="form-field"><Label htmlFor="txn-counterparty">{kind === 'Loan received' ? 'Lender' : 'Borrower'}</Label><Input id="txn-counterparty" maxLength={120} placeholder="Person or business" value={counterparty} onChange={(event) => setCounterparty(event.target.value)} /></div>
-                <div className="form-field"><Label htmlFor="txn-due">Due date (optional)</Label><Input id="txn-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></div>
+                <div className="form-field"><Label htmlFor="txn-due">Due date (optional)</Label><DateField id="txn-due" value={dueDate} onChange={setDueDate} placeholder="No due date" clearable /></div>
               </>}
               <div className="form-field full"><Label htmlFor="txn-note">Note</Label><Textarea id="txn-note" maxLength={1000} placeholder="Add a note or reference (optional)" value={note} onChange={(event) => setNote(event.target.value)} /></div>
               </div>
@@ -638,7 +641,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
             <div className="form-dialog-body">
               <div className="form-grid">
               <div className="form-field"><Label htmlFor="repay-principal">Principal amount (PKR)</Label><Input id="repay-principal" type="number" min="1" max={repaymentLoan?.outstanding} step="1" required value={repaymentPrincipal} onChange={(event) => setRepaymentPrincipal(event.target.value)} /></div>
-              <div className="form-field"><Label htmlFor="repay-date">Date</Label><Input id="repay-date" type="date" required value={repaymentDate} onChange={(event) => setRepaymentDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="repay-date">Date</Label><DateField id="repay-date" value={repaymentDate} onChange={setRepaymentDate} /></div>
               <div className="form-field full"><Label htmlFor="repay-account">{repaymentLoan?.direction === 'PAYABLE' ? 'Paid from' : 'Received into'}</Label>
                 <Select value={repaymentAccount} onValueChange={setRepaymentAccount}>
                   <SelectTrigger id="repay-account"><SelectValue placeholder="Choose account" /></SelectTrigger>

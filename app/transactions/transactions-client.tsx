@@ -1,5 +1,6 @@
 'use client';
 
+import { DateField } from '@/components/date-field';
 import { SkList, SkStatus, SkTableRows } from '@/components/skeletons';
 import Topbar from '@/components/topbar';
 import { useEffect, useMemo, useState } from 'react';
@@ -258,28 +259,22 @@ export default function TransactionsClient({ userName, userRole, initialQuery = 
               <div className="form-field ledger-dates">
                 <span className="form-label" id="ledger-dates-label">Date range</span>
                 <div className="ledger-date-pair" role="group" aria-labelledby="ledger-dates-label">
-                  <span className={`ledger-date${from ? '' : ' is-empty'}`}>
-                    <Input
-                      id="ledger-from"
-                      type="date"
-                      aria-label="From date"
-                      value={from}
-                      max={to || undefined}
-                      onChange={(event) => { setFrom(event.target.value); setOffset(0); }}
-                    />
-                    {from ? null : <span className="ledger-date-hint" aria-hidden="true">From</span>}
-                  </span>
-                  <span className={`ledger-date${to ? '' : ' is-empty'}`}>
-                    <Input
-                      id="ledger-to"
-                      type="date"
-                      aria-label="To date"
-                      value={to}
-                      min={from || undefined}
-                      onChange={(event) => { setTo(event.target.value); setOffset(0); }}
-                    />
-                    {to ? null : <span className="ledger-date-hint" aria-hidden="true">To</span>}
-                  </span>
+                  <DateField
+                    id="ledger-from"
+                    aria-label="From date"
+                    placeholder="From"
+                    value={from}
+                    max={to || undefined}
+                    onChange={(value) => { setFrom(value); setOffset(0); }}
+                  />
+                  <DateField
+                    id="ledger-to"
+                    aria-label="To date"
+                    placeholder="To"
+                    value={to}
+                    min={from || undefined}
+                    onChange={(value) => { setTo(value); setOffset(0); }}
+                  />
                 </div>
               </div>
             </div>

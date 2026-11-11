@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+
+import { DateField } from '@/components/date-field';
 import { SkList, SkPageBody, SkStatus } from '@/components/skeletons';
+
 import Topbar from '@/components/topbar';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -997,7 +1000,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <div className="form-field full"><Label htmlFor="np-name">Full name</Label><Input id="np-name" required maxLength={80} value={npName} onChange={(event) => setNpName(event.target.value)} placeholder="e.g. Hamza Malik" /></div>
             <div className="form-field"><Label htmlFor="np-role">Role title</Label><Input id="np-role" maxLength={40} value={npRole} onChange={(event) => setNpRole(event.target.value)} placeholder="Partner" /></div>
             <div className="form-field"><Label htmlFor="np-share">Share (%)</Label><Input id="np-share" type="number" min="0" max="100" step="0.5" required value={npShare} onChange={(event) => setNpShare(event.target.value)} /></div>
-            <div className="form-field"><Label htmlFor="np-date">Share effective from</Label><Input id="np-date" type="date" required value={npDate} onChange={(event) => setNpDate(event.target.value)} /></div>
+            <div className="form-field"><Label htmlFor="np-date">Share effective from</Label><DateField id="np-date" value={npDate} onChange={setNpDate} /></div>
             <div className="form-field full"><Label htmlFor="np-user">Link workspace member (optional)</Label>
               <Select value={npUserId} onValueChange={setNpUserId}>
                 <SelectTrigger id="np-user"><SelectValue /></SelectTrigger>
@@ -1025,7 +1028,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
           <form onSubmit={saveShares}>
             <div className="form-dialog-body">
               <div className="form-grid">
-            <div className="form-field full"><Label htmlFor="share-date">Effective from</Label><Input id="share-date" type="date" required value={shareDate} onChange={(event) => setShareDate(event.target.value)} /></div>
+            <div className="form-field full"><Label htmlFor="share-date">Effective from</Label><DateField id="share-date" value={shareDate} onChange={setShareDate} /></div>
             {data.partners.map((partner) => (
               <div className="form-field" key={partner.id}>
                 <Label htmlFor={`share-${partner.id}`}>{partner.name.split(' ')[0]} (%)</Label>
@@ -1057,7 +1060,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <div className="form-grid">
             <div className="form-field full"><Label htmlFor="fe-description">What was it for?</Label><Input id="fe-description" required maxLength={160} value={feDescription} onChange={(event) => setFeDescription(event.target.value)} placeholder="e.g. Electricity bill, Unit 2" autoFocus /></div>
             <div className="form-field"><Label htmlFor="fe-amount">Amount (PKR)</Label><Input id="fe-amount" type="number" min="1" step="1" required placeholder="e.g. 18,500" value={feAmount} onChange={(event) => setFeAmount(event.target.value)} /></div>
-            <div className="form-field"><Label htmlFor="fe-date">Date</Label><Input id="fe-date" type="date" required value={feDate} onChange={(event) => setFeDate(event.target.value)} /></div>
+            <div className="form-field"><Label htmlFor="fe-date">Date</Label><DateField id="fe-date" value={feDate} onChange={setFeDate} /></div>
             <div className="form-field"><Label htmlFor="fe-category">Category</Label>
               <Select value={feCategory} onValueChange={setFeCategory}><SelectTrigger id="fe-category"><SelectValue /></SelectTrigger><SelectContent>{FRONT_CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select>
             </div>
@@ -1113,7 +1116,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <div className="form-field"><Label htmlFor="m-account">{movementKind === 'contribution' ? 'Paid into' : 'Paid from'}</Label>
               <Select value={mAccountId} onValueChange={setMAccountId}><SelectTrigger id="m-account"><SelectValue placeholder="Choose account" /></SelectTrigger><SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent></Select>
             </div>
-            <div className="form-field"><Label htmlFor="m-date">Date</Label><Input id="m-date" type="date" required value={mDate} onChange={(event) => setMDate(event.target.value)} /></div>
+            <div className="form-field"><Label htmlFor="m-date">Date</Label><DateField id="m-date" value={mDate} onChange={setMDate} /></div>
             <div className="form-field full"><Label htmlFor="m-note">Note (optional)</Label><Input id="m-note" maxLength={1000} value={mNote} onChange={(event) => setMNote(event.target.value)} placeholder="Why, and against which bill" /></div>
             {drawingCapWarning && (
               <p className="warn-box form-field full" role="status">
@@ -1141,8 +1144,8 @@ export default function PartnersClient({ userName, role }: { userName: string; r
           <form onSubmit={fetchStatement}>
             <div className="form-dialog-body">
               <div className="form-grid">
-                <div className="form-field"><Label htmlFor="st-from">From</Label><Input id="st-from" type="date" required value={statementFrom} onChange={(event) => setStatementFrom(event.target.value)} /></div>
-                <div className="form-field"><Label htmlFor="st-to">To</Label><Input id="st-to" type="date" required value={statementTo} onChange={(event) => setStatementTo(event.target.value)} /></div>
+                <div className="form-field"><Label htmlFor="st-from">From</Label><DateField id="st-from" value={statementFrom} onChange={setStatementFrom} /></div>
+                <div className="form-field"><Label htmlFor="st-to">To</Label><DateField id="st-to" value={statementTo} onChange={setStatementTo} /></div>
               </div>
               {formError && <div className="form-error" role="alert">{formError}</div>}
               {statement && (
@@ -1183,7 +1186,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
           </DialogHeader>
           <div className="form-dialog-body">
           <div className="form-grid">
-            <div className="form-field"><Label htmlFor="exit-date">Exit date</Label><Input id="exit-date" type="date" required max={todayIso()} value={exitAsOf} onChange={(event) => { setExitAsOf(event.target.value); setExitPreview(null); }} /></div>
+            <div className="form-field"><Label htmlFor="exit-date">Exit date</Label><DateField id="exit-date" max={todayIso()} value={exitAsOf} onChange={(value) => { setExitAsOf(value); setExitPreview(null); }} /></div>
             <div className="form-field"><Label htmlFor="exit-mode">Settle as</Label>
               <Select value={exitMode} onValueChange={(value) => { setExitMode(value as 'PAY' | 'LOAN'); setExitPreview(null); }}><SelectTrigger id="exit-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
               <span className="field-hint">Default comes from the deed terms.</span>
@@ -1368,8 +1371,8 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <button type="button" className={`deed-chip${distPreset === 'custom' ? ' active' : ''}`} onClick={() => applyDistPreset('custom')}>Custom</button>
           </div>
           <div className="form-grid" style={{ marginTop: 8 }}>
-            <div className="form-field"><Label htmlFor="dist-from">From</Label><Input id="dist-from" type="date" value={distFrom} onChange={(event) => { setDistPreset('custom'); setDistFrom(event.target.value); setDistPreview(null); }} /></div>
-            <div className="form-field"><Label htmlFor="dist-to">To</Label><Input id="dist-to" type="date" value={distTo} onChange={(event) => { setDistPreset('custom'); setDistTo(event.target.value); setDistPreview(null); }} /></div>
+            <div className="form-field"><Label htmlFor="dist-from">From</Label><DateField id="dist-from" value={distFrom} onChange={(value) => { setDistPreset('custom'); setDistFrom(value); setDistPreview(null); }} /></div>
+            <div className="form-field"><Label htmlFor="dist-to">To</Label><DateField id="dist-to" value={distTo} onChange={(value) => { setDistPreset('custom'); setDistTo(value); setDistPreview(null); }} /></div>
           </div>
           {data.settings.partnerSalaryEnabled && (
             <div className="form-field full" style={{ marginTop: 10 }}>

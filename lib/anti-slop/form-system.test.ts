@@ -86,26 +86,24 @@ describe('one form system (R-50)', () => {
     }
   });
 
-  it('clamps a native date control to the field box', () => {
+  it('routes every date through the one calendar field, never a native input', () => {
     const css = read('app/globals.css');
     // The field is one clamped track: no control can widen the column.
     expect(css).toContain('.form-field { display: grid; grid-template-columns: minmax(0, 1fr);');
-    const rule = css.indexOf('input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"])');
-    expect(rule).toBeGreaterThan(-1);
-    const block = css.slice(rule, rule + 900);
-    expect(block).toContain('max-width: 100%');
-    expect(block).toContain('min-width: 0');
-    expect(block).toContain('box-sizing: border-box');
-    // iOS native chrome is the thing that ignored the width, so it is turned off.
-    expect(block).toContain('-webkit-appearance: none');
-    expect(block).toContain('appearance: none');
-    // and the value is centred in the 48px box (46px content area).
-    expect(block).toContain('line-height: 46px');
-    // The ledger date pair lives one level deeper and is clamped the same way.
-    expect(block).toContain('.ledger-date input');
+    // The date trigger is part of the shared control rule, not a lookalike.
+    expect(css).toContain('.form-field .date-field-trigger {');
+    // The calendar is skinned from our tokens on top of react-day-picker.
+    expect(css).toContain('.hisab-calendar {');
+    expect(css).toContain('--rdp-day_button-border-radius');
     // Nothing may escape the scrolling form body horizontally either.
     const body = css.indexOf('.form-dialog-body {');
     expect(css.slice(body, body + 220)).toContain('overflow-x: hidden');
+    // A native date input is what iOS drew wrong; the product has none left.
+    for (const path of FORM_SURFACES) {
+      expect(read(path)).not.toContain('type="date"');
+    }
+    expect(read('components/date-field.tsx')).toContain('date-field-trigger');
+    expect(read('components/ui/calendar.tsx')).toContain('hisab-calendar');
   });
 
   it('gives every select row a comfortable height', () => {
