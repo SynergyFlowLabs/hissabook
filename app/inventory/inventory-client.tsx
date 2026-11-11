@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
 import { SkPageBody, SkStatus } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Archive, Boxes, Check, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -118,10 +119,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
     return (
       <div className="app-shell" id="overview">
         <main className="main-area">
-          <header className="topbar">
-            <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Inventory</strong></div>
-            <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
-          </header>
+          <Topbar crumb="Inventory" />
           <div className="content">
             <SkStatus label="Loading inventory" />
             <section className="page-heading">
@@ -141,10 +139,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
   return (
     <div className="app-shell" id="overview">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Inventory</strong></div>
-          <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar />
         <div className="content">
           <section className="page-heading">
             <div>

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { Sk, SkLines, SkStatus } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
+import { Download, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,10 +129,7 @@ export default function ReportsClient({ userName, userRole }: { userName: string
   return (
     <div className="app-shell">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Reports</strong></div>
-          <div className="top-actions"><Link className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</Link><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar back={{ href: '/#overview', label: 'Overview' }} />
         <div className="content">
           <section className="page-heading">
             <div>

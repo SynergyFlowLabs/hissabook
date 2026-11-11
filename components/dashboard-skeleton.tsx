@@ -1,6 +1,7 @@
 'use client';
 
 import { Sk, SkLines, SkStatus } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 
 /**
  * Overview, while the books are loading.
@@ -19,12 +20,7 @@ export default function DashboardSkeleton({ dateHeading }: { dateHeading: string
   return (
     <div className="app-shell" id="overview">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Overview</strong></div>
-          <div className="top-actions">
-            <span className="topbar-notif-slot" />
-          </div>
-        </header>
+        <Topbar crumb="Overview" />
 
         <div className="content">
           <SkStatus label="Loading your business books" />

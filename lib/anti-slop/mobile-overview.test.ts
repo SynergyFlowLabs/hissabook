@@ -196,41 +196,95 @@ describe('bottom pill nav neither hides content nor itself (R-03)', () => {
   });
 });
 
-describe('the notification bell lives in the topbar, right of search', () => {
-  it('is portalled into a slot every screen renders next to its search control', async () => {
-    const portal = await read('components/topbar-notif-portal.tsx');
-    expect(portal).toContain("document.querySelector<HTMLElement>('.topbar-notif-slot')");
-    expect(portal).toContain('createPortal');
-    expect(portal).toContain('variant="topbar"');
+describe('the topbar is one shared bar with one control order', () => {
+  // The owner reported "each page has different topbar": the bell was portalled
+  // into a per-screen slot, so it vanished while a screen swapped skeletons, and
+  // the right-hand corner collected a different pill on every route. These guard
+  // the opposite: one component, one order, no per-screen spelling.
+  const screens = [
+    'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
+    'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
+    'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
+    'app/accounts/accounts-client.tsx',
+  ];
 
-    // Every screen with a topbar must carry the slot, or the bell silently
-    // disappears from that screen.
-    for (const screen of [
-      'app/dashboard.tsx', 'app/transactions/transactions-client.tsx',
-      'app/inventory/inventory-client.tsx', 'app/team/team-client.tsx',
-      'app/partners/partners-client.tsx', 'app/reports/reports-client.tsx',
-    ]) {
-      expect({ screen, slot: (await read(screen)).includes('topbar-notif-slot') }).toEqual({ screen, slot: true });
+  it('is the only place a topbar header is written', async () => {
+    for (const screen of screens) {
+      const source = await read(screen);
+      expect({ screen, header: source.includes('<header className="topbar"') }).toEqual({ screen, header: false });
+      expect({ screen, bar: source.includes('<Topbar') }).toEqual({ screen, bar: true });
     }
+    for (const fallback of ['components/app-loading.tsx', 'components/dashboard-skeleton.tsx']) {
+      const source = await read(fallback);
+      // A loading state must draw the same bar, or the bar changes shape mid-load.
+      expect({ fallback, header: source.includes('<header className="topbar"') }).toEqual({ fallback, header: false });
+      expect({ fallback, bar: source.includes('<Topbar') }).toEqual({ fallback, bar: true });
+    }
+    // The slot mechanism is gone; nothing may reintroduce it.
+    const css = await read('app/globals.css');
+    expect(css).not.toContain('.topbar-notif-slot');
   });
 
-  it('is no longer in the bottom pill', async () => {
-    const sidebar = await read('components/app-sidebar.tsx');
-    expect(sidebar).not.toContain('variant="nav"');
-    // The sidebar keeps its own trigger for desktop, and the portal is mounted
-    // once so there is still a single polling loop and a single panel.
-    expect(sidebar).toContain('variant="sidebar"');
-    expect(sidebar.match(/<TopbarNotifPortal/g)?.length).toBe(1);
-    expect(sidebar.match(/<NotificationPanel/g)?.length).toBe(1);
+  it('orders search, then bell, then profile, with profile at the edge', async () => {
+    const bar = await read('components/topbar.tsx');
+    const cluster = bar.slice(bar.indexOf('<div className="topbar-cluster">'), bar.indexOf('<NotificationPanel'));
+    const search = cluster.indexOf('className="topbar-icon-button"');
+    const bell = cluster.indexOf('<NotificationButton');
+    const profile = cluster.indexOf('className="topbar-profile-trigger"');
+    expect(search).toBeGreaterThan(-1);
+    expect(bell).toBeGreaterThan(search);
+    expect(profile).toBeGreaterThan(bell);
+    // Profile is the last thing in the cluster, so nothing can sit right of it.
+    const afterProfile = cluster.slice(cluster.indexOf('<div className="topbar-profile"'));
+    expect(afterProfile).toContain('topbar-profile-menu');
+    expect(afterProfile).not.toContain('topbar-icon-button');
+    expect(afterProfile).not.toContain('<NotificationButton');
   });
 
-  it('is a 44px target under a thumb and a plain circle beside search', async () => {
+  it('keeps the unread count off the topbar bell', async () => {
+    const css = await read('app/globals.css');
+    const block = css.slice(css.indexOf('.notif-topbar-btn .notif-badge {'), css.indexOf('.notif-scrim {'));
+    // A dot, not a number: font-size 0 hides the "9+" that the shared badge draws.
+    expect(block).toMatch(/font-size: 0;/);
+    expect(block).toMatch(/width: 10px;/);
+    // The dot only works on top of the shared badge primitive. Losing that rule
+    // left the dot position:static, unrounded and transparent, which drew a pale
+    // white square under the bell on a phone.
+    const base = css.slice(css.indexOf('.notif-badge {'));
+    expect(base.slice(0, base.indexOf('}'))).toMatch(/position: absolute;/);
+    expect(base.slice(0, base.indexOf('}'))).toMatch(/border-radius: 999px;/);
+    expect(base.slice(0, base.indexOf('}'))).toMatch(/background: var\(--lime\);/);
+    // One bell, one shape: no per-variant chrome left to differ between screens.
+    const bell = await read('components/notification-button.tsx');
+    expect(bell).not.toContain("variant: 'sidebar'");
+    expect(bell).toContain('id="notif-topbar-trigger"');
+    // The count is still spoken, even though it is drawn as a dot.
+    expect(bell).toContain('unread` : \'Notifications, all caught up\'');
+  });
+
+  it('is a 44px target under a thumb and stays in the bar on desktop', async () => {
     const css = await read('app/globals.css');
     const block = css.slice(css.indexOf('.notif-topbar-btn {'), css.indexOf('.notif-scrim {'));
     expect(block).toMatch(/@media \(pointer: coarse\) \{ \.notif-topbar-btn \{ width: 44px; height: 44px; \} \}/);
-    expect(block).toMatch(/@media \(min-width: 901px\) \{ \.notif-topbar-btn \{ display: none; \} \}/);
-    // Badge ring matches the white circle rather than the old sidebar card.
-    expect(block).toContain('.notif-topbar-btn .notif-badge { top: -4px; right: -4px; border-color: var(--card); }');
+    // It used to be hidden from 901px up, where the sidebar owned the bell. The
+    // owner asked for the bell beside the profile on every screen, so the
+    // sidebar trigger is the one that goes and this one never hides.
+    const bellRules = css.slice(css.indexOf('.notif-topbar-btn {'), css.indexOf('.notif-topbar-btn .notif-badge {'));
+    expect(bellRules).not.toContain('display: none');
+  });
+
+  it('does not draw a second bell in the sidebar', async () => {
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).not.toContain('variant="sidebar"');
+    expect(sidebar).not.toContain('variant="nav"');
+    expect(sidebar).not.toContain('<NotificationPanel');
+    expect(sidebar).not.toContain('useNotifications');
+    // One feed, owned above the pages, so navigating never restarts the poll.
+    const shell = await read('components/app-shell.tsx');
+    expect(shell).toContain('NotificationsProvider');
+    const bar = await read('components/topbar.tsx');
+    expect(bar).toContain('useSharedNotifications');
+    expect(bar.match(/<NotificationPanel/g)?.length).toBe(1);
   });
 });
 
@@ -323,16 +377,6 @@ describe('navigation is client-side, not a full page reload', () => {
     expect(shell).toContain("'/login'");
     expect(shell).toContain("'/setup'");
     expect(shell).toContain("'/invite'");
-  });
-
-  it('re-resolves the notification slot when the page changes', async () => {
-    // The shell outlives the page now, so the slot it portals into is rebuilt on
-    // every navigation. A one-shot lookup made the bell disappear from the topbar
-    // after the first tap, undoing tranche D.
-    const portal = await read('components/topbar-notif-portal.tsx');
-    expect(portal).toContain('usePathname()');
-    expect(portal).toContain('[pathname]');
-    expect(portal).toContain('MutationObserver');
   });
 
   it('keeps per-visitor payloads out of the server module scope', async () => {

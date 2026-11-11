@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlarmClockCheck, Banknote, Boxes, CheckCheck, HandCoins, MailPlus, ReceiptText, UsersRound, X,
@@ -64,6 +64,28 @@ export default function NotificationPanel({
     return { today, earlier };
   }, [items]);
 
+  // Follow the bell. The panel is fixed to a corner rather than to the button,
+  // and the button sits at the end of a bar that screens recompose, so a Menu
+  // button or a back pill could otherwise land underneath the open panel.
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  const anchorStyle = isMobile || !anchor ? undefined : { top: anchor.top, right: anchor.right };
+
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const trigger = document.getElementById('notif-topbar-trigger')?.getBoundingClientRect();
+      if (!trigger) return;
+      setAnchor({ top: Math.round(trigger.bottom) + 8, right: Math.round(window.innerWidth - trigger.right) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, { passive: true });
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
@@ -71,12 +93,17 @@ export default function NotificationPanel({
     // move focus into the panel on open
     const node = panelRef.current?.querySelector<HTMLElement>('[data-autofocus]');
     const frame = window.requestAnimationFrame(() => node?.focus());
+    // last_open existed as a store for this: remember what opened the panel so
+    // closing it hands focus back to the same control.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       window.cancelAnimationFrame(frame);
-      document.getElementById('notif-sidebar-trigger')?.focus();
-      const trigger = document.getElementById('notif-sidebar-trigger')
-        ?? document.getElementById('notif-nav-trigger');
+      const trigger = opener?.isConnected
+        ? opener
+        : (document.getElementById('notif-topbar-trigger')
+          ?? document.getElementById('notif-nav-trigger')
+          ?? document.getElementById('notif-sidebar-trigger'));
       trigger?.focus();
     };
   }, [open, onClose]);
@@ -122,6 +149,7 @@ export default function NotificationPanel({
             aria-modal={isMobile}
             aria-label="Notifications"
             className="notif-panel panel"
+            style={anchorStyle}
             initial={isMobile ? { y: 420, opacity: 0.6 } : { opacity: 0, y: -12, scale: 0.96 }}
             animate={isMobile ? { y: 0, opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={isMobile ? { y: 420, opacity: 0.6 } : { opacity: 0, y: -8, scale: 0.97 }}

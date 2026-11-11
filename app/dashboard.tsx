@@ -22,6 +22,7 @@ import { formatPKR, greetingFor } from '@/lib/format';
 import { primeWorkspaceContext } from '@/lib/use-workspace-context';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import DashboardSkeleton from '@/components/dashboard-skeleton';
+import Topbar from '@/components/topbar';
 import { maybePrimePushAfterLedgerSave, subscribeThisDevice } from '@/lib/push-client';
 import { toast } from '@/lib/toast';
 import { sounds } from '@/lib/sounds';
@@ -123,7 +124,6 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [hideBalance, setHideBalance] = useState(false);
   const [kind, setKind] = useState<TransactionKind>('Expense');
@@ -171,7 +171,11 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
       .catch((error: Error) => setLoadError(error.message));
   }, []);
 
-  const filteredTransactions = useMemo(() => (data?.transactions ?? []).filter((item) => `${item.title} ${item.category} ${item.account} ${item.counterparty}`.toLowerCase().includes(query.toLowerCase())).slice(0, 6), [data, query]);
+  // Filtering six rows and saying nothing when none match reads as a broken
+  // search: the list simply empties. The header count and the note below the list
+  // say what happened, and the note offers the ledger, which searches everything.
+  const filteredTransactions = useMemo(() => (data?.transactions ?? []).filter((item) => `${item.title} ${item.category} ${item.account} ${item.counterparty}`.toLowerCase().includes(query.toLowerCase())), [data, query]);
+  const shownTransactions = filteredTransactions.slice(0, 6);
   const periodDays = period === '7 days' ? 7 : period === '30 days' ? 30 : 90;
   const chartData: ChartPoint[] = data?.chart.slice(-periodDays) ?? [];
   const maxIncome = Math.max(0, ...chartData.map((point) => point.income));
@@ -292,15 +296,7 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
   return (
     <div className="app-shell" id="overview">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Overview</strong></div>
-          <div className="top-actions">
-            {searchOpen && <Input autoFocus aria-label="Search transactions" placeholder="Search activity…" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 w-36 min-w-0 flex-1 rounded-full bg-white text-xs sm:w-52 sm:flex-none" />}
-            <Button variant="outline" size="icon" className="rounded-full bg-white" aria-label="Search transactions" onClick={() => { setSearchOpen((open) => !open); setQuery(''); }}><Search size={16} /></Button>
-            {/* Bell is portalled in here by TopbarNotifPortal, right of search. */}
-            <span className="topbar-notif-slot" />
-          </div>
-        </header>
+        <Topbar onTermChange={setQuery} />
 
         <div className="content">
           <section className="page-heading">
@@ -497,14 +493,21 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
           <section className="grid grid-cols-1 gap-4 xl:grid-cols-12" style={{ marginTop: 14 }}>
             <div className="soft-card transactions-panel xl:col-span-7" id="transactions">
               <div className="card-header-row">
-                <div><div className="card-title">Recent transactions</div><div className="card-subtitle">Your latest saved business activity</div></div>
+                <div>
+                  <div className="card-title">Recent transactions</div>
+                  <div className="card-subtitle">
+                    {query.trim()
+                      ? `${filteredTransactions.length} matching ${filteredTransactions.length === 1 ? 'entry' : 'entries'} for “${query.trim()}”`
+                      : 'Your latest saved business activity'}
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <Link className="ghost-pill" href="/transactions">Filter</Link>
                   <Link className="text-link" href="/transactions">See all <ArrowRight size={12} /></Link>
                 </div>
               </div>
               <div style={{ marginTop: 10 }}>
-                {filteredTransactions.length ? filteredTransactions.map((item) => {
+                {shownTransactions.length ? shownTransactions.map((item) => {
                   const itemKind = displayKind(item.kind);
                   const negative = ['EXPENSE', 'WITHDRAWAL', 'LOAN_GIVEN', 'LOAN_REPAYMENT_OUT'].includes(item.kind);
                   const neutral = item.kind === 'TRANSFER';
@@ -521,7 +524,16 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
                       </span>
                     </div>
                   );
-                }) : <div className="empty-state">No matching activity found.</div>}
+                }) : (
+                  <div className="empty-state">
+                    <span>{query.trim() ? `Nothing in your latest activity matches “${query.trim()}”.` : 'No recent activity yet.'}</span>
+                    {query.trim() && (
+                      <Link className="text-link" href={`/transactions?q=${encodeURIComponent(query.trim())}`} style={{ marginTop: 8 }}>
+                        Search the whole ledger <ArrowRight size={12} />
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

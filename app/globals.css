@@ -202,10 +202,117 @@ button:disabled { cursor: not-allowed; }
 }
 @media (min-width: 901px) { .topbar { height: 72px; padding: 0 22px; padding-top: 0; } }
 @media (min-width: 1181px) { .topbar { padding: 0 34px; } }
-.breadcrumb { display: flex; align-items: center; gap: 9px; color: var(--faint); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.breadcrumb { display: flex; align-items: center; gap: 9px; color: var(--faint); font-size: 10px; font-weight: 600; white-space: nowrap; min-width: 0; }
 @media (min-width: 901px) { .breadcrumb { font-size: 11px; } }
 .breadcrumb strong { color: var(--ink); font-weight: 750; }
-.top-actions { display: flex; align-items: center; gap: 9px; }
+.breadcrumb-home { color: inherit; text-decoration: none; }
+@media (hover: hover) and (pointer: fine) { .breadcrumb-home:hover { color: var(--ink-soft); } }
+.top-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+/* ------------------------------------------------------------------ */
+/* Topbar control cluster                                             */
+/* ------------------------------------------------------------------ */
+/* One order on every screen, read from the right edge inwards: profile,
+   notifications, search. Before this each screen hand-rolled its own bar, so
+   the bell was in a different place on each and the currency badge shuffled in
+   and out. */
+.topbar-cluster { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.topbar-icon-button,
+.topbar-profile-trigger {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
+  color: var(--ink-soft); background: var(--card); border: 1px solid var(--line-strong);
+  transition: color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.topbar-icon-button:active, .topbar-profile-trigger:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) {
+  .topbar-icon-button:hover, .topbar-profile-trigger:hover { color: var(--ink); border-color: var(--lime-strong); }
+}
+/* 44px targets under a thumb (R-03). */
+@media (pointer: coarse) {
+  .topbar-icon-button, .topbar-profile-trigger { width: 44px; height: 44px; }
+}
+.topbar-profile-trigger {
+  background: var(--lime-soft); border-color: #d9ecb4; color: #4c6b1f;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .02em;
+}
+.topbar-profile { position: relative; }
+
+/* The in-place search field. It occupies the same 36px row height as the
+   buttons it replaces so opening it never reflows the bar. */
+.topbar-search {
+  display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 6px 0 11px;
+  border-radius: 999px; background: var(--card); border: 1px solid var(--lime-strong);
+  box-shadow: 0 0 0 3px var(--lime-soft); color: var(--muted);
+  width: min(64vw, 260px);
+}
+@media (pointer: coarse) { .topbar-search { height: 44px; } }
+.topbar-search > svg { flex: 0 0 auto; }
+.topbar-search input {
+  flex: 1 1 auto; min-width: 0; border: 0; background: transparent; outline: 0;
+  font: inherit; font-size: 11px; color: var(--ink);
+}
+.topbar-search input::-webkit-search-cancel-button { display: none; }
+.topbar-search button {
+  display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto;
+  border: 0; border-radius: 999px; background: var(--card-soft); color: var(--ink-soft); cursor: pointer;
+}
+
+/* Detail screens keep a way back, but as one quiet pill rather than the
+   full-weight ghost button that used to appear only on some screens. */
+.topbar-back {
+  display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 11px 0 8px;
+  border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card);
+  color: var(--ink-soft); font-size: 10.5px; font-weight: 750; text-decoration: none;
+  transition: color .15s ease, border-color .15s ease;
+}
+@media (hover: hover) and (pointer: fine) { .topbar-back:hover { color: var(--ink); border-color: var(--lime-strong); } }
+@media (pointer: coarse) { .topbar-back { min-height: 44px; } }
+/* Under 400px the crumb and a back pill do not both fit beside three controls.
+   The bar keeps the control that does something (back) and drops the one that
+   only repeats the heading two lines below. */
+@media (max-width: 399px) { .topbar.has-back .breadcrumb { display: none; } }
+/* Below 901px an open field takes the row over: it hides the crumb and the back
+   pill rather than overlapping them, and stretches to the space they leave, so
+   the bell and profile stay exactly where they were before the field opened. */
+@media (max-width: 900px) {
+  .topbar.is-searching .breadcrumb,
+  .topbar.is-searching .topbar-back { display: none; }
+  .topbar.is-searching .top-actions { flex: 1 1 auto; min-width: 0; }
+  .topbar.is-searching .topbar-cluster { flex: 1 1 auto; min-width: 0; }
+  .topbar.is-searching .topbar-search { flex: 1 1 auto; width: auto; min-width: 0; }
+}
+
+/* Profile menu */
+.topbar-profile-menu {
+  position: absolute; top: calc(100% + 9px); right: 0; z-index: 71;
+  width: min(76vw, 268px); padding: 10px; border-radius: 20px;
+  display: grid; gap: 4px;
+}
+.topbar-profile-head { display: flex; align-items: center; gap: 10px; padding: 6px 8px 9px; border-bottom: 1px solid var(--line); }
+.topbar-profile-avatar {
+  display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto;
+  border-radius: 999px; background: var(--lime-soft); color: #4c6b1f; font-size: 11px; font-weight: 800;
+}
+.topbar-profile-who { min-width: 0; display: grid; gap: 2px; }
+.topbar-profile-who strong { font-size: 11.5px; font-weight: 800; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-profile-who small { font-size: 9px; font-weight: 650; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-profile-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 8px; font-size: 10.5px; font-weight: 750; color: var(--ink-soft);
+}
+.topbar-profile-link, .topbar-profile-signout {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px;
+  padding: 0 9px; border: 0; border-radius: 12px; background: transparent; cursor: pointer;
+  font: inherit; font-size: 11px; font-weight: 750; text-align: left; color: var(--ink-soft);
+  transition: background .15s ease, color .15s ease;
+}
+.topbar-profile-signout { color: #a4452c; }
+@media (hover: hover) and (pointer: fine) {
+  .topbar-profile-link:hover { background: var(--card-soft); color: var(--ink); }
+  .topbar-profile-signout:hover { background: #fdf0ec; }
+}
+@media (pointer: coarse) { .topbar-profile-link, .topbar-profile-signout { min-height: 44px; } }
 
 /* Bottom reserve follows the real pill: 7px padding + 46px item + 7px padding
    + 14px offset = 74px, plus a 20px breathing gap and the device inset. The old
@@ -829,7 +936,6 @@ button:disabled { cursor: not-allowed; }
 @media (hover: hover) and (pointer: fine) { .subtle-button:hover {  border-color: var(--ink); color: var(--ink);  } }
 .subtle-button:disabled { opacity: .45; }
 
-.currency-badge { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--lime-soft); color: #57721f; border: 1px solid #dcebba; font-size: 9px; font-weight: 800; letter-spacing: .09em; }
 
 .data-table-wrap {
   /* A 720px table inside a 345px card must scroll inside the card and never
@@ -1169,28 +1275,6 @@ html [data-sileo-canvas] svg, html [data-sileo-svg] {
 /* ------------------------------------------------------------------ */
 /* Notification center                                                  */
 /* ------------------------------------------------------------------ */
-.notif-trigger { position: relative; }
-.notif-badge {
-  position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 5px;
-  border-radius: 999px; background: var(--lime); color: var(--lime-foreground);
-  font-size: 9px; font-weight: 800; line-height: 1; display: grid; place-items: center;
-  border: 2px solid #f2f6ee; pointer-events: none;
-}
-
-/* mobile in-pill bell — matches .mobile-nav a chrome */
-.notif-nav-btn {
-  position: relative; display: grid; justify-items: center; gap: 2px; color: #b8cbb4;
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 9px; font-weight: 700; border-radius: 999px; padding: 8px 14px; min-height: 46px; min-width: 58px;
-  font-family: inherit; transition: color .2s ease; isolation: isolate;
-}
-@media (hover: hover) and (pointer: fine) { .notif-nav-btn:hover {  color: #e7f3e2;  } }
-.notif-nav-btn .notif-badge { top: 2px; right: 6px; border-color: transparent; box-shadow: 0 0 0 2px rgb(16 27 21 / .85); }
-.notif-nav-label { font-size: 9px; letter-spacing: .02em; }
-
-/* Bell in the page topbar, right of search. Matches the white circular search
-   button beside it so the two read as one control cluster. */
-.topbar-notif-slot { display: inline-flex; align-items: center; flex: 0 0 auto; }
 .notif-topbar-btn {
   position: relative; display: grid; place-items: center; flex: 0 0 auto;
   width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
@@ -1201,11 +1285,30 @@ html [data-sileo-canvas] svg, html [data-sileo-svg] {
 @media (hover: hover) and (pointer: fine) { .notif-topbar-btn:hover { color: var(--ink); border-color: var(--lime-strong); } }
 /* The mobile topbar row is tight; 44px targets under a thumb (R-03). */
 @media (pointer: coarse) { .notif-topbar-btn { width: 44px; height: 44px; } }
-@media (min-width: 901px) { .notif-topbar-btn { display: none; } }
-/* Badge ring matches the white topbar circle instead of the old sidebar card. */
-.notif-topbar-btn .notif-badge { top: -4px; right: -4px; border-color: var(--card); }
-/* The bell now owns the topbar corner, so the sidebar keeps its own trigger
-   only where the sidebar is visible. */
+/* The badge primitive: a small disc pinned to its trigger's top-right corner.
+   Each trigger colours and sizes it below; this is the shape they share. */
+.notif-badge {
+  position: absolute; top: -5px; right: -5px;
+  width: 19px; min-width: 19px; height: 19px; padding: 0;
+  border-radius: 999px; background: var(--lime); color: var(--lime-foreground);
+  font-size: 9px; font-weight: 800; line-height: 1; display: grid; place-items: center;
+  border: 2px solid #f2f6ee; pointer-events: none;
+}
+/* On the topbar the unread count is a dot, not a pill with a number: the owner
+   asked for the count badge to go, and in a three-control cluster a 19px dark
+   ball on a 36px button read as a second, larger notification icon. The panel
+   still states the exact count, and the button's label still speaks it. */
+.notif-topbar-btn .notif-badge {
+  top: 2px; right: 2px; width: 10px; min-width: 10px; height: 10px; padding: 0;
+  font-size: 0; line-height: 0; color: var(--lime);
+  /* Silhouetted against the card: a ring in the bar's own canvas colour reads as
+     the dot being cut out of the circle, whether the card is white or hovered. */
+  outline: 2px solid var(--canvas);
+}
+@media (pointer: coarse) { .notif-topbar-btn .notif-badge { top: 6px; right: 6px; } }
+/* Without a viewport-width portal the bell lives in the topbar at every width,
+   so the sidebar's own trigger would be a second bell for the same panel. */
+.notif-sidebar-wide { display: none; }
 
 
 .notif-scrim { position: fixed; inset: 0; z-index: 65; background: rgb(6 12 9 / .55); }
@@ -1308,7 +1411,7 @@ body { overscroll-behavior: none; }
 
 /* Controls never select/callout on long-press; content stays selectable */
 button, [role="button"], .mobile-nav a, .quick-action, .loan-action,
-.icon-row-button, .notif-nav-btn, .notif-trigger, .push-toggle, .push-toggle *,
+.icon-row-button, .push-toggle, .push-toggle *,
 .access-toggle, .ghost-icon-button, .notif-markall, .notif-item {
   touch-action: manipulation;
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
@@ -1335,7 +1438,6 @@ button:active, [role="button"]:active { transform: scale(.97); }
   .ghost-icon-button { width: 44px; height: 44px; }
   .access-toggle { min-height: 44px; padding: 10px 13px; }
   .push-toggle { height: 44px; padding: 0 20px; }
-  .notif-trigger { min-width: 44px; min-height: 44px; }
   .ghost-pill { min-height: 44px; padding: 0 16px; }
   .text-link { min-height: 44px; }
   .deed-chip { min-height: 44px; padding: 0 14px; }
