@@ -162,11 +162,12 @@ export default function PageActions({ actions, label = 'Page actions' }: { actio
       </div>
 
       <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl p-5">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-extrabold tracking-tight">All actions</DialogTitle>
-            <DialogDescription>Everything you can do on this screen.</DialogDescription>
+        <DialogContent className="form-dialog form-dialog-wide">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">All actions</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Everything you can do on this screen.</DialogDescription>
           </DialogHeader>
+          <div className="form-dialog-body">
           <div className="action-sheet">
             {actions.map((action) => {
               const className = action.key === 'primary' ? 'action-sheet-row primary' : action.variant === 'link' ? 'action-sheet-row link' : 'action-sheet-row';
@@ -180,6 +181,7 @@ export default function PageActions({ actions, label = 'Page actions' }: { actio
                 </button>
               );
             })}
+          </div>
           </div>
         </DialogContent>
       </Dialog>

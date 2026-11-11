@@ -735,13 +735,126 @@ button:disabled { cursor: not-allowed; }
 /* ------------------------------------------------------------------ */
 /* Forms                                                               */
 /* ------------------------------------------------------------------ */
-.form-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+/* One field rhythm on every screen and in every dialog. Every data-entry
+   control in the product is the same box: 48px tall, 14px corners, white
+   surface, one hairline border, 16px text on phones (anything smaller makes
+   iOS zoom the page on focus) and 14px from 768px. Before this the same form
+   mixed 40px, 44px and 48px controls, pill corners and 12px corners, and
+   selects that shrank to their label (a "Paid from" with no value collapsed
+   to a bare chevron). */
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 14px 12px; }
 @media (min-width: 701px) { .form-grid { grid-template-columns: 1fr 1fr; } }
-.form-field { display: grid; gap: 6px; }
+.form-field { display: grid; gap: 7px; min-width: 0; }
 .form-field.full { grid-column: 1 / -1; }
-.form-label { color: var(--ink-soft); font-size: 10px; font-weight: 750; letter-spacing: .01em; }
-.form-error { background: #fdece7; border: 1px solid #f3c7b8; color: #a4452c; border-radius: 13px; padding: 11px 13px; font-size: 11px; margin-top: 13px; }
-.field-hint { color: var(--faint); font-size: 8px; }
+.form-field > label,
+.form-field > .form-label { color: var(--ink-soft); font-size: 12px; font-weight: 750; letter-spacing: .01em; line-height: 1.3; }
+.form-field > :is(input, textarea, select, [data-slot="select-trigger"]):not([type="checkbox"]):not([type="radio"]) {
+  width: 100%; min-width: 0; height: 48px; box-sizing: border-box;
+  border: 1px solid var(--line-strong); border-radius: 14px;
+  background: var(--card); color: var(--ink);
+  padding: 0 15px; font-family: inherit; font-size: 16px; line-height: 1.2;
+  box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease;
+}
+@media (min-width: 768px) {
+  .form-field > :is(input, textarea, select, [data-slot="select-trigger"]):not([type="checkbox"]):not([type="radio"]) { font-size: 14px; }
+}
+.form-field > textarea {
+  height: auto; min-height: 104px; padding: 13px 15px; line-height: 1.55; resize: vertical;
+}
+.form-field > :is(input, textarea):focus-visible,
+.form-field > [data-slot="select-trigger"]:focus-visible {
+  outline: none; border-color: var(--lime-strong); box-shadow: 0 0 0 3px var(--lime-soft);
+}
+.form-field > :is(input, textarea):disabled { opacity: .6; }
+.form-field :is(input, textarea)::placeholder { color: var(--faint); opacity: 1; }
+/* Native number spinners are noise on a phone and steal width from the value. */
+.form-field input[type="number"]::-webkit-outer-spin-button,
+.form-field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.form-field input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.form-field :is(input, textarea)[type="date"] { font-variant-numeric: tabular-nums; }
+/* A whole invitation URL is the one value that has to be small to be readable. */
+.form-field > input.form-control-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: -.2px;
+}
+.form-label { color: var(--ink-soft); font-size: 12px; font-weight: 750; letter-spacing: .01em; }
+.form-error {
+  background: #fdece7; border: 1px solid #f3c7b8; color: #a4452c;
+  border-radius: 14px; padding: 11px 14px; font-size: 12px; line-height: 1.5; margin-top: 14px;
+}
+.field-hint { color: var(--faint); font-size: 11px; line-height: 1.5; }
+
+/* --- The dialog shell every form shares ----------------------------- */
+/* Header and actions are pinned; only the body scrolls. On a phone that keeps
+   the submit button on screen through a long form (salary period, a partner
+   movement with funders) instead of below the keyboard and the bottom nav. */
+.form-dialog {
+  display: flex; flex-direction: column; gap: 0;
+  width: calc(100% - 20px); max-width: 540px;
+  max-height: min(88dvh, 800px);
+  padding: 0; border-radius: 22px; overflow: hidden;
+}
+.form-dialog-wide { max-width: 640px; }
+@media (min-width: 561px) { .form-dialog { max-width: 560px; } .form-dialog-wide { max-width: 680px; } }
+.form-dialog-head {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px;
+  padding: 16px 58px 13px 18px; border-bottom: 1px solid var(--line);
+  text-align: left; background: var(--card);
+}
+.form-dialog-title { font-size: 19px; font-weight: 800; letter-spacing: -.35px; line-height: 1.22; color: var(--ink); }
+.form-dialog-sub { font-size: 12px; line-height: 1.55; color: var(--muted); max-width: 52ch; }
+.form-dialog > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.form-dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 18px 14px; }
+.form-dialog-body > :first-child { margin-top: 0; }
+/* Actions: primary first in the markup. Phones stack it above Cancel, wide
+   screens put Cancel on the left and the primary against the right edge. */
+.form-actions {
+  flex: 0 0 auto; display: grid; gap: 8px;
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line); background: var(--card);
+}
+.form-actions > * { width: 100%; height: 48px; border-radius: 999px; font-size: 13px; font-weight: 800; }
+/* The lime CTA sets its own 46px height; inside a form bar every action is 48. */
+.form-actions > .lime-button,
+.form-actions > [data-slot="button"] { height: 48px; border-radius: 999px; }
+@media (min-width: 561px) {
+  .form-actions { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 10px; }
+  .form-actions > * { width: auto; min-width: 140px; padding: 0 22px; }
+  .form-actions > .lime-button,
+  .form-actions > [data-slot="button"] { min-width: 150px; }
+}
+.form-actions .lime-button, .form-actions > [data-slot="button"] { justify-content: center; }
+/* Repeated rows inside one form field (funders, salaries, revaluations) keep
+   the same 48px control height and radius as the fields above them. */
+.funder-row { display: flex; align-items: center; gap: 8px; }
+.funder-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+.funder-row [data-slot="select-trigger"] { width: 100%; height: 48px; border-radius: 14px; }
+.funder-row > input { width: 116px; flex: 0 0 auto; height: 48px; border-radius: 14px; }
+.salary-row { display: flex; align-items: center; gap: 10px; }
+.salary-row > span { flex: 0 0 96px; }
+.salary-row > input { flex: 1 1 auto; min-width: 0; height: 48px; border-radius: 14px; }
+.form-field .exit-reval-desc, .form-field .exit-reval-delta { height: 48px; border-radius: 14px; }
+.exit-reval-remove.ghost-pill { height: 48px; }
+
+/* A form that lives inside a card (the account editor) uses the same action
+   bar without the sheet padding and border bleeding into the card. */
+.form-actions.is-inline {
+  padding: 16px 0 0; margin-top: 16px; background: transparent;
+  border-top: 1px solid var(--line); border-radius: 0;
+}
+/* The close control is one 36px target in the same corner of every dialog. */
+[data-slot="dialog-content"] > [data-slot="dialog-close"] {
+  position: absolute; top: 13px; right: 13px; display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--ink-soft); opacity: 1; box-shadow: var(--shadow-sm);
+  transition: color .15s ease, border-color .15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-slot="dialog-content"] > [data-slot="dialog-close"]:hover { color: var(--ink); border-color: var(--lime-strong); }
+}
+[data-slot="dialog-content"] > [data-slot="dialog-close"] svg { width: 16px; height: 16px; }
+@media (pointer: coarse) {
+  [data-slot="dialog-content"] > [data-slot="dialog-close"] { width: 40px; height: 40px; top: 11px; right: 11px; }
+}
 
 /* legacy table classes still used by the ledger export */
 .table-muted { color: var(--muted); }
@@ -772,7 +885,7 @@ button:disabled { cursor: not-allowed; }
 /* The fold control itself only exists where the grid can be folded. */
 .filter-toggle {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 44px; width: 100%; padding: 0 16px; border-radius: 999px; white-space: nowrap;
+  height: 48px; width: 100%; padding: 0 16px; border-radius: 999px; white-space: nowrap;
   border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
   font: inherit; font-size: 12px; font-weight: 750; cursor: pointer;
   transition: border-color .15s ease, color .15s ease;
@@ -794,7 +907,7 @@ button:disabled { cursor: not-allowed; }
    a date is chosen. */
 .ledger-date-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .ledger-date { position: relative; display: block; min-width: 0; }
-.ledger-date input { width: 100%; font-variant-numeric: tabular-nums; }
+.ledger-date input { width: 100%; height: 48px; border-radius: 14px; font-variant-numeric: tabular-nums; }
 /* The native picker glyph is the only calendar affordance left in the box: it
    gets a slight dim so it sits at the same weight as the field's label. */
 .ledger-date input::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
@@ -815,7 +928,7 @@ button:disabled { cursor: not-allowed; }
 .text-link:disabled { opacity: .4; cursor: default; }
 .ledger-search-control { position: relative; display: block; }
 .ledger-search-control > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
-.ledger-search-control input { padding-left: 36px; }
+.ledger-search-control input { height: 48px; border-radius: 14px; padding-left: 36px; }
 .ledger-table-wrap { width: 100%; min-width: 0; contain: inline-size paint; overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 18px; }
 .ledger-table { min-width: 1000px; }
 .ledger-table th { background: var(--card-soft); color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
@@ -938,7 +1051,10 @@ button:disabled { cursor: not-allowed; }
 .auth-title { margin: 0; color: var(--ink); font-size: 27px; letter-spacing: -1.2px; font-weight: 800; }
 .auth-subtitle { margin: 9px 0 22px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
 .auth-form { display: grid; gap: 15px; }
-.auth-hint { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; }
+/* Auth screens keep one full-width CTA on every width. */
+.form-actions.is-stack { padding: 6px 0 0; border: 0; background: none; border-radius: 0; }
+.form-actions.is-stack > * { width: 100%; }
+.auth-hint { display: flex; align-items: flex-start; gap: 6px; color: var(--faint); font-size: 11px; line-height: 1.45; margin: -2px 0 0; }
 .auth-hint svg { color: var(--positive); }
 .auth-switch { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 17px; color: var(--muted); font-size: 10px; text-align: center; }
 .auth-switch a { color: var(--positive); font-weight: 800; text-decoration: none; }
@@ -973,8 +1089,11 @@ button:disabled { cursor: not-allowed; }
 /* Reports: range controls + a printable report body                   */
 .report-range-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 14px; }
 .report-preset { min-width: 160px; }
+.report-header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.report-refresh { width: 40px; height: 40px; padding: 0; border-radius: 999px; }
 @media (max-width: 560px) {
   .report-range-row > .form-field { flex: 1 1 140px; min-width: 0; }
+  .report-range-row > .form-field.report-preset { flex: 1 1 100%; }
   .report-range-row > .form-field > input, .report-range-row > .form-field [data-slot="select-trigger"] { width: 100%; }
   .report-range-row > button { flex: 0 0 auto; min-height: 44px; }
   /* Report tables keep their columns readable by scrolling inside the card
@@ -1101,6 +1220,8 @@ button:disabled { cursor: not-allowed; }
 /* inventory specifics */
 .inventory-heading-actions { display: flex; align-items: center; gap: 10px; width: 100%; }
 .inventory-heading-actions > * { flex: 1; justify-content: center; }
+/* The secondary action and the lime CTA beside it are the same 46px pill. */
+.inventory-heading-actions > .heading-secondary { height: 46px; border-radius: 999px; }
 @media (min-width: 701px) { .inventory-heading-actions { width: auto; } .inventory-heading-actions > * { flex: initial; } }
 
 /* ------------------------------------------------------------------ */
@@ -1736,6 +1857,10 @@ button:active, [role="button"]:active { transform: scale(.97); }
   /* Dialog chrome (title, form, buttons) is not part of the printed page and
      must not reserve height above it. */
   [data-slot="dialog-content"] > *:not(.statement-print) { display: none !important; }
+  /* The statement sits inside the shared scrolling form body now; print has to
+     flatten that wrapper and drop the date fields above it. */
+  [data-slot="dialog-content"] > .form-dialog-body { display: block !important; overflow: visible !important; max-height: none !important; padding: 0 !important; }
+  .form-dialog-body > *:not(.statement-print) { display: none !important; }
   .statement-print, .statement-print * { visibility: visible; }
   .statement-print {
     position: static; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
@@ -1913,11 +2038,17 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .notice-bar > svg { flex: 0 0 auto; }
 
 .account-form { margin-top: 14px; }
+/* Header + close on one row: as a wrapping flex row the close button fell to
+   its own line under the copy, where it read as a stray control. */
+.account-type-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.account-type-options .ghost-pill { height: 48px; justify-content: center; padding: 0 16px; }
+.account-form-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
 .account-form-close {
   width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center;
   border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card);
   color: var(--ink-soft); cursor: pointer;
 }
+@media (pointer: coarse) { .account-form-close { width: 40px; height: 40px; } }
 .account-list { margin-top: 6px; }
 /* Name and balance, then one overflow control. Two icon buttons per row (a
    pencil and a padlock) squeezed the name, and the padlock read as a broken

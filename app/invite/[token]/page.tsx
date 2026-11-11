@@ -32,7 +32,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
             <div className="auth-eyebrow">Invitation unavailable</div>
             <h1 className="auth-title">This link can’t be used</h1>
             <p className="auth-subtitle" style={{ marginBottom: 22 }}>The invitation may have expired, been revoked, or already been accepted. Ask the workspace owner for a new link.</p>
-            <Button asChild className="h-12 w-full rounded-full text-[13px] font-extrabold"><Link href="/login">Go to sign in</Link></Button>
+            <Button asChild className="lime-button h-12 w-full"><Link href="/login">Go to sign in</Link></Button>
           </div>
         </section>
       </main>

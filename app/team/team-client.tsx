@@ -7,7 +7,7 @@ import Topbar from '@/components/topbar';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -236,7 +236,7 @@ export default function TeamClient({ userName, role }: { userName: string; role:
               <h1 className="page-title">Team & salaries</h1>
               <p className="page-subtitle">Keep employee details and salary obligations in one private place.</p>
             </div>
-            <div className="inventory-heading-actions"><Button variant="outline" className="h-11 rounded-full bg-white" onClick={openPeriod}><CalendarDays size={14} /> Create pay period</Button><button className="lime-button" onClick={openEmployee}><Plus size={15} strokeWidth={2.6} /> Add employee</button></div>
+            <div className="inventory-heading-actions"><Button variant="outline" className="heading-secondary" onClick={openPeriod}><CalendarDays size={14} /> Create pay period</Button><button className="lime-button" onClick={openEmployee}><Plus size={15} strokeWidth={2.6} /> Add employee</button></div>
           </section>
 
           <div className="payroll-notice"><ShieldCheck size={17} /><span><strong>Restricted salary data.</strong> Only owners, admins, and payroll members can access employee compensation. Hisaabook records salary obligations; it does not automate payroll or calculate statutory deductions.</span></div>
@@ -294,77 +294,97 @@ export default function TeamClient({ userName, role }: { userName: string; role:
 
       {/* Main form dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">{dialogMode === 'employee' ? 'Add employee' : dialogMode === 'employeeEdit' ? 'Manage employee' : dialogMode === 'period' ? 'Create salary period' : 'Record salary payment'}</DialogTitle>
-            <DialogDescription>{dialogMode === 'employee' ? 'Add the minimum employee and pay details for this record.' : dialogMode === 'employeeEdit' ? 'Update the profile or add a new effective-dated salary rate. Past rates remain in history.' : dialogMode === 'period' ? 'Use the employee’s effective monthly rate or enter an agreed period amount.' : 'Payments update the outstanding balance and create a linked salary expense.'}</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">{dialogMode === 'employee' ? 'Add employee' : dialogMode === 'employeeEdit' ? 'Manage employee' : dialogMode === 'period' ? 'Create salary period' : 'Record salary payment'}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">{dialogMode === 'employee' ? 'Add the minimum employee and pay details for this record.' : dialogMode === 'employeeEdit' ? 'Update the profile or add a new effective-dated salary rate. Past rates remain in history.' : dialogMode === 'period' ? 'Use the employee’s effective monthly rate or enter an agreed period amount.' : 'Payments update the outstanding balance and create a linked salary expense.'}</DialogDescription>
           </DialogHeader>
           <form onSubmit={submit}>
-            <div className="form-grid">{dialogMode === 'employee' || dialogMode === 'employeeEdit' ? <>
-              <div className="form-field full"><Label htmlFor="emp-name">Employee name</Label><Input id="emp-name" required maxLength={100} value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="emp-title">Job title</Label><Input id="emp-title" maxLength={80} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Designer" className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="emp-ref">Employee reference (optional)</Label><Input id="emp-ref" maxLength={40} value={employeeRef} onChange={(event) => setEmployeeRef(event.target.value)} placeholder="e.g. EMP-025" className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="emp-start">Start date</Label><Input id="emp-start" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="emp-salary">Monthly salary (PKR)</Label><Input id="emp-salary" type="number" min="1" step="1" required value={monthlySalary} onChange={(event) => setMonthlySalary(event.target.value)} placeholder="e.g. 75,000" className="h-11 rounded-xl" /></div>
+            <div className="form-dialog-body">
+              <div className="form-grid">{dialogMode === 'employee' || dialogMode === 'employeeEdit' ? <>
+              <div className="form-field full"><Label htmlFor="emp-name">Employee name</Label><Input id="emp-name" required maxLength={100} value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" /></div>
+              <div className="form-field"><Label htmlFor="emp-title">Job title</Label><Input id="emp-title" maxLength={80} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Designer" /></div>
+              <div className="form-field"><Label htmlFor="emp-ref">Employee reference (optional)</Label><Input id="emp-ref" maxLength={40} value={employeeRef} onChange={(event) => setEmployeeRef(event.target.value)} placeholder="e.g. EMP-025" /></div>
+              <div className="form-field"><Label htmlFor="emp-start">Start date</Label><Input id="emp-start" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="emp-salary">Monthly salary (PKR)</Label><Input id="emp-salary" type="number" min="1" step="1" required value={monthlySalary} onChange={(event) => setMonthlySalary(event.target.value)} placeholder="e.g. 75,000" /></div>
               {dialogMode === 'employeeEdit' && <>
-                <div className="form-field full"><Label htmlFor="emp-rate-from">New rate effective from</Label><Input id="emp-rate-from" type="date" required value={rateEffectiveFrom} onChange={(event) => setRateEffectiveFrom(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></div>
+                <div className="form-field full"><Label htmlFor="emp-rate-from">New rate effective from</Label><Input id="emp-rate-from" type="date" required value={rateEffectiveFrom} onChange={(event) => setRateEffectiveFrom(event.target.value)} /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></div>
                 <div className="salary-rate-history full"><strong>Rate history</strong>{(data.employees.find((item) => item.id === editingEmployeeId)?.salaryRates ?? []).map((rate) => <div key={rate.id}><span>{dateLabel(rate.effectiveFrom)}</span><span>{money(rate.amount)} / month</span></div>)}</div>
               </>}
             </> : dialogMode === 'period' ? <>
               <div className="form-field full"><Label htmlFor="period-employee">Employee</Label>
                 <Select value={selectedEmployee} onValueChange={(value) => { setSelectedEmployee(value); const employee = data.employees.find((item) => String(item.id) === value); setPeriodAmount(employee?.currentSalary ? String(employee.currentSalary) : ''); }}>
-                  <SelectTrigger id="period-employee" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="period-employee"><SelectValue /></SelectTrigger>
                   <SelectContent>{activeEmployees.map((employee) => <SelectItem key={employee.id} value={String(employee.id)}>{employee.name} · {employee.jobTitle}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="period-start">Period starts</Label><Input id="period-start" type="date" required value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="period-end">Period ends</Label><Input id="period-end" type="date" required value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="period-due">Payment due date</Label><Input id="period-due" type="date" required value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="period-amount">Amount due (PKR)</Label><Input id="period-amount" type="number" min="1" step="1" value={periodAmount} onChange={(event) => setPeriodAmount(event.target.value)} placeholder="Uses current rate if blank" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="period-start">Period starts</Label><Input id="period-start" type="date" required value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="period-end">Period ends</Label><Input id="period-end" type="date" required value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="period-due">Payment due date</Label><Input id="period-due" type="date" required value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="period-amount">Amount due (PKR)</Label><Input id="period-amount" type="number" min="1" step="1" value={periodAmount} onChange={(event) => setPeriodAmount(event.target.value)} placeholder="Uses current rate if blank" /></div>
             </> : <>
               <div className="salary-payment-summary full"><span>{currentPeriod?.employeeName ?? 'Salary period'}<small>{currentPeriod ? `${dateLabel(currentPeriod.periodStart)} to ${dateLabel(currentPeriod.periodEnd)} · ${money(currentPeriod.balance)} remaining` : ''}</small></span></div>
-              <div className="form-field"><Label htmlFor="pay-amount">Payment amount (PKR)</Label><Input id="pay-amount" type="number" min="1" max={currentPeriod?.balance} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="pay-date">Paid date</Label><Input id="pay-date" type="date" required value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="pay-amount">Payment amount (PKR)</Label><Input id="pay-amount" type="number" min="1" max={currentPeriod?.balance} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="pay-date">Paid date</Label><Input id="pay-date" type="date" required value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div>
               <div className="form-field full"><Label htmlFor="pay-account">Paid from</Label>
                 <Select value={paymentAccount} onValueChange={setPaymentAccount}>
-                  <SelectTrigger id="pay-account" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="pay-account"><SelectValue placeholder="Choose account" /></SelectTrigger>
                   <SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="form-field full"><Label htmlFor="pay-note">Reference / note</Label><Input id="pay-note" maxLength={1000} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Optional payment reference" className="h-11 rounded-xl" /></div>
+              <div className="form-field full"><Label htmlFor="pay-note">Reference / note</Label><Input id="pay-note" maxLength={1000} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Optional payment reference" /></div>
             </>}</div>
-            {formError && <div className="form-error" role="alert">{formError}</div>}
-            <DialogFooter className="mt-5 gap-2">
-              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="h-11 rounded-full px-6" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> {dialogMode === 'employeeEdit' ? 'Save changes' : dialogMode === 'employee' ? 'Create employee' : dialogMode === 'period' ? 'Create period' : 'Record payment'}</>}</Button>
-            </DialogFooter>
+              {formError && <div className="form-error" role="alert">{formError}</div>}
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> {dialogMode === 'employeeEdit' ? 'Save changes' : dialogMode === 'employee' ? 'Create employee' : dialogMode === 'period' ? 'Create period' : 'Record payment'}</>}</Button>
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="max-h-[92vh] max-w-[520px] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Invite a workspace member</DialogTitle>
-            <DialogDescription>Choose the access this person needs. The invite link is only shown once.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Invite a workspace member</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Choose the access this person needs. The invite link is only shown once.</DialogDescription>
           </DialogHeader>
-          {inviteLink ? <div className="invite-link-result"><div className="invite-link-icon"><Link2 size={18} /></div><strong>Invitation ready to share</strong><span>Send this private link to {inviteEmail}. It expires in seven days and can be used once.</span><div className="form-field" style={{ textAlign: 'left' }}><Label htmlFor="invite-url">Invitation link</Label><Input id="invite-url" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} className="h-11 rounded-xl font-mono text-[10px]" /></div><Button className="h-11 rounded-full justify-center" onClick={copyInviteLink}><Copy size={14} /> Copy link</Button><button className="text-link" style={{ justifySelf: 'center' }} onClick={() => { setInviteLink(''); setInviteEmail(''); setInviteName(''); }}>Invite another person</button></div> : <form onSubmit={createInvite}>
+          {inviteLink ? <>
+            <div className="form-dialog-body">
+              <div className="invite-link-result">
+                <div className="invite-link-icon"><Link2 size={18} /></div>
+                <strong>Invitation ready to share</strong>
+                <span>Send this private link to {inviteEmail}. It expires in seven days and can be used once.</span>
+                <div className="form-field" style={{ textAlign: 'left' }}>
+                  <Label htmlFor="invite-url">Invitation link</Label>
+                  <Input id="invite-url" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} className="form-control-mono" />
+                </div>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="button" className="lime-button" onClick={copyInviteLink}><Copy size={14} /> Copy link</Button>
+              <Button type="button" variant="outline" onClick={() => { setInviteLink(''); setInviteEmail(''); setInviteName(''); }}>Invite another person</Button>
+            </div>
+          </> : <form onSubmit={createInvite}>
+            <div className="form-dialog-body">
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="form-field"><Label htmlFor="invite-name">Name</Label><Input id="invite-name" required maxLength={100} value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Invitee name" className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="invite-email">Email address</Label><Input id="invite-email" type="email" required maxLength={254} value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="person@business.com" className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="invite-name">Name</Label><Input id="invite-name" required maxLength={100} value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Invitee name" /></div>
+              <div className="form-field"><Label htmlFor="invite-email">Email address</Label><Input id="invite-email" type="email" required maxLength={254} value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="person@business.com" /></div>
               <div className="form-field"><Label htmlFor="invite-role">Workspace role</Label>
                 <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger id="invite-role" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="ADMIN">Admin · manage records, employees and salaries</SelectItem><SelectItem value="BOOKKEEPER">Bookkeeper · edit transactions and inventory</SelectItem><SelectItem value="PAYROLL">Payroll · manage employee and salary records</SelectItem><SelectItem value="VIEWER">Viewer · read dashboard and inventory</SelectItem></SelectContent>
                 </Select>
               </div>
+              </div>
+              {inviteError && <div className="form-error" role="alert">{inviteError}</div>}
             </div>
-            {inviteError && <div className="form-error" role="alert">{inviteError}</div>}
-            <DialogFooter className="mt-5 gap-2">
-              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={inviteSaving} onClick={() => setInviteOpen(false)}>Cancel</Button>
-              <Button type="submit" className="h-11 rounded-full px-6" disabled={inviteSaving}>{inviteSaving ? 'Creating…' : <><UserPlus size={15} /> Create invitation</>}</Button>
-            </DialogFooter>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={inviteSaving}>{inviteSaving ? 'Creating…' : <><UserPlus size={15} /> Create invitation</>}</Button>
+              <Button type="button" variant="outline" disabled={inviteSaving} onClick={() => setInviteOpen(false)}>Cancel</Button>
+            </div>
           </form>}
         </DialogContent>
       </Dialog>

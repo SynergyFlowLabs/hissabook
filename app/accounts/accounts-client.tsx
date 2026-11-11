@@ -185,7 +185,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
           <strong>Your accounts could not be loaded</strong>
           <span>{loadError}</span>
           <Button
-            className="h-11 rounded-full"
+            className="lime-button"
             onClick={() => { setLoadError(''); setReloadKey((key) => key + 1); }}
           >
             Try again
@@ -215,7 +215,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
 
   const form = (adding || editingId !== null) && (
     <form onSubmit={submit} className="soft-card account-form" aria-label={adding ? 'Add an account' : 'Edit account'}>
-      <div className="card-header-row">
+      <div className="card-header-row account-form-head">
         <div>
           <div className="card-title">{adding ? 'Add an account' : 'Edit account'}</div>
           <div className="card-subtitle">
@@ -238,14 +238,13 @@ export default function AccountsClient({ userRole, initial }: { userName: string
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
             placeholder="e.g. Meezan Bank"
-            className="h-11 rounded-full"
             maxLength={80}
           />
         </div>
 
         <div className="form-field">
           <Label className="form-label">Type</Label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="account-type-options">
             {(['CASH', 'BANK', 'MOBILE'] as const).map((type) => {
               const Icon = TYPE_ICON[type];
               const active = draft.accountType === type;
@@ -274,7 +273,6 @@ export default function AccountsClient({ userRole, initial }: { userName: string
               inputMode="numeric"
               value={draft.openingBalance}
               onChange={(event) => setDraft({ ...draft, openingBalance: event.target.value })}
-              className="h-11 rounded-full"
             />
             <span className="field-hint">What is already in this account today. Leave 0 to start empty.</span>
           </div>
@@ -283,11 +281,11 @@ export default function AccountsClient({ userRole, initial }: { userName: string
 
       {formError && <div className="form-error" role="alert">{formError}</div>}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-        <Button type="submit" className="h-11 rounded-full" disabled={busy || !draft.name.trim()}>
+      <div className="form-actions is-inline">
+        <Button type="submit" className="lime-button" disabled={busy || !draft.name.trim()}>
           {busy ? 'Saving…' : adding ? 'Add account' : 'Save changes'}
         </Button>
-        <Button type="button" variant="outline" className="h-11 rounded-full" onClick={cancel} disabled={busy}>
+        <Button type="button" variant="outline" onClick={cancel} disabled={busy}>
           Cancel
         </Button>
       </div>
@@ -308,7 +306,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
             </div>
             {canManage && (
               <div className="page-heading-actions">
-                <Button className="h-11 rounded-full" onClick={startAdd} disabled={adding}>
+                <Button className="lime-button" onClick={startAdd} disabled={adding}>
                   <Plus size={15} aria-hidden="true" /> Add account
                 </Button>
               </div>

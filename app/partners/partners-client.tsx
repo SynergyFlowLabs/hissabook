@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import PageActions from '@/components/page-actions';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -986,79 +986,95 @@ export default function PartnersClient({ userName, role }: { userName: string; r
 
       {/* Add partner dialog */}
       <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Add a partner</DialogTitle>
-            <DialogDescription>Partners can have shares recorded without app accounts. Link one if they should see their own statement.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Add a partner</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Partners can have shares recorded without app accounts. Link one if they should see their own statement.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={savePartner} className="form-grid" style={{ marginTop: 4 }}>
-            <div className="form-field full"><Label htmlFor="np-name">Full name</Label><Input id="np-name" required maxLength={80} value={npName} onChange={(event) => setNpName(event.target.value)} placeholder="e.g. Hamza Malik" className="h-11 rounded-xl" /></div>
-            <div className="form-field"><Label htmlFor="np-role">Role title</Label><Input id="np-role" maxLength={40} value={npRole} onChange={(event) => setNpRole(event.target.value)} placeholder="Partner" className="h-11 rounded-xl" /></div>
-            <div className="form-field"><Label htmlFor="np-share">Share (%)</Label><Input id="np-share" type="number" min="0" max="100" step="0.5" required value={npShare} onChange={(event) => setNpShare(event.target.value)} className="h-11 rounded-xl" /></div>
-            <div className="form-field"><Label htmlFor="np-date">Share effective from</Label><Input id="np-date" type="date" required value={npDate} onChange={(event) => setNpDate(event.target.value)} className="h-11 rounded-xl" /></div>
+          <form onSubmit={savePartner}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+            <div className="form-field full"><Label htmlFor="np-name">Full name</Label><Input id="np-name" required maxLength={80} value={npName} onChange={(event) => setNpName(event.target.value)} placeholder="e.g. Hamza Malik" /></div>
+            <div className="form-field"><Label htmlFor="np-role">Role title</Label><Input id="np-role" maxLength={40} value={npRole} onChange={(event) => setNpRole(event.target.value)} placeholder="Partner" /></div>
+            <div className="form-field"><Label htmlFor="np-share">Share (%)</Label><Input id="np-share" type="number" min="0" max="100" step="0.5" required value={npShare} onChange={(event) => setNpShare(event.target.value)} /></div>
+            <div className="form-field"><Label htmlFor="np-date">Share effective from</Label><Input id="np-date" type="date" required value={npDate} onChange={(event) => setNpDate(event.target.value)} /></div>
             <div className="form-field full"><Label htmlFor="np-user">Link workspace member (optional)</Label>
               <Select value={npUserId} onValueChange={setNpUserId}>
-                <SelectTrigger id="np-user" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="np-user"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="none">No app account</SelectItem>{data.members.map((member) => <SelectItem key={member.userId} value={String(member.userId)}>{member.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
-            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setAddOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Add partner'}</button></DialogFooter>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Add partner'}</Button>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Share change dialog */}
       <Dialog open={shareOpen} onOpenChange={(open) => { setShareOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Record share change</DialogTitle>
-            <DialogDescription>Changes are effective-dated and kept as history. Historical profit splits always recompute from these rows.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Record share change</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Changes are effective-dated and kept as history. Historical profit splits always recompute from these rows.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveShares} className="form-grid" style={{ marginTop: 4 }}>
-            <div className="form-field full"><Label htmlFor="share-date">Effective from</Label><Input id="share-date" type="date" required value={shareDate} onChange={(event) => setShareDate(event.target.value)} className="h-11 rounded-xl" /></div>
+          <form onSubmit={saveShares}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+            <div className="form-field full"><Label htmlFor="share-date">Effective from</Label><Input id="share-date" type="date" required value={shareDate} onChange={(event) => setShareDate(event.target.value)} /></div>
             {data.partners.map((partner) => (
               <div className="form-field" key={partner.id}>
                 <Label htmlFor={`share-${partner.id}`}>{partner.name.split(' ')[0]} (%)</Label>
-                <Input id={`share-${partner.id}`} type="number" min="0" max="100" step="0.5" required value={shareInputs[partner.id] ?? ''} onChange={(event) => setShareInputs({ ...shareInputs, [partner.id]: event.target.value })} className="h-11 rounded-xl" />
+                <Input id={`share-${partner.id}`} type="number" min="0" max="100" step="0.5" required value={shareInputs[partner.id] ?? ''} onChange={(event) => setShareInputs({ ...shareInputs, [partner.id]: event.target.value })} />
               </div>
             ))}
-            <div className="form-field full"><Label htmlFor="share-note">Note</Label><Input id="share-note" maxLength={200} value={shareNote} onChange={(event) => setShareNote(event.target.value)} placeholder="e.g. Sara buys 5% more from Areeba" className="h-11 rounded-xl" /></div>
+            <div className="form-field full"><Label htmlFor="share-note">Note</Label><Input id="share-note" maxLength={200} value={shareNote} onChange={(event) => setShareNote(event.target.value)} placeholder="e.g. Sara buys 5% more from Areeba" /></div>
             <p className={`form-field full text-[10px] font-bold ${Math.abs(shareTotal - 100) < 0.001 ? 'text-[var(--positive)]' : 'text-[#b45309]'}`}>Shares total {shareTotal.toLocaleString('en-PK')}%{Math.abs(shareTotal - 100) < 0.001 ? '' : '. Not 100% is allowed, distributions will ask you to confirm.'}</p>
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
-            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setShareOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Record shares'}</button></DialogFooter>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Record shares'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShareOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Fronted expense dialog */}
       <Dialog open={frontedOpen} onOpenChange={(open) => { setFrontedOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Partner paid out of pocket</DialogTitle>
-            <DialogDescription>Records the business expense and credits the paying partner. Advance stays reimbursable; capital does not.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Partner paid out of pocket</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Records the business expense and credits the paying partner. Advance stays reimbursable; capital does not.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveFronted} className="form-grid" style={{ marginTop: 4 }}>
-            <div className="form-field full"><Label htmlFor="fe-description">What was it for?</Label><Input id="fe-description" required maxLength={160} value={feDescription} onChange={(event) => setFeDescription(event.target.value)} placeholder="e.g. Electricity bill, Unit 2" className="h-11 rounded-xl" autoFocus /></div>
-            <div className="form-field"><Label htmlFor="fe-amount">Amount (PKR)</Label><Input id="fe-amount" type="number" min="1" step="1" required placeholder="e.g. 18,500" value={feAmount} onChange={(event) => setFeAmount(event.target.value)} className="h-11 rounded-xl" /></div>
-            <div className="form-field"><Label htmlFor="fe-date">Date</Label><Input id="fe-date" type="date" required value={feDate} onChange={(event) => setFeDate(event.target.value)} className="h-11 rounded-xl" /></div>
+          <form onSubmit={saveFronted}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+            <div className="form-field full"><Label htmlFor="fe-description">What was it for?</Label><Input id="fe-description" required maxLength={160} value={feDescription} onChange={(event) => setFeDescription(event.target.value)} placeholder="e.g. Electricity bill, Unit 2" autoFocus /></div>
+            <div className="form-field"><Label htmlFor="fe-amount">Amount (PKR)</Label><Input id="fe-amount" type="number" min="1" step="1" required placeholder="e.g. 18,500" value={feAmount} onChange={(event) => setFeAmount(event.target.value)} /></div>
+            <div className="form-field"><Label htmlFor="fe-date">Date</Label><Input id="fe-date" type="date" required value={feDate} onChange={(event) => setFeDate(event.target.value)} /></div>
             <div className="form-field"><Label htmlFor="fe-category">Category</Label>
-              <Select value={feCategory} onValueChange={setFeCategory}><SelectTrigger id="fe-category" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{FRONT_CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select>
+              <Select value={feCategory} onValueChange={setFeCategory}><SelectTrigger id="fe-category"><SelectValue /></SelectTrigger><SelectContent>{FRONT_CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select>
             </div>
             <div className="form-field"><Label htmlFor="fe-treat">Count as</Label>
-              <Select value={feTreatAs} onValueChange={(value) => setFeTreatAs(value as 'advance' | 'capital')}><SelectTrigger id="fe-treat" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="advance">Advance, reimbursable</SelectItem><SelectItem value="capital">Partner capital</SelectItem></SelectContent></Select>
+              <Select value={feTreatAs} onValueChange={(value) => setFeTreatAs(value as 'advance' | 'capital')}><SelectTrigger id="fe-treat"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="advance">Advance, reimbursable</SelectItem><SelectItem value="capital">Partner capital</SelectItem></SelectContent></Select>
             </div>
 
             <div className="form-field full">
               <div className="flex items-center justify-between gap-2"><Label>Who paid, and how much</Label><button type="button" className="text-link" style={{ fontSize: 10 }} onClick={splitFrontedEqually}>Split equally</button></div>
               <div className="mt-2 grid gap-2">
                 {feFunders.map((funder, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={index} className="funder-row">
                     <Select value={funder.ownerId} onValueChange={(value) => setFeFunders(feFunders.map((row, i) => i === index ? { ...row, ownerId: value } : row))}>
-                      <SelectTrigger aria-label={`Funder ${index + 1}`} className="h-11 flex-1 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectTrigger aria-label={`Funder ${index + 1}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{activePartners.map((partner) => <SelectItem key={partner.id} value={String(partner.id)}>{partner.name}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Input type="number" min="1" step="1" aria-label={`Funder ${index + 1} amount`} placeholder="0" value={funder.amount} onChange={(event) => setFeFunders(feFunders.map((row, i) => i === index ? { ...row, amount: event.target.value } : row))} className="h-11 w-28 rounded-xl tabular-nums" />
+                    <Input type="number" min="1" step="1" aria-label={`Funder ${index + 1} amount`} placeholder="0" value={funder.amount} onChange={(event) => setFeFunders(feFunders.map((row, i) => i === index ? { ...row, amount: event.target.value } : row))} className="tabular-nums" />
                     {feFunders.length > 1 && <button type="button" className="ghost-icon-button" aria-label="Remove funder" onClick={() => setFeFunders(feFunders.filter((_, i) => i !== index))}><X size={14} /></button>}
                   </div>
                 ))}
@@ -1069,56 +1085,68 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <p className={`mt-2 text-[10px] font-bold ${feAmountInt > 0 && feTotal === feAmountInt ? 'text-[var(--positive)]' : 'text-[var(--muted)]'}`}>Funders total PKR {feTotal.toLocaleString('en-PK')}{feAmountInt > 0 ? ` of PKR ${feAmountInt.toLocaleString('en-PK')}` : ''}</p>
             </div>
 
-            <div className="form-field full"><Label htmlFor="fe-note">Note (optional)</Label><Input id="fe-note" maxLength={1000} value={feNote} onChange={(event) => setFeNote(event.target.value)} placeholder="Receipt, bill number, anything auditors should see" className="h-11 rounded-xl" /></div>
+            <div className="form-field full"><Label htmlFor="fe-note">Note (optional)</Label><Input id="fe-note" maxLength={1000} value={feNote} onChange={(event) => setFeNote(event.target.value)} placeholder="Receipt, bill number, anything auditors should see" /></div>
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
-            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setFrontedOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy || feFunders.length === 0 || feTotal !== feAmountInt || feAmountInt <= 0}>{busy ? 'Saving…' : 'Save out of pocket'}</button></DialogFooter>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={busy || feFunders.length === 0 || feTotal !== feAmountInt || feAmountInt <= 0}>{busy ? 'Saving…' : 'Save out of pocket'}</Button>
+              <Button type="button" variant="outline" onClick={() => setFrontedOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Generic movement dialog (drawing / contribution / capital-return / reimburse) */}
       <Dialog open={movementOpen} onOpenChange={(open) => { setMovementOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">{movementMeta.title}</DialogTitle>
-            <DialogDescription>{movementMeta.hint}{movementPartner ? ` Partner: ${movementPartner.name}.` : ''}</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">{movementMeta.title}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">{movementMeta.hint}{movementPartner ? ` Partner: ${movementPartner.name}.` : ''}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveMovement} className="form-grid" style={{ marginTop: 4 }}>
-            <div className="form-field full"><Label htmlFor="m-amount">Amount (PKR)</Label><Input id="m-amount" type="number" min="1" step="1" required inputMode="numeric" placeholder="e.g. 25,000" value={mAmount} onChange={(event) => setMAmount(event.target.value)} className="h-12 rounded-xl text-lg font-extrabold tracking-tight" autoFocus />
+          <form onSubmit={saveMovement}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+            <div className="form-field full"><Label htmlFor="m-amount">Amount (PKR)</Label><Input id="m-amount" type="number" min="1" step="1" required inputMode="numeric" placeholder="e.g. 25,000" value={mAmount} onChange={(event) => setMAmount(event.target.value)} className="text-lg font-extrabold tracking-tight" autoFocus />
               {movementMeta.max !== null && <span className="field-hint">Available maximum: {money(movementMeta.max)}</span>}
             </div>
             <div className="form-field"><Label htmlFor="m-account">{movementKind === 'contribution' ? 'Paid into' : 'Paid from'}</Label>
-              <Select value={mAccountId} onValueChange={setMAccountId}><SelectTrigger id="m-account" className="h-11 rounded-xl"><SelectValue placeholder="Choose account" /></SelectTrigger><SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent></Select>
+              <Select value={mAccountId} onValueChange={setMAccountId}><SelectTrigger id="m-account"><SelectValue placeholder="Choose account" /></SelectTrigger><SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent></Select>
             </div>
-            <div className="form-field"><Label htmlFor="m-date">Date</Label><Input id="m-date" type="date" required value={mDate} onChange={(event) => setMDate(event.target.value)} className="h-11 rounded-xl" /></div>
-            <div className="form-field full"><Label htmlFor="m-note">Note (optional)</Label><Input id="m-note" maxLength={1000} value={mNote} onChange={(event) => setMNote(event.target.value)} placeholder="Why, and against which bill" className="h-11 rounded-xl" /></div>
+            <div className="form-field"><Label htmlFor="m-date">Date</Label><Input id="m-date" type="date" required value={mDate} onChange={(event) => setMDate(event.target.value)} /></div>
+            <div className="form-field full"><Label htmlFor="m-note">Note (optional)</Label><Input id="m-note" maxLength={1000} value={mNote} onChange={(event) => setMNote(event.target.value)} placeholder="Why, and against which bill" /></div>
             {drawingCapWarning && (
               <p className="warn-box form-field full" role="status">
                 Over the drawing cap: lifetime drawings would reach {money(drawingCapWarning.drawnAfter)}, above {drawingCapWarning.capPct}% of the accrued {money(drawingCapWarning.accrued)} (cap {money(drawingCapWarning.capAmount)}). {role === 'BOOKKEEPER' ? 'This will be flagged in the audit log.' : 'You can still proceed; it will be flagged in the audit log.'}
               </p>
             )}
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
-            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setMovementOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : movementMeta.confirm}</button></DialogFooter>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : movementMeta.confirm}</Button>
+              <Button type="button" variant="outline" onClick={() => setMovementOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Statement dialog */}
       <Dialog open={statementOpen} onOpenChange={(open) => { setStatementOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Partner statement</DialogTitle>
-            <DialogDescription>Every entry between the firm and this partner, with running balances. Print it or take the CSV.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Partner statement</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Every entry between the firm and this partner, with running balances. Print it or take the CSV.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={fetchStatement} className="flex flex-wrap items-end gap-2" style={{ marginTop: 4 }}>
-            <div><Label htmlFor="st-from">From</Label><Input id="st-from" type="date" required value={statementFrom} onChange={(event) => setStatementFrom(event.target.value)} className="mt-1 h-11 rounded-xl" /></div>
-            <div><Label htmlFor="st-to">To</Label><Input id="st-to" type="date" required value={statementTo} onChange={(event) => setStatementTo(event.target.value)} className="mt-1 h-11 rounded-xl" /></div>
-            <button type="submit" className="lime-button" disabled={statementLoading}>{statementLoading ? 'Building…' : 'Build'}</button>
-            <a className="ghost-pill" href={statementCsvHref} download><Download size={12} /> CSV</a>
-          </form>
-          {formError && <p className="form-error" role="alert" style={{ marginTop: 8 }}>{formError}</p>}
-          {statement && (
-            <div className="statement-print" style={{ marginTop: 12 }}>
+          <form onSubmit={fetchStatement}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+                <div className="form-field"><Label htmlFor="st-from">From</Label><Input id="st-from" type="date" required value={statementFrom} onChange={(event) => setStatementFrom(event.target.value)} /></div>
+                <div className="form-field"><Label htmlFor="st-to">To</Label><Input id="st-to" type="date" required value={statementTo} onChange={(event) => setStatementTo(event.target.value)} /></div>
+              </div>
+              {formError && <div className="form-error" role="alert">{formError}</div>}
+              {statement && (
+                <div className="statement-print" style={{ marginTop: 14 }}>
               <div className="statement-meta">
                 <div><strong>{statement.partner.name}</strong> · {statement.partner.role}</div>
                 <div className="table-muted">{dateLabel(statement.from)} to {dateLabel(statement.to)} · Opening current {signed(statement.opening.current)} · Capital {signed(statement.opening.capital)}</div>
@@ -1135,27 +1163,35 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               </div>
               <div className="statement-closing">Closing current {signed(statement.closing.current)} · Capital {signed(statement.closing.capital)}</div>
               <div className="no-print" style={{ marginTop: 10, textAlign: 'right' }}><button className="ghost-pill" onClick={() => window.print()}><Printer size={12} /> Print statement</button></div>
+                </div>
+              )}
             </div>
-          )}
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={statementLoading}>{statementLoading ? 'Building…' : statement ? 'Rebuild statement' : 'Build statement'}</Button>
+              <a className="ghost-pill" href={statementCsvHref} download><Download size={12} /> CSV</a>
+              <Button type="button" variant="outline" onClick={() => setStatementOpen(false)}>Close</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
       {/* Exit settlement dialog */}
       <Dialog open={exitOpen} onOpenChange={(open) => { setExitOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('exit-date')?.focus(); }}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Exit settlement{exitPartner ? ` - ${exitPartner.name}` : ''}</DialogTitle>
-            <DialogDescription>Computes everything the partner is owed or owes, in the s.48 order: losses first, then advances, then capital, then the residue. Preview posts nothing; the ledger changes only on confirm.</DialogDescription>
+        <DialogContent className="form-dialog form-dialog-wide" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('exit-date')?.focus(); }}>
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Exit settlement{exitPartner ? ` - ${exitPartner.name}` : ''}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Computes everything the partner is owed or owes, in the s.48 order: losses first, then advances, then capital, then the residue. Preview posts nothing; the ledger changes only on confirm.</DialogDescription>
           </DialogHeader>
-          <div className="form-grid" style={{ marginTop: 4 }}>
-            <div className="form-field"><Label htmlFor="exit-date">Exit date</Label><Input id="exit-date" type="date" required max={todayIso()} value={exitAsOf} onChange={(event) => { setExitAsOf(event.target.value); setExitPreview(null); }} className="h-11 rounded-xl" /></div>
+          <div className="form-dialog-body">
+          <div className="form-grid">
+            <div className="form-field"><Label htmlFor="exit-date">Exit date</Label><Input id="exit-date" type="date" required max={todayIso()} value={exitAsOf} onChange={(event) => { setExitAsOf(event.target.value); setExitPreview(null); }} /></div>
             <div className="form-field"><Label htmlFor="exit-mode">Settle as</Label>
-              <Select value={exitMode} onValueChange={(value) => { setExitMode(value as 'PAY' | 'LOAN'); setExitPreview(null); }}><SelectTrigger id="exit-mode" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
+              <Select value={exitMode} onValueChange={(value) => { setExitMode(value as 'PAY' | 'LOAN'); setExitPreview(null); }}><SelectTrigger id="exit-mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
               <span className="field-hint">Default comes from the deed terms.</span>
             </div>
-            <div className="form-field"><Label htmlFor="exit-goodwill">Goodwill value (PKR)</Label><Input id="exit-goodwill" type="number" min="0" step="1" inputMode="numeric" value={exitGoodwill} onChange={(event) => { setExitGoodwill(event.target.value); setExitPreview(null); }} className="h-11 rounded-xl" /></div>
+            <div className="form-field"><Label htmlFor="exit-goodwill">Goodwill value (PKR)</Label><Input id="exit-goodwill" type="number" min="0" step="1" inputMode="numeric" value={exitGoodwill} onChange={(event) => { setExitGoodwill(event.target.value); setExitPreview(null); }} /></div>
             {goodwillInt > 0 && (
               <div className="form-field"><Label htmlFor="exit-gw-method">Goodwill method</Label>
-                <Select value={exitGoodwillMethod} onValueChange={(value) => { setExitGoodwillMethod(value as 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT'); setExitPreview(null); }}><SelectTrigger id="exit-gw-method" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="RAISE_WRITEOFF">Raise and write off (old PSR)</SelectItem><SelectItem value="CASH_ADJUSTMENT">Cash adjustment (remaining partners)</SelectItem></SelectContent></Select>
+                <Select value={exitGoodwillMethod} onValueChange={(value) => { setExitGoodwillMethod(value as 'RAISE_WRITEOFF' | 'CASH_ADJUSTMENT'); setExitPreview(null); }}><SelectTrigger id="exit-gw-method"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="RAISE_WRITEOFF">Raise and write off (old PSR)</SelectItem><SelectItem value="CASH_ADJUSTMENT">Cash adjustment (remaining partners)</SelectItem></SelectContent></Select>
               </div>
             )}
           </div>
@@ -1164,8 +1200,8 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <p className="field-hint">Assets and liabilities at fair value. A positive delta increases asset values, a negative delta reduces them. Split by the exit-date PSR.</p>
             {exitRevaluations.map((line) => (
               <div className="exit-reval-row" key={line.id}>
-                <Input className="exit-reval-desc h-10 rounded-xl" placeholder="e.g. Delivery van revalued" aria-label="Revaluation description" maxLength={80} value={line.description} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, description: event.target.value } : row)); setExitPreview(null); }} />
-                <Input className="exit-reval-delta h-10 rounded-xl tabular-nums" type="number" step="1" inputMode="numeric" placeholder="+/-" aria-label="Revaluation delta in PKR" value={line.delta} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, delta: event.target.value } : row)); setExitPreview(null); }} />
+                <Input className="exit-reval-desc" placeholder="e.g. Delivery van revalued" aria-label="Revaluation description" maxLength={80} value={line.description} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, description: event.target.value } : row)); setExitPreview(null); }} />
+                <Input className="exit-reval-delta tabular-nums" type="number" step="1" inputMode="numeric" placeholder="+/-" aria-label="Revaluation delta in PKR" value={line.delta} onChange={(event) => { setExitRevaluations(exitRevaluations.map((row) => row.id === line.id ? { ...row, delta: event.target.value } : row)); setExitPreview(null); }} />
                 <button type="button" className="ghost-pill exit-reval-remove" aria-label="Remove revaluation line" onClick={() => { setExitRevaluations(exitRevaluations.filter((row) => row.id !== line.id)); setExitPreview(null); }}><X size={12} /></button>
               </div>
             ))}
@@ -1208,21 +1244,24 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               )}
             </div>
           )}
-          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
-            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setExitOpen(false)}>Close</Button>
+          </div>
+          <div className="form-actions">
             <button type="button" className="lime-button" disabled={!exitPreview || exitBusy || (Math.abs(exitPreview.shareMismatchTotal - 100) > 0.01 && !exitConfirmMismatch)} onClick={() => void confirmSettlement()}>{exitBusy ? 'Posting…' : 'Post exit settlement'}</button>
-          </DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExitOpen(false)}>Close</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Deed settings dialog */}
       <Dialog open={deedOpen} onOpenChange={(open) => { setDeedOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('deed-salary')?.focus(); }}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Deed terms</DialogTitle>
-            <DialogDescription>What your partnership deed allows, as data. Everything stays off until you turn it on; Hisaabook never invents terms you have not agreed.</DialogDescription>
+        <DialogContent className="form-dialog" onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('deed-salary')?.focus(); }}>
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Deed terms</DialogTitle>
+            <DialogDescription className="form-dialog-sub">What your partnership deed allows, as data. Everything stays off until you turn it on; Hisaabook never invents terms you have not agreed.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveDeed} className="form-grid" style={{ marginTop: 4 }}>
+          <form onSubmit={saveDeed}>
+            <div className="form-dialog-body">
+              <div className="form-grid">
             <label className="deed-toggle form-field full" htmlFor="deed-salary">
               <input id="deed-salary" type="checkbox" checked={deedSalary} onChange={(event) => setDeedSalary(event.target.checked)} />
               <span><strong>Partner salary</strong><small>Deed-fixed salary paid before profit share (s.13(a)). The amounts are entered per distribution.</small></span>
@@ -1232,22 +1271,27 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <span><strong>Interest on capital</strong><small>Only out of profits remaining after salary (s.13(c)). Paid on each partner’s opening capital.</small></span>
             </label>
             {deedICap && (
-              <div className="form-field"><Label htmlFor="deed-icap-pct">Rate (% p.a.)</Label><Input id="deed-icap-pct" type="number" min="0" max="50" step="0.5" required value={deedICapPct} onChange={(event) => setDeedICapPct(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="deed-icap-pct">Rate (% p.a.)</Label><Input id="deed-icap-pct" type="number" min="0" max="50" step="0.5" required value={deedICapPct} onChange={(event) => setDeedICapPct(event.target.value)} /></div>
             )}
             <label className="deed-toggle form-field full" htmlFor="deed-idraw">
               <input id="deed-idraw" type="checkbox" checked={deedIDraw} onChange={(event) => setDeedIDraw(event.target.checked)} />
               <span><strong>Interest on drawings</strong><small>Each drawing accrues from its date to the period end, added back to distributable profit.</small></span>
             </label>
             {deedIDraw && (
-              <div className="form-field"><Label htmlFor="deed-idraw-pct">Rate (% p.a.)</Label><Input id="deed-idraw-pct" type="number" min="0" max="50" step="0.5" required value={deedIDrawPct} onChange={(event) => setDeedIDrawPct(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="deed-idraw-pct">Rate (% p.a.)</Label><Input id="deed-idraw-pct" type="number" min="0" max="50" step="0.5" required value={deedIDrawPct} onChange={(event) => setDeedIDrawPct(event.target.value)} /></div>
             )}
-            <div className="form-field"><Label htmlFor="deed-cap">Drawing cap (%)</Label><Input id="deed-cap" type="number" min="0" max="100" step="1" required value={deedCap} onChange={(event) => setDeedCap(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">Warn when lifetime drawings exceed this % of accrued (posted + estimated) share. Never blocks; flagged in the audit log.</span></div>
+            <div className="form-field"><Label htmlFor="deed-cap">Drawing cap (%)</Label><Input id="deed-cap" type="number" min="0" max="100" step="1" required value={deedCap} onChange={(event) => setDeedCap(event.target.value)} /><span className="field-hint">Warn when lifetime drawings exceed this % of accrued (posted + estimated) share. Never blocks; flagged in the audit log.</span></div>
             <div className="form-field"><Label htmlFor="deed-method">On partner exit</Label>
-              <Select value={deedMethod} onValueChange={(value) => setDeedMethod(value as 'PAY' | 'LOAN')}><SelectTrigger id="deed-method" className="h-11 rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
+              <Select value={deedMethod} onValueChange={(value) => setDeedMethod(value as 'PAY' | 'LOAN')}><SelectTrigger id="deed-method"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PAY">Pay out in cash</SelectItem><SelectItem value="LOAN">Convert to firm loan</SelectItem></SelectContent></Select>
               <span className="field-hint">Default for the exit settlement and for how an exited partner is paid.</span>
             </div>
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
-            <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDeedOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Save deed terms'}</button></DialogFooter>
+              </div>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Save deed terms'}</Button>
+              <Button type="button" variant="outline" onClick={() => setDeedOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -1259,13 +1303,14 @@ export default function PartnersClient({ userName, role }: { userName: string; r
           Restoring focus to the "..." trigger would then pull focus out of that
           dialog, so this one only restores when it closes on its own. */}
       <Dialog open={partnerSheetId !== null} onOpenChange={(open) => { if (!open) { setPartnerSheetId(null); if (!forwardingRef.current) restoreOpener(); } }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl p-5">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-extrabold tracking-tight">{sheetPartner ? sheetPartner.name : 'Partner'}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="form-dialog form-dialog-wide">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">{sheetPartner ? sheetPartner.name : 'Partner'}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">
               {sheetPartner ? `${sheetPartner.role} · ${Number(sheetPartner.share).toLocaleString('en-PK')}% share · ${money(sheetPartner.settleable)} ${sheetPartner.settleable < 0 ? 'overdrawn' : 'owed'}` : 'Record money moving for this partner.'}
             </DialogDescription>
           </DialogHeader>
+          <div className="form-dialog-body">
           <div className="action-sheet">
             {canEdit && sheetPartner?.status === 'active' && (
               <button type="button" className="action-sheet-row primary" onClick={() => forwardFromSheet(() => { setFormError(''); setFeFunders([{ ownerId: String(sheetPartner.id), amount: '' }]); setFrontedOpen(true); })}>
@@ -1304,16 +1349,18 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               </button>
             )}
           </div>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Distribution dialog */}
       <Dialog open={distOpen} onOpenChange={(open) => { setDistOpen(open); if (!open) restoreOpener(); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Distribute profit</DialogTitle>
-            <DialogDescription>Salary first, interest on capital capped by what remains, interest on drawings added back, residual by day-weighted PSR. Preview is read-only; nothing posts until you confirm.</DialogDescription>
+        <DialogContent className="form-dialog form-dialog-wide">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Distribute profit</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Salary first, interest on capital capped by what remains, interest on drawings added back, residual by day-weighted PSR. Preview is read-only; nothing posts until you confirm.</DialogDescription>
           </DialogHeader>
+          <div className="form-dialog-body">
           <div className="dist-presets" role="group" aria-label="Period presets">
             <button type="button" className={`deed-chip${distPreset === 'month' ? ' active' : ''}`} onClick={() => applyDistPreset('month')}>This month</button>
             <button type="button" className={`deed-chip${distPreset === 'lastMonth' ? ' active' : ''}`} onClick={() => applyDistPreset('lastMonth')}>Last month</button>
@@ -1321,23 +1368,23 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             <button type="button" className={`deed-chip${distPreset === 'custom' ? ' active' : ''}`} onClick={() => applyDistPreset('custom')}>Custom</button>
           </div>
           <div className="form-grid" style={{ marginTop: 8 }}>
-            <div className="form-field"><Label htmlFor="dist-from">From</Label><Input id="dist-from" type="date" value={distFrom} onChange={(event) => { setDistPreset('custom'); setDistFrom(event.target.value); setDistPreview(null); }} className="h-11 rounded-xl" /></div>
-            <div className="form-field"><Label htmlFor="dist-to">To</Label><Input id="dist-to" type="date" value={distTo} onChange={(event) => { setDistPreset('custom'); setDistTo(event.target.value); setDistPreview(null); }} className="h-11 rounded-xl" /></div>
+            <div className="form-field"><Label htmlFor="dist-from">From</Label><Input id="dist-from" type="date" value={distFrom} onChange={(event) => { setDistPreset('custom'); setDistFrom(event.target.value); setDistPreview(null); }} /></div>
+            <div className="form-field"><Label htmlFor="dist-to">To</Label><Input id="dist-to" type="date" value={distTo} onChange={(event) => { setDistPreset('custom'); setDistTo(event.target.value); setDistPreview(null); }} /></div>
           </div>
           {data.settings.partnerSalaryEnabled && (
             <div className="form-field full" style={{ marginTop: 10 }}>
               <Label>Salaries for this period (optional)</Label>
               <div className="mt-2 grid gap-2">
                 {activePartners.map((partner) => (
-                  <div key={partner.id} className="flex items-center gap-2">
-                    <span className="w-28 truncate text-[11px] font-semibold">{partner.name.split(' ')[0]}</span>
-                    <Input type="number" min="0" step="1" inputMode="numeric" placeholder="0" aria-label={`Salary for ${partner.name}`} value={salaryInputs[partner.id] ?? ''} onChange={(event) => { setSalaryInputs({ ...salaryInputs, [partner.id]: event.target.value }); setDistPreview(null); }} className="h-10 rounded-xl tabular-nums" />
+                  <div key={partner.id} className="salary-row">
+                    <span className="truncate text-[11px] font-semibold">{partner.name.split(' ')[0]}</span>
+                    <Input type="number" min="0" step="1" inputMode="numeric" placeholder="0" aria-label={`Salary for ${partner.name}`} value={salaryInputs[partner.id] ?? ''} onChange={(event) => { setSalaryInputs({ ...salaryInputs, [partner.id]: event.target.value }); setDistPreview(null); }} className="tabular-nums" />
                   </div>
                 ))}
               </div>
             </div>
           )}
-          <div className="form-field full" style={{ marginTop: 10 }}><Label htmlFor="dist-note">Note (optional)</Label><Input id="dist-note" maxLength={300} value={distNote} onChange={(event) => setDistNote(event.target.value)} placeholder="e.g. October distribution as per deed" className="h-10 rounded-xl" /></div>
+          <div className="form-field full" style={{ marginTop: 10 }}><Label htmlFor="dist-note">Note (optional)</Label><Input id="dist-note" maxLength={300} value={distNote} onChange={(event) => setDistNote(event.target.value)} placeholder="e.g. October distribution as per deed" /></div>
           <div className="flex items-center justify-between gap-2" style={{ marginTop: 10 }}>
             <span className="field-hint">Basis: CLEARED income − expenses. Partner-funded expenses already count.</span>
             <button type="button" className="ghost-pill" onClick={() => void buildPreview()} disabled={distBusy}>{distBusy && !distPreview ? 'Computing…' : 'Preview'}</button>
@@ -1377,25 +1424,28 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               )}
             </div>
           )}
-          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
-            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDistOpen(false)}>Close</Button>
+          </div>
+          <div className="form-actions">
             <button type="button" className="lime-button" disabled={!distPreview || distBusy || distPreview.overlapDistributionId !== null || (Math.abs(distPreview.workings.shareMismatchTotal - 100) > 0.01 && !confirmMismatch)} onClick={() => void postDistribution()}>{distBusy ? 'Posting…' : 'Post distribution'}</button>
-          </DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDistOpen(false)}>Close</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Void distribution dialog */}
       <Dialog open={voidTarget !== null} onOpenChange={(open) => { if (!open) { setVoidTarget(null); restoreOpener(); } }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Void distribution #{voidTarget}</DialogTitle>
-            <DialogDescription>Posts reversing correction rows for every entry of this distribution. The original stays visible in history, marked void, forever.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Void distribution #{voidTarget}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Posts reversing correction rows for every entry of this distribution. The original stays visible in history, marked void, forever.</DialogDescription>
           </DialogHeader>
-          <div className="form-field full" style={{ marginTop: 4 }}><Label htmlFor="void-reason">Reason (required)</Label><Input id="void-reason" maxLength={200} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} placeholder="e.g. Posted for the wrong period" className="h-11 rounded-xl" autoFocus /></div>
-          <DialogFooter className="form-field full sm:justify-end" style={{ marginTop: 12 }}>
-            <Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setVoidTarget(null)}>Cancel</Button>
+          <div className="form-dialog-body">
+            <div className="form-field"><Label htmlFor="void-reason">Reason (required)</Label><Input id="void-reason" maxLength={200} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} placeholder="e.g. Posted for the wrong period" autoFocus /></div>
+          </div>
+          <div className="form-actions">
             <button type="button" className="lime-button" disabled={voidBusy || !voidReason.trim()} onClick={() => void confirmVoid()}>{voidBusy ? 'Voiding…' : 'Void distribution'}</button>
-          </DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setVoidTarget(null)}>Cancel</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -11,7 +11,7 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -576,81 +576,85 @@ export default function Dashboard({ userName, userRole }: { userName: string; us
 
       {/* Account management is its own screen: /accounts */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">Add a transaction</DialogTitle>
-            <DialogDescription>Keep a clear record of money moving through your business.</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">Add a transaction</DialogTitle>
+            <DialogDescription className="form-dialog-sub">Keep a clear record of money moving through your business.</DialogDescription>
           </DialogHeader>
           <form onSubmit={saveTransaction}>
-            <div className="form-grid">
+            <div className="form-dialog-body">
+              <div className="form-grid">
               <div className="form-field full"><Label htmlFor="txn-kind">Transaction type</Label>
                 <Select value={kind} onValueChange={(value) => setKind(value as TransactionKind)}>
-                  <SelectTrigger id="txn-kind" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="txn-kind"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="Expense">Expense</SelectItem><SelectItem value="Income">Income</SelectItem><SelectItem value="Contribution">Contribution</SelectItem><SelectItem value="Withdrawal">Withdrawal</SelectItem><SelectItem value="Loan received">Loan received</SelectItem><SelectItem value="Loan given">Loan given</SelectItem><SelectItem value="Transfer">Transfer</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="txn-amount">Amount (PKR)</Label><Input id="txn-amount" type="number" min="1" step="1" required placeholder="e.g. 12,500" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-11 rounded-xl" /><span className="field-hint">Whole PKR amounts for now.</span></div>
-              <div className="form-field"><Label htmlFor="txn-date">Date</Label><Input id="txn-date" type="date" required value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field full"><Label htmlFor="txn-description">Description</Label><Input id="txn-description" required maxLength={160} placeholder="What was this transaction for?" value={description} onChange={(event) => setDescription(event.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="txn-amount">Amount (PKR)</Label><Input id="txn-amount" type="number" min="1" step="1" required placeholder="e.g. 12,500" value={amount} onChange={(event) => setAmount(event.target.value)} /><span className="field-hint">Whole PKR amounts for now.</span></div>
+              <div className="form-field"><Label htmlFor="txn-date">Date</Label><Input id="txn-date" type="date" required value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} /></div>
+              <div className="form-field full"><Label htmlFor="txn-description">Description</Label><Input id="txn-description" required maxLength={160} placeholder="What was this transaction for?" value={description} onChange={(event) => setDescription(event.target.value)} /></div>
               <div className="form-field"><Label htmlFor="txn-category">Category</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger id="txn-category" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="txn-category"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="General">General</SelectItem><SelectItem value="Sales & services">Sales & services</SelectItem><SelectItem value="Rent & utilities">Rent & utilities</SelectItem><SelectItem value="Tools & software">Tools & software</SelectItem><SelectItem value="Travel & transport">Travel & transport</SelectItem><SelectItem value="Owner funding">Owner funding</SelectItem><SelectItem value="Loan repayment">Loan repayment</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="form-field"><Label htmlFor="txn-account">{isOutgoing ? 'Paid from' : 'Received into'}</Label>
                 <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger id="txn-account" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="txn-account"><SelectValue placeholder="Choose account" /></SelectTrigger>
                   <SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {kind === 'Transfer' && <div className="form-field full"><Label htmlFor="txn-dest">Transfer to</Label>
                 <Select value={destinationAccountId} onValueChange={setDestinationAccountId}>
-                  <SelectTrigger id="txn-dest" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="txn-dest"><SelectValue placeholder="Choose account" /></SelectTrigger>
                   <SelectContent>{data.accounts.filter((account) => String(account.id) !== accountId).map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>}
               {(kind === 'Loan received' || kind === 'Loan given') && <>
-                <div className="form-field"><Label htmlFor="txn-counterparty">{kind === 'Loan received' ? 'Lender' : 'Borrower'}</Label><Input id="txn-counterparty" maxLength={120} placeholder="Person or business" value={counterparty} onChange={(event) => setCounterparty(event.target.value)} className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="txn-due">Due date (optional)</Label><Input id="txn-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="h-11 rounded-xl" /></div>
+                <div className="form-field"><Label htmlFor="txn-counterparty">{kind === 'Loan received' ? 'Lender' : 'Borrower'}</Label><Input id="txn-counterparty" maxLength={120} placeholder="Person or business" value={counterparty} onChange={(event) => setCounterparty(event.target.value)} /></div>
+                <div className="form-field"><Label htmlFor="txn-due">Due date (optional)</Label><Input id="txn-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></div>
               </>}
-              <div className="form-field full"><Label htmlFor="txn-note">Note</Label><Textarea id="txn-note" maxLength={1000} placeholder="Add a note or reference (optional)" value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl" /></div>
+              <div className="form-field full"><Label htmlFor="txn-note">Note</Label><Textarea id="txn-note" maxLength={1000} placeholder="Add a note or reference (optional)" value={note} onChange={(event) => setNote(event.target.value)} /></div>
+              </div>
+              {saveError && <div className="form-error" role="alert">{saveError}</div>}
             </div>
-            {saveError && <div className="form-error" role="alert">{saveError}</div>}
-            <DialogFooter className="mt-5 gap-2">
-              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="h-11 rounded-full px-6" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> Save transaction</>}</Button>
-            </DialogFooter>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> Save transaction</>}</Button>
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Loan repayment dialog */}
       <Dialog open={repaymentOpen} onOpenChange={setRepaymentOpen}>
-        <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">{repaymentLoan?.direction === 'PAYABLE' ? 'Record loan repayment' : 'Record loan collection'}</DialogTitle>
-            <DialogDescription>{repaymentLoan ? `${repaymentLoan.name} · ${formatPKR(repaymentLoan.outstanding)} principal remaining. Principal changes the loan balance; any fee is recorded separately.` : 'Record a loan repayment or collection.'}</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">{repaymentLoan?.direction === 'PAYABLE' ? 'Record loan repayment' : 'Record loan collection'}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">{repaymentLoan ? `${repaymentLoan.name} · ${formatPKR(repaymentLoan.outstanding)} principal remaining. Principal changes the loan balance; any fee is recorded separately.` : 'Record a loan repayment or collection.'}</DialogDescription>
           </DialogHeader>
           <form onSubmit={recordRepayment}>
-            <div className="form-grid">
-              <div className="form-field"><Label htmlFor="repay-principal">Principal amount (PKR)</Label><Input id="repay-principal" type="number" min="1" max={repaymentLoan?.outstanding} step="1" required value={repaymentPrincipal} onChange={(event) => setRepaymentPrincipal(event.target.value)} className="h-11 rounded-xl" /></div>
-              <div className="form-field"><Label htmlFor="repay-date">Date</Label><Input id="repay-date" type="date" required value={repaymentDate} onChange={(event) => setRepaymentDate(event.target.value)} className="h-11 rounded-xl" /></div>
+            <div className="form-dialog-body">
+              <div className="form-grid">
+              <div className="form-field"><Label htmlFor="repay-principal">Principal amount (PKR)</Label><Input id="repay-principal" type="number" min="1" max={repaymentLoan?.outstanding} step="1" required value={repaymentPrincipal} onChange={(event) => setRepaymentPrincipal(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="repay-date">Date</Label><Input id="repay-date" type="date" required value={repaymentDate} onChange={(event) => setRepaymentDate(event.target.value)} /></div>
               <div className="form-field full"><Label htmlFor="repay-account">{repaymentLoan?.direction === 'PAYABLE' ? 'Paid from' : 'Received into'}</Label>
                 <Select value={repaymentAccount} onValueChange={setRepaymentAccount}>
-                  <SelectTrigger id="repay-account" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="repay-account"><SelectValue placeholder="Choose account" /></SelectTrigger>
                   <SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="repay-fee">Optional interest or fee (PKR)</Label><Input id="repay-fee" type="number" min="0" step="1" value={repaymentFee} onChange={(event) => setRepaymentFee(event.target.value)} placeholder="0" className="h-11 rounded-xl" /><span className="field-hint">Posted separately as {repaymentLoan?.direction === 'RECEIVABLE' ? 'income' : 'expense'}.</span></div>
-              <div className="form-field"><Label htmlFor="repay-fee-desc">Fee / interest description</Label><Input id="repay-fee-desc" maxLength={120} required={Number(repaymentFee) > 0} value={repaymentFeeDescription} onChange={(event) => setRepaymentFeeDescription(event.target.value)} placeholder="Required only when amount is entered" className="h-11 rounded-xl" /></div>
-              <div className="form-field full"><Label htmlFor="repay-note">Note</Label><Textarea id="repay-note" maxLength={1000} value={repaymentNote} onChange={(event) => setRepaymentNote(event.target.value)} placeholder="Reference or repayment details (optional)" className="min-h-[72px] rounded-xl" /></div>
+              <div className="form-field"><Label htmlFor="repay-fee">Optional interest or fee (PKR)</Label><Input id="repay-fee" type="number" min="0" step="1" value={repaymentFee} onChange={(event) => setRepaymentFee(event.target.value)} placeholder="0" /><span className="field-hint">Posted separately as {repaymentLoan?.direction === 'RECEIVABLE' ? 'income' : 'expense'}.</span></div>
+              <div className="form-field"><Label htmlFor="repay-fee-desc">Fee / interest description</Label><Input id="repay-fee-desc" maxLength={120} required={Number(repaymentFee) > 0} value={repaymentFeeDescription} onChange={(event) => setRepaymentFeeDescription(event.target.value)} placeholder="Required only when amount is entered" /></div>
+              <div className="form-field full"><Label htmlFor="repay-note">Note</Label><Textarea id="repay-note" maxLength={1000} value={repaymentNote} onChange={(event) => setRepaymentNote(event.target.value)} placeholder="Reference or repayment details (optional)" /></div>
+              </div>
+              {repaymentError && <div className="form-error" role="alert">{repaymentError}</div>}
             </div>
-            {repaymentError && <div className="form-error" role="alert">{repaymentError}</div>}
-            <DialogFooter className="mt-5 gap-2">
-              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={repaymentSaving} onClick={() => setRepaymentOpen(false)}>Cancel</Button>
-              <Button type="submit" className="h-11 rounded-full px-6" disabled={repaymentSaving}>{repaymentSaving ? 'Saving…' : <><Check size={15} /> Record {repaymentLoan?.direction === 'PAYABLE' ? 'repayment' : 'collection'}</>}</Button>
-            </DialogFooter>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={repaymentSaving}>{repaymentSaving ? 'Saving…' : <><Check size={15} /> Record {repaymentLoan?.direction === 'PAYABLE' ? 'repayment' : 'collection'}</>}</Button>
+              <Button type="button" variant="outline" disabled={repaymentSaving} onClick={() => setRepaymentOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
