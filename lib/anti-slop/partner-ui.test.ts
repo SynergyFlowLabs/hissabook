@@ -27,6 +27,56 @@ describe('dialog focus management (R-32)', () => {
   });
 });
 
+describe('page actions cannot hide a control (R-41)', () => {
+  it('never paints actions past the right edge in a row that cannot scroll', async () => {
+    // The Partners heading used to be `.inventory-heading-actions`: a nowrap
+    // flex row with `overflow-x: visible`. It held 584px of buttons in a 380px
+    // page, so "Edit shares" and "Add partner" were painted off-screen and
+    // could not be reached by scroll, tap or keyboard.
+    const css = await read('app/globals.css');
+    const row = css.slice(css.indexOf('.page-actions-row {'), css.indexOf('.page-action {'));
+    expect(row).toContain('overflow-x: auto');
+    // A scroller may not widen the layout viewport either (see the /team fix).
+    expect(row).toContain('contain: inline-size');
+    // Below the desktop breakpoint the row must still be the scrolling one:
+    // only the wide layout, which wraps instead, may switch it to visible.
+    const phone = css.slice(0, css.indexOf('@media (min-width: 901px) {'));
+    const phoneRow = phone.slice(phone.indexOf('.page-actions-row {'), phone.indexOf('.page-action {'));
+    expect(phoneRow).not.toContain('overflow-x: visible');
+  });
+
+  it('keeps every action reachable from a sheet, never only on the row', async () => {
+    const source = await read('components/page-actions.tsx');
+    // The overflow sheet renders the full list, so an action cut from the row
+    // is always two taps away rather than lost.
+    expect(source).toContain('All actions');
+    expect(source).toMatch(/\{actions\.map\(\(action\)/);
+    expect(source).toContain('action-sheet-row');
+    // And the row always keeps the primary action visible.
+    expect(source).toContain('primaryIndex');
+  });
+
+  it('measures overflow on a hidden copy so the row cannot oscillate', async () => {
+    const source = await read('components/page-actions.tsx');
+    // Measuring the visible row while hiding its own items flips states: hide
+    // two, the row fits, show them again, it overflows again.
+    expect(source).toContain('page-actions-measure');
+    expect(source).toContain('ResizeObserver');
+  });
+
+  it('leaves every partner action reachable from its card', async () => {
+    const source = await read('app/partners/partners-client.tsx');
+    // The card previously carried seven pills in up to three wrapped rows.
+    for (const control of ['Record movement', 'Statement', 'More actions for']) {
+      expect({ control, found: source.includes(control) }).toEqual({ control, found: true });
+    }
+    // Every row in the per-partner sheet hands off through the focus helper.
+    const sheet = source.slice(source.indexOf('Per-partner action sheet'), source.indexOf('{/* Distribution dialog */}'));
+    expect(sheet).not.toContain('setPartnerSheetId(null); openMovement');
+    expect(sheet).toContain('forwardFromSheet(');
+  });
+});
+
 describe('hover rules stay behind a hover-capable pointer (sticky hover)', () => {
   it('has no :hover rule outside @media (hover: hover) and (pointer: fine)', async () => {
     const css = (await read('app/globals.css'))
