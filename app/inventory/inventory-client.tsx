@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+
+import { DateField } from '@/components/date-field';
 import { SkPageBody, SkStatus } from '@/components/skeletons';
+
 import Topbar from '@/components/topbar';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Archive, Boxes, Check, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react';
@@ -213,7 +216,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
                   </Select>
                 </div>}
                 <div className="form-field"><Label htmlFor="move-qty">Quantity ({selectedItem?.unit ?? 'units'})</Label><Input id="move-qty" type="number" min="0.01" step="0.01" required value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="e.g. 24" /></div>
-                <div className="form-field"><Label htmlFor="move-date">Date</Label><Input id="move-date" type="date" required value={movementDate} onChange={(event) => setMovementDate(event.target.value)} /></div>
+                <div className="form-field"><Label htmlFor="move-date">Date</Label><DateField id="move-date" value={movementDate} onChange={setMovementDate} /></div>
                 {movementType === 'RECEIPT' && <>
                   <div className="form-field"><Label htmlFor="move-cost">Unit cost in PKR (optional)</Label><Input id="move-cost" type="number" min="0" step="1" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} placeholder="Leave blank if not paid" /></div>
                   <div className="form-field"><Label htmlFor="move-vendor">Vendor / source (optional)</Label><Input id="move-vendor" maxLength={120} value={counterparty} onChange={(event) => setCounterparty(event.target.value)} placeholder="Supplier name" /></div>

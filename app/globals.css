@@ -753,7 +753,10 @@ button:disabled { cursor: not-allowed; }
   textarea,
   select,
   [data-slot="select-trigger"]
-) {
+),
+/* The date field is a button, so it joins the box rule by its own selector
+   rather than through the child list. */
+.form-field .date-field-trigger {
   width: 100%; min-width: 0; height: 48px; box-sizing: border-box;
   border: 1px solid var(--line-strong); border-radius: 14px;
   background: var(--card); color: var(--ink);
@@ -766,7 +769,8 @@ button:disabled { cursor: not-allowed; }
     textarea,
     select,
     [data-slot="select-trigger"]
-  ) { font-size: 14px; }
+  ),
+  .form-field .date-field-trigger { font-size: 14px; }
 }
 .form-field > textarea {
   height: auto; min-height: 104px; padding: 13px 15px; line-height: 1.55; resize: vertical;
@@ -776,38 +780,71 @@ button:disabled { cursor: not-allowed; }
   outline: none; border-color: var(--lime-strong); box-shadow: 0 0 0 3px var(--lime-soft);
 }
 .form-field > :is(input, textarea):disabled { opacity: .6; }
-/* Date and time are the one input iOS draws with its own native chrome, and
-   that chrome carries an intrinsic width plus an inner inset: the box ignored
-   width: 100% and painted ~26px past the form column (left edges lined up, only
-   the right edge escaped). Turning the chrome off leaves a plain control that
-   obeys its track exactly like a text field; the value stays left aligned and
-   tapping the field still opens the native picker. */
-.form-field > :is(input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"]),
-.ledger-date input {
-  display: block; box-sizing: border-box; field-sizing: fixed;
-  width: 100%; max-width: 100%; min-width: 0;
-  -webkit-appearance: none; appearance: none;
-  overflow: hidden; text-align: left;
-  /* Safari pins the value to the top of a chrome-less date field. A line box
-     as tall as the content area (48px control minus its two 1px borders)
-     centres the value, and both ::-webkit-date-and-time-value and
-     ::-webkit-datetime-edit inherit it, so empty and filled fields match the
-     other inputs. */
-  line-height: 46px;
+/* ------------------------------------------------------------------ */
+/* Date fields and the calendar                                        */
+/* ------------------------------------------------------------------ */
+/* `.date-field-trigger` is in the shared control rule above, so it is the same
+   48px box as every other field; these rules only add the button's layout and
+   the calendar skin. Native date inputs are gone from the product: iOS drew
+   them with its own chrome (a wider box, the value pinned to the top) and no
+   two engines agreed on the picker. */
+.date-field-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  text-align: left; cursor: pointer;
 }
-.form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
-.form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
-.ledger-date input::-webkit-datetime-edit { padding: 0; margin: 0; }
-.form-field > :is(input[type="date"], input[type="time"])::-webkit-date-and-time-value,
-.ledger-date input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
-.form-field > :is(input[type="date"], input[type="time"])::-webkit-calendar-picker-indicator,
-.ledger-date input::-webkit-calendar-picker-indicator { margin-inline-start: auto; opacity: .45; }
-.form-field :is(input, textarea)::placeholder { color: var(--faint); opacity: 1; }
-/* Native number spinners are noise on a phone and steal width from the value. */
-.form-field input[type="number"]::-webkit-outer-spin-button,
-.form-field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.form-field input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
-.form-field :is(input, textarea)[type="date"] { font-variant-numeric: tabular-nums; }
+.date-field-trigger .date-field-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-field-trigger.is-placeholder .date-field-text { color: var(--faint); }
+.date-field-trigger > svg { flex: 0 0 auto; color: var(--faint); }
+.date-field-trigger:focus-visible { outline: none; border-color: var(--lime-strong); box-shadow: 0 0 0 3px var(--lime-soft); }
+.date-field-trigger:disabled { opacity: .6; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) { .date-field-trigger:hover { border-color: var(--lime-strong); } }
+
+.date-field-popover { padding: 12px; }
+.date-field-actions { display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.date-field-shortcut {
+  border: 0; background: transparent; color: var(--ink); font: inherit;
+  font-size: 12px; font-weight: 750; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+}
+.date-field-shortcut.is-muted { margin-left: auto; color: var(--ink-soft); }
+@media (hover: hover) and (pointer: fine) { .date-field-shortcut:hover { background: var(--lime-soft); } }
+
+/* react-day-picker supplies the month grid and the keyboard model; every
+   colour, radius and size here comes from the design tokens. */
+.hisab-calendar {
+  --rdp-accent-color: var(--lime);
+  --rdp-accent-background-color: var(--deep);
+  --rdp-day-height: 40px; --rdp-day-width: 40px;
+  --rdp-day_button-height: 36px; --rdp-day_button-width: 36px;
+  --rdp-day_button-border: 0; --rdp-day_button-border-radius: 999px;
+  --rdp-selected-border: 0;
+  --rdp-today-color: var(--ink);
+  --rdp-outside-opacity: .32;
+  --rdp-nav-height: 40px; --rdp-nav_button-height: 34px; --rdp-nav_button-width: 34px;
+  --rdp-weekday-opacity: 1; --rdp-weekday-text-transform: uppercase;
+  --rdp-months-gap: 0;
+  margin: 0;
+}
+.hisab-calendar .rdp-month_caption { font-size: 14px; font-weight: 800; letter-spacing: -.2px; color: var(--ink); }
+.hisab-calendar .rdp-caption_label { font-size: 14px; font-weight: 800; }
+.hisab-calendar .rdp-weekday { font-size: 9.5px; font-weight: 750; letter-spacing: .06em; color: var(--faint); }
+.hisab-calendar .rdp-day_button { font-size: 13px; font-weight: 650; color: var(--ink); }
+.hisab-calendar .rdp-selected { font-size: 13px; font-weight: 750; }
+.hisab-calendar .rdp-selected .rdp-day_button { background: var(--deep); color: var(--lime); font-weight: 750; }
+.hisab-calendar .rdp-today:not(.rdp-selected) .rdp-day_button { box-shadow: inset 0 0 0 1.5px var(--lime-strong); }
+.hisab-calendar .rdp-button_previous,
+.hisab-calendar .rdp-button_next { border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); }
+.hisab-calendar .rdp-chevron { fill: none; }
+.hisab-calendar .rdp-dropdown_root { gap: 4px; border: 1px solid var(--line-strong); border-radius: 10px; height: 34px; padding: 0 7px; background: var(--card); }
+.hisab-calendar .rdp-dropdown_root .rdp-caption_label { font-size: 13px; font-weight: 750; }
+.hisab-calendar .rdp-dropdown_root .rdp-chevron { width: 12px; height: 12px; }
+@media (hover: hover) and (pointer: fine) {
+  .hisab-calendar .rdp-day_button:hover { background: var(--lime-soft); }
+  .hisab-calendar .rdp-button_previous:hover,
+  .hisab-calendar .rdp-button_next:hover { border-color: var(--lime-strong); }
+}
+@media (pointer: coarse) {
+  .hisab-calendar { --rdp-day-height: 44px; --rdp-day-width: 44px; --rdp-day_button-height: 40px; --rdp-day_button-width: 40px; }
+}
 /* A whole invitation URL is the one value that has to be small to be readable. */
 .form-field > input.form-control-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: -.2px;
@@ -963,19 +1000,6 @@ button:disabled { cursor: not-allowed; }
    is what the "From"/"To" boxes looked like), so a placeholder stands in until
    a date is chosen. */
 .ledger-date-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.ledger-date { position: relative; display: block; min-width: 0; }
-.ledger-date input { width: 100%; max-width: 100%; min-width: 0; height: 48px; border-radius: 14px; text-align: left; font-variant-numeric: tabular-nums; }
-/* The native picker glyph is the only calendar affordance left in the box: it
-   gets a slight dim so it sits at the same weight as the field's label. */
-.ledger-date input::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
-/* Chrome and Android paint "dd/mm/yyyy" in an empty date input; the placeholder
-   below replaces it, and the two must not print on top of each other. */
-.ledger-date.is-empty input::-webkit-datetime-edit { color: transparent; }
-.ledger-date-hint {
-  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-  color: var(--faint); font-size: 12px; pointer-events: none;
-}
-.ledger-date:focus-within .ledger-date-hint { display: none; }
 .ledger-search-clear {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0;

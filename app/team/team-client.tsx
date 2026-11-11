@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
+
+import { DateField } from '@/components/date-field';
 import { SkPageBody, SkStatus, SkTableRows } from '@/components/skeletons';
+
 import Topbar from '@/components/topbar';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDownLeft, CalendarDays, Check, CircleDollarSign, Copy, Link2, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UsersRound, Wallet } from 'lucide-react';
@@ -305,10 +308,10 @@ export default function TeamClient({ userName, role }: { userName: string; role:
               <div className="form-field full"><Label htmlFor="emp-name">Employee name</Label><Input id="emp-name" required maxLength={100} value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" /></div>
               <div className="form-field"><Label htmlFor="emp-title">Job title</Label><Input id="emp-title" maxLength={80} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Designer" /></div>
               <div className="form-field"><Label htmlFor="emp-ref">Employee reference (optional)</Label><Input id="emp-ref" maxLength={40} value={employeeRef} onChange={(event) => setEmployeeRef(event.target.value)} placeholder="e.g. EMP-025" /></div>
-              <div className="form-field"><Label htmlFor="emp-start">Start date</Label><Input id="emp-start" type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="emp-start">Start date</Label><DateField id="emp-start" value={startDate} onChange={setStartDate} /></div>
               <div className="form-field"><Label htmlFor="emp-salary">Monthly salary (PKR)</Label><Input id="emp-salary" type="number" min="1" step="1" required value={monthlySalary} onChange={(event) => setMonthlySalary(event.target.value)} placeholder="e.g. 75,000" /></div>
               {dialogMode === 'employeeEdit' && <>
-                <div className="form-field full"><Label htmlFor="emp-rate-from">New rate effective from</Label><Input id="emp-rate-from" type="date" required value={rateEffectiveFrom} onChange={(event) => setRateEffectiveFrom(event.target.value)} /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></div>
+                <div className="form-field full"><Label htmlFor="emp-rate-from">New rate effective from</Label><DateField id="emp-rate-from" value={rateEffectiveFrom} onChange={setRateEffectiveFrom} /><span className="field-hint">A changed salary is added to history; it does not rewrite earlier periods.</span></div>
                 <div className="salary-rate-history full"><strong>Rate history</strong>{(data.employees.find((item) => item.id === editingEmployeeId)?.salaryRates ?? []).map((rate) => <div key={rate.id}><span>{dateLabel(rate.effectiveFrom)}</span><span>{money(rate.amount)} / month</span></div>)}</div>
               </>}
             </> : dialogMode === 'period' ? <>
@@ -318,14 +321,14 @@ export default function TeamClient({ userName, role }: { userName: string; role:
                   <SelectContent>{activeEmployees.map((employee) => <SelectItem key={employee.id} value={String(employee.id)}>{employee.name} · {employee.jobTitle}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="period-start">Period starts</Label><Input id="period-start" type="date" required value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} /></div>
-              <div className="form-field"><Label htmlFor="period-end">Period ends</Label><Input id="period-end" type="date" required value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} /></div>
-              <div className="form-field"><Label htmlFor="period-due">Payment due date</Label><Input id="period-due" type="date" required value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="period-start">Period starts</Label><DateField id="period-start" value={periodStart} onChange={setPeriodStart} /></div>
+              <div className="form-field"><Label htmlFor="period-end">Period ends</Label><DateField id="period-end" value={periodEnd} onChange={setPeriodEnd} /></div>
+              <div className="form-field"><Label htmlFor="period-due">Payment due date</Label><DateField id="period-due" value={dueDate} onChange={setDueDate} /></div>
               <div className="form-field"><Label htmlFor="period-amount">Amount due (PKR)</Label><Input id="period-amount" type="number" min="1" step="1" value={periodAmount} onChange={(event) => setPeriodAmount(event.target.value)} placeholder="Uses current rate if blank" /></div>
             </> : <>
               <div className="salary-payment-summary full"><span>{currentPeriod?.employeeName ?? 'Salary period'}<small>{currentPeriod ? `${dateLabel(currentPeriod.periodStart)} to ${dateLabel(currentPeriod.periodEnd)} · ${money(currentPeriod.balance)} remaining` : ''}</small></span></div>
               <div className="form-field"><Label htmlFor="pay-amount">Payment amount (PKR)</Label><Input id="pay-amount" type="number" min="1" max={currentPeriod?.balance} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></div>
-              <div className="form-field"><Label htmlFor="pay-date">Paid date</Label><Input id="pay-date" type="date" required value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div>
+              <div className="form-field"><Label htmlFor="pay-date">Paid date</Label><DateField id="pay-date" value={paymentDate} onChange={setPaymentDate} /></div>
               <div className="form-field full"><Label htmlFor="pay-account">Paid from</Label>
                 <Select value={paymentAccount} onValueChange={setPaymentAccount}>
                   <SelectTrigger id="pay-account"><SelectValue placeholder="Choose account" /></SelectTrigger>
