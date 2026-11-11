@@ -57,10 +57,12 @@ export default function InviteAcceptForm({ token, email, name, role, workspaceNa
           <h1 className="auth-title">Join {workspaceName}</h1>
           <p className="auth-subtitle">{name} invited you to join <strong>{workspaceName}</strong> as a <strong>{role.toLowerCase().replace('_', ' ')}</strong>. Invitation for {email}.</p>
           <form onSubmit={accept} className="auth-form">
-            <div className="form-field"><Label htmlFor="password" className="form-label">Create or enter your account password</Label><Input id="password" className="h-12 rounded-xl bg-[#fcfdfb]" type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters" /></div>
-            <p className="auth-hint" style={{ marginTop: -6 }}><Check size={12} /> If you already have a Hisaabook account, enter its current password.</p>
-            {error && <div className="form-error" role="alert" style={{ marginTop: 0 }}>{error}</div>}
-            <Button type="submit" className="h-12 w-full rounded-full text-[13px] font-extrabold" disabled={saving}>{saving ? 'Joining workspace…' : <>Accept invitation <ArrowRight size={15} /></>}</Button>
+            <div className="form-field"><Label htmlFor="password" className="form-label">Create or enter your account password</Label><Input id="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters" /></div>
+            <p className="auth-hint"><Check size={12} /> If you already have a Hisaabook account, enter its current password.</p>
+            {error && <div className="form-error" role="alert">{error}</div>}
+            <div className="form-actions is-stack">
+              <Button type="submit" className="lime-button" disabled={saving}>{saving ? 'Joining workspace…' : <>Accept invitation <ArrowRight size={15} /></>}</Button>
+            </div>
           </form>
           <p className="auth-security"><ShieldCheck size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />This link expires after seven days and can only be used once.</p>
         </div>

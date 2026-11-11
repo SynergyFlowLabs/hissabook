@@ -43,7 +43,7 @@ export default function DemoLoginCard({ compact = false }: { compact?: boolean }
       </div>
       {!compact && <p className="demo-login-notice">Shared and editable demo: changes are visible to other visitors. Don’t enter real information.</p>}
       {error && <div className="form-error demo-login-error" role="alert" style={{ marginTop: 11 }}>{error}</div>}
-      <Button className="mt-3 h-11 w-full rounded-full text-[12px] font-extrabold" type="button" onClick={tryDemo} disabled={loading}>
+      <Button className="mt-3 h-12 w-full rounded-full text-[12px] font-extrabold" type="button" onClick={tryDemo} disabled={loading}>
         {loading ? 'Opening demo…' : <>Try demo now <ArrowRight size={15} /></>}
       </Button>
       <p className="demo-login-notice" style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center', marginTop: 9 }}><ShieldCheck size={11} /> No sign-up. No real data.</p>

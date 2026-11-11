@@ -7,7 +7,7 @@ import Topbar from '@/components/topbar';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Archive, Boxes, Check, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -147,7 +147,7 @@ export default function InventoryClient({ userName, role }: { userName: string; 
               <h1 className="page-title">Inventory</h1>
               <p className="page-subtitle">Know what you have, what’s moving, and what needs a restock.</p>
             </div>
-            {canManageInventory && <div className="inventory-heading-actions"><Button variant="outline" className="h-11 rounded-full bg-white" onClick={() => openMovementForm()}><ArrowDownLeft size={14} /> Record stock</Button><button className="lime-button" onClick={openItemForm}><Plus size={15} strokeWidth={2.6} /> Add item</button></div>}
+            {canManageInventory && <div className="inventory-heading-actions"><Button variant="outline" className="heading-secondary" onClick={() => openMovementForm()}><ArrowDownLeft size={14} /> Record stock</Button><button className="lime-button" onClick={openItemForm}><Plus size={15} strokeWidth={2.6} /> Add item</button></div>}
           </section>
 
           <section className="stat-grid" aria-label="Inventory summary">
@@ -179,59 +179,61 @@ export default function InventoryClient({ userName, role }: { userName: string; 
       </main>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold tracking-tight">{mode === 'item' ? 'Add inventory item' : mode === 'itemEdit' ? 'Edit inventory item' : 'Record stock movement'}</DialogTitle>
-            <DialogDescription>{mode === 'item' || mode === 'itemEdit' ? 'Set up item details and a low-stock threshold. Existing stock history is preserved.' : 'Stock changes are kept in a dated movement history.'}</DialogDescription>
+        <DialogContent className="form-dialog">
+          <DialogHeader className="form-dialog-head">
+            <DialogTitle className="form-dialog-title">{mode === 'item' ? 'Add inventory item' : mode === 'itemEdit' ? 'Edit inventory item' : 'Record stock movement'}</DialogTitle>
+            <DialogDescription className="form-dialog-sub">{mode === 'item' || mode === 'itemEdit' ? 'Set up item details and a low-stock threshold. Existing stock history is preserved.' : 'Stock changes are kept in a dated movement history.'}</DialogDescription>
           </DialogHeader>
           <form onSubmit={submit}>
-            <div className="form-grid">
+            <div className="form-dialog-body">
+              <div className="form-grid">
               {mode === 'item' || mode === 'itemEdit' ? <>
-                <div className="form-field full"><Label htmlFor="item-name">Item name</Label><Input id="item-name" required maxLength={100} value={itemName} onChange={(event) => setItemName(event.target.value)} placeholder="e.g. A4 paper packs" className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="item-sku">SKU (optional)</Label><Input id="item-sku" maxLength={40} value={sku} onChange={(event) => setSku(event.target.value)} placeholder="e.g. PAP-A4" className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="item-category">Category</Label><Input id="item-category" maxLength={60} value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. Supplies" className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="item-unit">Unit of measure</Label><Input id="item-unit" required maxLength={24} value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="pcs, kg, metres…" className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="item-reorder">Low-stock alert at</Label><Input id="item-reorder" type="number" min="0" step="0.01" value={reorderLevel} onChange={(event) => setReorderLevel(event.target.value)} className="h-11 rounded-xl" /></div>
+                <div className="form-field full"><Label htmlFor="item-name">Item name</Label><Input id="item-name" required maxLength={100} value={itemName} onChange={(event) => setItemName(event.target.value)} placeholder="e.g. A4 paper packs" /></div>
+                <div className="form-field"><Label htmlFor="item-sku">SKU (optional)</Label><Input id="item-sku" maxLength={40} value={sku} onChange={(event) => setSku(event.target.value)} placeholder="e.g. PAP-A4" /></div>
+                <div className="form-field"><Label htmlFor="item-category">Category</Label><Input id="item-category" maxLength={60} value={category} onChange={(event) => setCategory(event.target.value)} placeholder="e.g. Supplies" /></div>
+                <div className="form-field"><Label htmlFor="item-unit">Unit of measure</Label><Input id="item-unit" required maxLength={24} value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="pcs, kg, metres…" /></div>
+                <div className="form-field"><Label htmlFor="item-reorder">Low-stock alert at</Label><Input id="item-reorder" type="number" min="0" step="0.01" value={reorderLevel} onChange={(event) => setReorderLevel(event.target.value)} /></div>
               </> : <>
                 <div className="form-field full"><Label htmlFor="move-type">Movement type</Label>
                   <Select value={movementType} onValueChange={(value) => setMovementType(value as MovementType)}>
-                    <SelectTrigger id="move-type" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="move-type"><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="RECEIPT">Stock received</SelectItem><SelectItem value="ISSUE">Stock issued / used</SelectItem><SelectItem value="RETURN">Stock returned</SelectItem><SelectItem value="ADJUSTMENT">Stock-count adjustment</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div className="form-field full"><Label htmlFor="move-item">Inventory item</Label>
                   <Select value={itemId} onValueChange={setItemId}>
-                    <SelectTrigger id="move-item" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="move-item"><SelectValue /></SelectTrigger>
                     <SelectContent>{data.items.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name} · {item.stockOnHand} {item.unit} on hand</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 {movementType === 'ADJUSTMENT' && <div className="form-field full"><Label htmlFor="move-direction">Adjustment direction</Label>
                   <Select value={adjustmentDirection} onValueChange={(value) => setAdjustmentDirection(value as 'INCREASE' | 'DECREASE')}>
-                    <SelectTrigger id="move-direction" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="move-direction"><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="INCREASE">Increase recorded quantity</SelectItem><SelectItem value="DECREASE">Decrease recorded quantity</SelectItem></SelectContent>
                   </Select>
                 </div>}
-                <div className="form-field"><Label htmlFor="move-qty">Quantity ({selectedItem?.unit ?? 'units'})</Label><Input id="move-qty" type="number" min="0.01" step="0.01" required value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="e.g. 24" className="h-11 rounded-xl" /></div>
-                <div className="form-field"><Label htmlFor="move-date">Date</Label><Input id="move-date" type="date" required value={movementDate} onChange={(event) => setMovementDate(event.target.value)} className="h-11 rounded-xl" /></div>
+                <div className="form-field"><Label htmlFor="move-qty">Quantity ({selectedItem?.unit ?? 'units'})</Label><Input id="move-qty" type="number" min="0.01" step="0.01" required value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="e.g. 24" /></div>
+                <div className="form-field"><Label htmlFor="move-date">Date</Label><Input id="move-date" type="date" required value={movementDate} onChange={(event) => setMovementDate(event.target.value)} /></div>
                 {movementType === 'RECEIPT' && <>
-                  <div className="form-field"><Label htmlFor="move-cost">Unit cost in PKR (optional)</Label><Input id="move-cost" type="number" min="0" step="1" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} placeholder="Leave blank if not paid" className="h-11 rounded-xl" /></div>
-                  <div className="form-field"><Label htmlFor="move-vendor">Vendor / source (optional)</Label><Input id="move-vendor" maxLength={120} value={counterparty} onChange={(event) => setCounterparty(event.target.value)} placeholder="Supplier name" className="h-11 rounded-xl" /></div>
+                  <div className="form-field"><Label htmlFor="move-cost">Unit cost in PKR (optional)</Label><Input id="move-cost" type="number" min="0" step="1" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} placeholder="Leave blank if not paid" /></div>
+                  <div className="form-field"><Label htmlFor="move-vendor">Vendor / source (optional)</Label><Input id="move-vendor" maxLength={120} value={counterparty} onChange={(event) => setCounterparty(event.target.value)} placeholder="Supplier name" /></div>
                   {unitCost !== '' && Number(unitCost) > 0 && <div className="form-field full"><Label htmlFor="move-account">Paid from</Label>
                     <Select value={accountId} onValueChange={setAccountId}>
-                      <SelectTrigger id="move-account" className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="move-account"><SelectValue placeholder="Choose account" /></SelectTrigger>
                       <SelectContent>{data.accounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                     </Select>
                     <span className="field-hint">Saving a unit cost creates a matching expense in your transaction ledger.</span>
                   </div>}
                 </>}
-                {movementType !== 'RECEIPT' && <div className="form-field full"><Label htmlFor="move-note">Reason / reference</Label><Input id="move-note" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} placeholder={movementType === 'ADJUSTMENT' ? 'Required context for the stock count correction' : 'e.g. Used for client project'} required={movementType === 'ADJUSTMENT'} className="h-11 rounded-xl" /></div>}
+                {movementType !== 'RECEIPT' && <div className="form-field full"><Label htmlFor="move-note">Reason / reference</Label><Input id="move-note" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} placeholder={movementType === 'ADJUSTMENT' ? 'Required context for the stock count correction' : 'e.g. Used for client project'} required={movementType === 'ADJUSTMENT'} /></div>}
               </>}
+              </div>
+              {formError && <div className="form-error" role="alert">{formError}</div>}
             </div>
-            {formError && <div className="form-error" role="alert">{formError}</div>}
-            <DialogFooter className="mt-5 gap-2">
-              <Button type="button" variant="outline" className="h-11 rounded-full px-5" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="h-11 rounded-full px-6" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> {mode === 'itemEdit' ? 'Save changes' : mode === 'item' ? 'Create item' : 'Save movement'}</>}</Button>
-            </DialogFooter>
+            <div className="form-actions">
+              <Button type="submit" className="lime-button" disabled={saving}>{saving ? 'Saving…' : <><Check size={15} /> {mode === 'itemEdit' ? 'Save changes' : mode === 'item' ? 'Create item' : 'Save movement'}</>}</Button>
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

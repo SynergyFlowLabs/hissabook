@@ -184,7 +184,7 @@ export default function TransactionsClient({ userName, userRole, initialQuery = 
                     placeholder="Description, payee, note…"
                     value={query}
                     onChange={(event) => { setQuery(event.target.value); setOffset(0); }}
-                    className="h-11 rounded-full pr-11"
+                    className="pr-11"
                   />
                   {query ? (
                     <button
@@ -219,35 +219,35 @@ export default function TransactionsClient({ userName, userRole, initialQuery = 
               <div className="form-field">
                 <Label htmlFor="ledger-kind" className="form-label">Activity type</Label>
                 <Select value={kind} onValueChange={(value) => { setKind(value); setOffset(0); }}>
-                  <SelectTrigger id="ledger-kind" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ledger-kind"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={ALL}>All types</SelectItem>{kinds.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="form-field">
                 <Label htmlFor="ledger-category" className="form-label">Category</Label>
                 <Select value={category} onValueChange={(value) => { setCategory(value); setOffset(0); }}>
-                  <SelectTrigger id="ledger-category" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ledger-category"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={ALL}>All categories</SelectItem>{(data?.categories ?? []).map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="form-field">
                 <Label htmlFor="ledger-status" className="form-label">Status</Label>
                 <Select value={status} onValueChange={(value) => { setStatus(value); setOffset(0); }}>
-                  <SelectTrigger id="ledger-status" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ledger-status"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={ALL}>All statuses</SelectItem><SelectItem value="CLEARED">Cleared</SelectItem><SelectItem value="PENDING">Pending</SelectItem><SelectItem value="VOID">Voided</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="form-field">
                 <Label htmlFor="ledger-account" className="form-label">Account</Label>
                 <Select value={accountId} onValueChange={(value) => { setAccountId(value); setOffset(0); }}>
-                  <SelectTrigger id="ledger-account" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ledger-account"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={ALL}>All accounts</SelectItem>{(data?.accounts ?? []).map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="form-field ledger-creator-field">
                 <Label htmlFor="ledger-creator" className="form-label">Recorded by</Label>
                 <Select value={creator} onValueChange={(value) => { setCreator(value); setOffset(0); }}>
-                  <SelectTrigger id="ledger-creator" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ledger-creator"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={ALL}>All members</SelectItem>{(data?.creators ?? []).map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -266,7 +266,6 @@ export default function TransactionsClient({ userName, userRole, initialQuery = 
                       value={from}
                       max={to || undefined}
                       onChange={(event) => { setFrom(event.target.value); setOffset(0); }}
-                      className="h-11 rounded-full"
                     />
                     {from ? null : <span className="ledger-date-hint" aria-hidden="true">From</span>}
                   </span>
@@ -278,7 +277,6 @@ export default function TransactionsClient({ userName, userRole, initialQuery = 
                       value={to}
                       min={from || undefined}
                       onChange={(event) => { setTo(event.target.value); setOffset(0); }}
-                      className="h-11 rounded-full"
                     />
                     {to ? null : <span className="ledger-date-hint" aria-hidden="true">To</span>}
                   </span>

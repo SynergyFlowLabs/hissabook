@@ -94,13 +94,15 @@ export default function AuthForm({ mode }: { mode: 'login' | 'setup' }) {
           {mode === 'login' && <div style={{ marginBottom: 18 }}><DemoLoginCard compact /></div>}
           <form onSubmit={submit} className="auth-form">
             {mode === 'setup' && (
-              <div className="form-field"><Label htmlFor="name" className="form-label">Your name</Label><Input id="name" className="h-12 rounded-xl bg-[#fcfdfb]" required maxLength={100} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Areeba Khan" /></div>
+              <div className="form-field"><Label htmlFor="name" className="form-label">Your name</Label><Input id="name" required maxLength={100} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Areeba Khan" /></div>
             )}
-            <div className="form-field"><Label htmlFor="email" className="form-label">Email address</Label><Input id="email" className="h-12 rounded-xl bg-[#fcfdfb]" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" /></div>
-            <div className="form-field"><Label htmlFor="password" className="form-label">Password</Label><Input id="password" className="h-12 rounded-xl bg-[#fcfdfb]" type="password" required minLength={mode === 'setup' ? 12 : 1} maxLength={128} autoComplete={mode === 'setup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'setup' ? 'At least 12 characters' : 'Your password'} /></div>
-            {mode === 'setup' && <p className="auth-hint" style={{ marginTop: -6 }}><Check size={12} /> Use 12 or more characters. Your password is stored as a salted hash.</p>}
-            {error && <div className="form-error" role="alert" style={{ marginTop: 0 }}>{error}</div>}
-            <Button type="submit" className="h-12 w-full rounded-full text-[13px] font-extrabold" disabled={saving}>{saving ? 'Please wait…' : mode === 'setup' ? <>Create account <ArrowRight size={15} /></> : <>Sign in <ArrowRight size={15} /></>}</Button>
+            <div className="form-field"><Label htmlFor="email" className="form-label">Email address</Label><Input id="email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" /></div>
+            <div className="form-field"><Label htmlFor="password" className="form-label">Password</Label><Input id="password" type="password" required minLength={mode === 'setup' ? 12 : 1} maxLength={128} autoComplete={mode === 'setup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'setup' ? 'At least 12 characters' : 'Your password'} /></div>
+            {mode === 'setup' && <p className="auth-hint"><Check size={12} /> Use 12 or more characters. Your password is stored as a salted hash.</p>}
+            {error && <div className="form-error" role="alert">{error}</div>}
+            <div className="form-actions is-stack">
+              <Button type="submit" className="lime-button" disabled={saving}>{saving ? 'Please wait…' : mode === 'setup' ? <>Create account <ArrowRight size={15} /></> : <>Sign in <ArrowRight size={15} /></>}</Button>
+            </div>
           </form>
           <div className="auth-switch">{mode === 'setup' ? <>Already set up? <a href="/login">Sign in</a></> : <>First time here? <a href="/setup">Set up the owner account</a></>}</div>
           <p className="auth-security"><ShieldCheck size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />Private workspace access · Your business records aren’t public</p>

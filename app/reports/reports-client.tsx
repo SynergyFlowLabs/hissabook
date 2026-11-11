@@ -143,7 +143,10 @@ export default function ReportsClient({ userName, userRole }: { userName: string
           <section className="soft-card" aria-label="Report range">
             <div className="card-header-row">
               <div><div className="card-title">Range and report</div><div className="card-subtitle">Every report states its own range and counting rules. Nothing is implied.</div></div>
-              <span className="ledger-page-count">{payload ? `Built ${new Date(payload.meta.generatedAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+              <div className="report-header-actions">
+                <span className="ledger-page-count">{payload ? `Built ${new Date(payload.meta.generatedAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                <Button variant="outline" className="report-refresh" onClick={() => setReload((value) => value + 1)} disabled={loading} aria-label="Refresh report"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></Button>
+              </div>
             </div>
             <Tabs value={kind} onValueChange={(value) => setKind(value as ReportKind)}>
               <TabsList className="rounded-full bg-[var(--card-soft)] p-1" aria-label="Report type">
@@ -155,13 +158,12 @@ export default function ReportsClient({ userName, userRole }: { userName: string
             <div className="report-range-row">
               <div className="form-field report-preset"><Label htmlFor="report-preset" className="form-label">Quick range</Label>
                 <Select value={preset} onValueChange={(value) => applyPreset(value as RangePreset)}>
-                  <SelectTrigger id="report-preset" className="h-11 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="report-preset"><SelectValue /></SelectTrigger>
                   <SelectContent>{PRESETS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}<SelectItem value="custom">Custom</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="form-field"><Label htmlFor="report-from" className="form-label">From</Label><Input id="report-from" type="date" value={from} max={to} onChange={(event) => { setFrom(event.target.value); setPreset('custom'); }} className="h-11 rounded-full" /></div>
-              <div className="form-field"><Label htmlFor="report-to" className="form-label">To</Label><Input id="report-to" type="date" value={to} min={from} onChange={(event) => { setTo(event.target.value); setPreset('custom'); }} className="h-11 rounded-full" /></div>
-              <Button variant="outline" className="rounded-full" onClick={() => setReload((value) => value + 1)} disabled={loading} aria-label="Refresh report"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></Button>
+              <div className="form-field"><Label htmlFor="report-from" className="form-label">From</Label><Input id="report-from" type="date" value={from} max={to} onChange={(event) => { setFrom(event.target.value); setPreset('custom'); }} /></div>
+              <div className="form-field"><Label htmlFor="report-to" className="form-label">To</Label><Input id="report-to" type="date" value={to} min={from} onChange={(event) => { setTo(event.target.value); setPreset('custom'); }} /></div>
             </div>
             {payload ? <p className="field-hint" style={{ marginTop: 10 }}>{payload.meta.workspace} · {payload.meta.label} · {payload.meta.currency}</p> : null}
           </section>
