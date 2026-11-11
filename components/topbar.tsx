@@ -3,15 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
-import { ArrowRight, ChevronLeft, LogOut, Search, UserRound, X } from 'lucide-react';
-import { clearCache } from '@/lib/route-cache';
-import { resetWorkspaceContext, useWorkspaceContext } from '@/lib/use-workspace-context';
+import { useWorkspaceContext } from '@/lib/use-workspace-context';
+import { ChevronLeft, Search, UserRound, X } from 'lucide-react';
 import { useSharedNotifications } from '@/components/notifications-provider';
+import { openAccountSheet } from '@/lib/account-sheet';
 import NotificationButton from '@/components/notification-button';
 import NotificationPanel from '@/components/notification-panel';
-import SoundControl from '@/components/sound-control';
-import { motion, AnimatePresence } from 'motion/react';
 
 /**
  * The one topbar every screen uses.
@@ -77,36 +74,14 @@ export default function Topbar({ crumb, back, onTermChange, children }: {
   const router = useRouter();
   const label = crumb ?? crumbFromPathname(pathname);
   const isOverview = !pathname || pathname === '/';
-  const { userName, workspaceName, role } = useWorkspaceContext();
+  const { userName } = useWorkspaceContext();
   const notif = useSharedNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   // The term outlives the field: Overview filters its own activity list with it,
   // and every other screen hands it to the ledger.
   const [term, setTerm] = useState('');
-  const profileRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Close the profile menu on an outside tap or Escape, and hand focus back.
-  useEffect(() => {
-    if (!profileOpen) return;
-    const onPointer = (event: PointerEvent) => {
-      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setProfileOpen(false);
-        profileRef.current?.querySelector<HTMLButtonElement>('.topbar-profile-trigger')?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [profileOpen]);
 
   useEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
@@ -194,61 +169,23 @@ export default function Topbar({ crumb, back, onTermChange, children }: {
           <NotificationButton
             unreadCount={notif.unreadCount}
             open={notifOpen}
-            onToggle={() => { setNotifOpen((open) => !open); setProfileOpen(false); }}
+            onToggle={() => setNotifOpen((open) => !open)}
           />
 
-          <div className="topbar-profile" ref={profileRef}>
-            <button
-              type="button"
-              className="topbar-profile-trigger"
-              aria-label={`Account, ${userName}`}
-              aria-expanded={profileOpen}
-              aria-haspopup="menu"
-              onClick={() => { setProfileOpen((open) => !open); setNotifOpen(false); }}
-            >
-              <span aria-hidden="true">{initials(userName) || <UserRound size={15} />}</span>
-            </button>
-            <AnimatePresence>
-              {profileOpen && (
-                <motion.div
-                  className="topbar-profile-menu panel"
-                  role="menu"
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                  transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div className="topbar-profile-head">
-                    <span className="topbar-profile-avatar" aria-hidden="true">{initials(userName) || <UserRound size={16} />}</span>
-                    <span className="topbar-profile-who">
-                      <strong>{userName}</strong>
-                      <small>{roleLabel[role] ?? 'Member'} · {workspaceName}</small>
-                    </span>
-                  </div>
-                  <div className="topbar-profile-row">
-                    <span>Sound</span>
-                    <SoundControl />
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="topbar-profile-link"
-                    onClick={() => { setProfileOpen(false); window.location.assign('/#accounts'); }}
-                  >
-                    <ArrowRight size={14} aria-hidden="true" /><span>Accounts and profile</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="topbar-profile-signout"
-                    onClick={() => { clearCache(); resetWorkspaceContext(); void signOut({ redirectTo: '/login' }); }}
-                  >
-                    <LogOut size={14} aria-hidden="true" /><span>Sign out</span>
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* The account. It opens the sidebar's account sheet rather than a
+              second menu of its own, so sound and sign out exist in one place. */}
+          <a
+            className="topbar-profile-trigger"
+            href="#account"
+            aria-label={`Account, ${userName}`}
+            onClick={(event) => {
+              event.preventDefault();
+              setNotifOpen(false);
+              openAccountSheet();
+            }}
+          >
+            <span aria-hidden="true">{initials(userName) || <UserRound size={15} />}</span>
+          </a>
         </div>
       </div>
 

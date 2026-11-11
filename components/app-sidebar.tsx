@@ -2,7 +2,7 @@
 
 import {
   ArrowRight, Boxes, ChevronDown, HandCoins, LayoutDashboard,
-  ArrowLeftRight, Menu, Wallet, UsersRound, FileText, LogOut,
+  ArrowLeftRight, Menu, Wallet, UsersRound, FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
@@ -10,11 +10,11 @@ import { signOut } from 'next-auth/react';
 import { clearCache } from '@/lib/route-cache';
 import { resetWorkspaceContext } from '@/lib/use-workspace-context';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import SoundControl from '@/components/sound-control';
 import MobileMenu from '@/components/mobile-menu';
+import ProfileMenu from '@/components/profile-menu';
 import { useWorkspaceContext } from '@/lib/use-workspace-context';
-import { useState } from 'react';
+import { subscribeAccountSheet } from '@/lib/account-sheet';
+import { useEffect, useState } from 'react';
 
 const workspaceLinks = [
   { label: 'Overview', href: '/#overview', icon: LayoutDashboard, key: 'overview' },
@@ -44,6 +44,10 @@ export default function AppSidebar({ current }: { current: string }) {
   // shell to be remounted on every route change.
   const { workspaceName, businessType, role: userRole, loanCount, userName } = useWorkspaceContext();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  // The page topbar's avatar announces here; the sheet itself only exists once,
+  // in this shell, so it cannot be unmounted by a route change.
+  useEffect(() => subscribeAccountSheet(() => setProfileOpen(true)), []);
   const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const canViewTeam = ['OWNER', 'ADMIN', 'PAYROLL'].includes(userRole);
   const roleLabel: Record<string, string> = { OWNER: 'Owner', ADMIN: 'Admin', BOOKKEEPER: 'Bookkeeper', VIEWER: 'Viewer', PAYROLL: 'Payroll' };
@@ -79,12 +83,22 @@ export default function AppSidebar({ current }: { current: string }) {
           <div className="help-copy">Give them view access. No passwords shared, and access can be revoked anytime.</div>
           <Link href="/partners" className="help-link">Manage partners & shares <ArrowRight size={11} /></Link>
         </div>
-        <div className="user-profile">
+        {/* One control, not three. This used to carry a sound toggle and a sign-out
+            button beside the name, which left the name 88px for 91px of text, so
+            it clipped even with the sidebar half empty. Both still exist; they
+            live in the profile menu one click away, where the mobile menu and the
+            topbar already keep them. */}
+        <button
+          type="button"
+          className="user-profile"
+          aria-label={`Account, ${userName}`}
+          aria-haspopup="dialog"
+          onClick={() => setProfileOpen(true)}
+        >
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>
-          <div className="profile-meta"><div className="profile-name">{userName}</div><div className="profile-role">{roleLabel[userRole] ?? 'Member'}</div></div>
-          <SoundControl />
-          <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => { clearCache(); resetWorkspaceContext(); void signOut({ redirectTo: '/login' }); }}><LogOut size={16} /></Button>
-        </div>
+          <span className="profile-meta"><span className="profile-name">{userName}</span><span className="profile-role">{roleLabel[userRole] ?? 'Member'}</span></span>
+          <ChevronDown size={15} color="#a7b8ab" aria-hidden="true" />
+        </button>
       </aside>
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {visibleMobile.map(({ label, href, icon: Icon, key }) => {
@@ -109,6 +123,9 @@ export default function AppSidebar({ current }: { current: string }) {
           <Menu size={17} strokeWidth={2} /><span>Menu</span>
         </button>
       </nav>
+      {/* Outside <aside>: the sidebar is display:none below 901px, which would
+          take the account sheet with it. */}
+      <ProfileMenu open={profileOpen} onClose={() => setProfileOpen(false)} userName={userName} role={userRole} workspaceName={workspaceName} />
       <MobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
