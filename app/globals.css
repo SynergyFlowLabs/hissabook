@@ -748,7 +748,12 @@ button:disabled { cursor: not-allowed; }
 .form-field.full { grid-column: 1 / -1; }
 .form-field > label,
 .form-field > .form-label { color: var(--ink-soft); font-size: 12px; font-weight: 750; letter-spacing: .01em; line-height: 1.3; }
-.form-field > :is(input, textarea, select, [data-slot="select-trigger"]):not([type="checkbox"]):not([type="radio"]) {
+.form-field > :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select,
+  [data-slot="select-trigger"]
+) {
   width: 100%; min-width: 0; height: 48px; box-sizing: border-box;
   border: 1px solid var(--line-strong); border-radius: 14px;
   background: var(--card); color: var(--ink);
@@ -756,7 +761,12 @@ button:disabled { cursor: not-allowed; }
   box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease;
 }
 @media (min-width: 768px) {
-  .form-field > :is(input, textarea, select, [data-slot="select-trigger"]):not([type="checkbox"]):not([type="radio"]) { font-size: 14px; }
+  .form-field > :is(
+    input:not([type="checkbox"]):not([type="radio"]),
+    textarea,
+    select,
+    [data-slot="select-trigger"]
+  ) { font-size: 14px; }
 }
 .form-field > textarea {
   height: auto; min-height: 104px; padding: 13px 15px; line-height: 1.55; resize: vertical;
@@ -778,6 +788,12 @@ button:disabled { cursor: not-allowed; }
   width: 100%; max-width: 100%; min-width: 0;
   -webkit-appearance: none; appearance: none;
   overflow: hidden; text-align: left;
+  /* Safari pins the value to the top of a chrome-less date field. A line box
+     as tall as the content area (48px control minus its two 1px borders)
+     centres the value, and both ::-webkit-date-and-time-value and
+     ::-webkit-datetime-edit inherit it, so empty and filled fields match the
+     other inputs. */
+  line-height: 46px;
 }
 .form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
 .form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,

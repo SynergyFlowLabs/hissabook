@@ -23,7 +23,7 @@ const count = (source: string, needle: string) => source.split(needle).length - 
 describe('one form system (R-50)', () => {
   it('sizes every data control from a single rule', () => {
     const css = read('app/globals.css');
-    const rule = css.indexOf('.form-field > :is(input, textarea, select, [data-slot="select-trigger"])');
+    const rule = css.indexOf('input:not([type="checkbox"]):not([type="radio"]),');
     expect(rule).toBeGreaterThan(-1);
     const block = css.slice(rule, rule + 520);
     // 48px tall, 14px radius, one border token, one focus ring.
@@ -92,13 +92,15 @@ describe('one form system (R-50)', () => {
     expect(css).toContain('.form-field { display: grid; grid-template-columns: minmax(0, 1fr);');
     const rule = css.indexOf('input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"])');
     expect(rule).toBeGreaterThan(-1);
-    const block = css.slice(rule, rule + 420);
+    const block = css.slice(rule, rule + 900);
     expect(block).toContain('max-width: 100%');
     expect(block).toContain('min-width: 0');
     expect(block).toContain('box-sizing: border-box');
     // iOS native chrome is the thing that ignored the width, so it is turned off.
     expect(block).toContain('-webkit-appearance: none');
     expect(block).toContain('appearance: none');
+    // and the value is centred in the 48px box (46px content area).
+    expect(block).toContain('line-height: 46px');
     // The ledger date pair lives one level deeper and is clamped the same way.
     expect(block).toContain('.ledger-date input');
     // Nothing may escape the scrolling form body horizontally either.
