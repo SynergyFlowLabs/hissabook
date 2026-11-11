@@ -106,6 +106,24 @@ describe('one form system (R-50)', () => {
     expect(read('components/ui/calendar.tsx')).toContain('hisab-calendar');
   });
 
+  it('opens the picker where the screen can hold it', () => {
+    const css = read('app/globals.css');
+    // A panel taller than the room left on its side is what pushed the caption
+    // above the top of the browser: the height is capped to the space Radix
+    // measured, so the panel fits and scrolls instead of overflowing.
+    const popover = css.indexOf('.date-field-popover {');
+    expect(popover).toBeGreaterThan(-1);
+    expect(css.slice(popover, popover + 260)).toContain('max-height: var(--radix-popper-available-height');
+    // On a phone it is a sheet with its own insets, not a panel hung off a field
+    // whose position inside a dialog we cannot predict.
+    const sheet = css.indexOf('@media (max-width: 640px), (max-width: 900px) and (max-height: 520px) {');
+    expect(sheet).toBeGreaterThan(-1);
+    const block = css.slice(sheet, sheet + 640);
+    expect(block).toContain('position: fixed !important');
+    expect(block).toContain('inset: auto 10px');
+    expect(block).toContain('max-height: min(92dvh, 560px)');
+  });
+
   it('gives every select row a comfortable height', () => {
     const css = read('app/globals.css');
     const rule = css.indexOf('[data-slot="select-item"] {');
