@@ -7,6 +7,7 @@ import {
   Smartphone, Trash2, Wallet, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Topbar from '@/components/topbar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -185,10 +186,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
     return (
       <div className="app-shell" id="overview">
         <main className="main-area">
-          <header className="topbar">
-            <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>Accounts</strong></div>
-            <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
-          </header>
+          <Topbar crumb="Accounts" />
           <div className="content">
             <SkStatus label="Loading your accounts" />
             <section className="page-heading">
@@ -286,10 +284,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
   return (
     <div className="app-shell" id="overview">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Accounts</strong></div>
-          <div className="top-actions"><span className="currency-badge">PKR · PRIVATE WORKSPACE</span><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar />
 
         <div className="content">
           <section className="page-heading">

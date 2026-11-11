@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { SkStatus, SkTableRows } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Download, FilterX, Search, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -78,8 +79,11 @@ function makeFilters(query: string, kind: string, category: string, creator: str
   return params;
 }
 
-export default function TransactionsClient({ userName, userRole }: { userName: string; userRole: string }) {
-  const [query, setQuery] = useState('');
+export default function TransactionsClient({ userName, userRole, initialQuery = '' }: { userName: string; userRole: string; initialQuery?: string }) {
+  // The topbar search lands here as `?q=`. Without this the term was dropped on
+  // the floor: the bar navigated, the ledger opened unfiltered, and the search
+  // looked broken on every screen except Overview.
+  const [query, setQuery] = useState(initialQuery);
   const [kind, setKind] = useState(ALL);
   const [category, setCategory] = useState(ALL);
   const [creator, setCreator] = useState(ALL);
@@ -127,10 +131,7 @@ export default function TransactionsClient({ userName, userRole }: { userName: s
   return (
     <div className="app-shell">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Transactions</strong></div>
-          <div className="top-actions"><Link className="ghost-pill" href="/#overview"><ArrowLeft size={13} /> Overview</Link><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar back={{ href: '/#overview', label: 'Overview' }} />
         <div className="content">
           <section className="page-heading">
             <div>

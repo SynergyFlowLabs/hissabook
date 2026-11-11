@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { readCache, writeCache } from '@/lib/route-cache';
 import { SkList, SkPageBody, SkStatus } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Coins, Download, HandCoins, History, LogOut,
@@ -719,10 +720,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
     return (
       <div className="app-shell" id="overview">
         <main className="main-area">
-          <header className="topbar">
-            <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Partners &amp; shares</strong></div>
-            <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
-          </header>
+          <Topbar crumb="Partners & shares" />
           <div className="content">
             <SkStatus label="Loading partner records" />
             <section className="page-heading">
@@ -742,10 +740,7 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   return (
     <div className="app-shell" id="overview">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><Link href="/#overview" style={{ color: 'inherit', textDecoration: 'none' }}>Workspace</Link><span aria-hidden="true">›</span><strong>Partners & shares</strong></div>
-          <div className="top-actions"><span className="currency-badge">PRIVATE · PKR</span><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar />
         <div className="content">
           <section className="page-heading">
             <div>

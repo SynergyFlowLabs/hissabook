@@ -9,6 +9,7 @@ import MotionProvider from '@/components/motion-provider';
 import AppToaster from '@/components/app-toaster';
 import PwaRegister from '@/components/pwa-register';
 import ShellGate, { currentSession } from '@/components/shell-gate';
+import { AppShellFeed } from '@/components/app-shell';
 
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -120,7 +121,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               every screen, which restarted the notification poll and rebuilt the
               nav on each route change. */}
           <ShellGate signedIn={signedIn} />
-          {children}
+          {/* The topbar bell reads one feed; it is provided around the page, not
+              the shell, because the two are siblings here. */}
+          <AppShellFeed>{children}</AppShellFeed>
           <PwaRegister />
           <AppToaster />
         </MotionProvider>

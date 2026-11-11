@@ -12,11 +12,7 @@ import { resetWorkspaceContext } from '@/lib/use-workspace-context';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import SoundControl from '@/components/sound-control';
-import NotificationButton from '@/components/notification-button';
-import NotificationPanel from '@/components/notification-panel';
 import MobileMenu from '@/components/mobile-menu';
-import TopbarNotifPortal from '@/components/topbar-notif-portal';
-import { useNotifications } from '@/lib/use-notifications';
 import { useWorkspaceContext } from '@/lib/use-workspace-context';
 import { useState } from 'react';
 
@@ -47,10 +43,7 @@ export default function AppSidebar({ current }: { current: string }) {
   // AppShell. Both used to be props from each page, which is what forced the
   // shell to be remounted on every route change.
   const { workspaceName, businessType, role: userRole, loanCount, userName } = useWorkspaceContext();
-  const [notifOpen, setNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const notif = useNotifications();
-  const toggleNotif = () => setNotifOpen((open) => !open);
   const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const canViewTeam = ['OWNER', 'ADMIN', 'PAYROLL'].includes(userRole);
   const roleLabel: Record<string, string> = { OWNER: 'Owner', ADMIN: 'Admin', BOOKKEEPER: 'Bookkeeper', VIEWER: 'Viewer', PAYROLL: 'Payroll' };
@@ -89,7 +82,6 @@ export default function AppSidebar({ current }: { current: string }) {
         <div className="user-profile">
           <Avatar className="profile-avatar"><AvatarFallback className="bg-transparent text-[11px] font-extrabold">{initials(userName)}</AvatarFallback></Avatar>
           <div className="profile-meta"><div className="profile-name">{userName}</div><div className="profile-role">{roleLabel[userRole] ?? 'Member'}</div></div>
-          <NotificationButton variant="sidebar" unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
           <SoundControl />
           <Button variant="ghost" size="icon" className="rounded-full text-[#66766c] hover:text-[#a4452c]" aria-label="Sign out" title="Sign out" onClick={() => { clearCache(); resetWorkspaceContext(); void signOut({ redirectTo: '/login' }); }}><LogOut size={16} /></Button>
         </div>
@@ -117,9 +109,6 @@ export default function AppSidebar({ current }: { current: string }) {
           <Menu size={17} strokeWidth={2} /><span>Menu</span>
         </button>
       </nav>
-      {/* The bell lives in the page topbar now (right of search). It stays owned
-          here so there is still exactly one polling loop and one panel. */}
-      <TopbarNotifPortal unreadCount={notif.unreadCount} open={notifOpen} onToggle={toggleNotif} />
       <MobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -129,15 +118,6 @@ export default function AppSidebar({ current }: { current: string }) {
         userRole={userRole}
         current={current}
         loanCount={loanCount}
-      />
-      <NotificationPanel
-        open={notifOpen}
-        onClose={() => setNotifOpen(false)}
-        items={notif.items}
-        unreadCount={notif.unreadCount}
-        loading={notif.loading}
-        onMarkRead={notif.markRead}
-        onMarkAllRead={notif.markAllRead}
       />
     </>
   );

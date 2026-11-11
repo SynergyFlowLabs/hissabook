@@ -1,4 +1,5 @@
 import { Sk, SkLines, SkTableRows } from '@/components/skeletons';
+import Topbar from '@/components/topbar';
 
 /**
  * The app's shape while a route's JavaScript is still arriving.
@@ -14,10 +15,7 @@ export default function AppLoading() {
   return (
     <div className="app-shell">
       <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">›</span><strong>&nbsp;</strong></div>
-          <div className="top-actions"><span className="topbar-notif-slot" /></div>
-        </header>
+        <Topbar />
         <div className="content" aria-busy="true">
           <span className="sk-status" role="status" aria-live="polite">Loading</span>
           <section className="page-heading">
