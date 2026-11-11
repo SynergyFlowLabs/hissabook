@@ -766,18 +766,26 @@ button:disabled { cursor: not-allowed; }
   outline: none; border-color: var(--lime-strong); box-shadow: 0 0 0 3px var(--lime-soft);
 }
 .form-field > :is(input, textarea):disabled { opacity: .6; }
-/* A native date control carries its own intrinsic width. On iOS that used to
-   push the auto grid track wider than the field, so the date box painted ~20px
-   past every other input. The track is clamped above and the control is
-   clamped here; the value still reads left aligned. */
-.form-field > :is(input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"]) {
-  width: 100%; max-width: 100%; min-width: 0; text-align: left;
+/* Date and time are the one input iOS draws with its own native chrome, and
+   that chrome carries an intrinsic width plus an inner inset: the box ignored
+   width: 100% and painted ~26px past the form column (left edges lined up, only
+   the right edge escaped). Turning the chrome off leaves a plain control that
+   obeys its track exactly like a text field; the value stays left aligned and
+   tapping the field still opens the native picker. */
+.form-field > :is(input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"]),
+.ledger-date input {
+  display: block; box-sizing: border-box; field-sizing: fixed;
+  width: 100%; max-width: 100%; min-width: 0;
+  -webkit-appearance: none; appearance: none;
+  overflow: hidden; text-align: left;
 }
-.form-field > input[type="date"]::-webkit-date-and-time-value,
-.form-field > input[type="time"]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
-.form-field > input[type="date"]::-webkit-datetime-edit,
-.form-field > input[type="time"]::-webkit-datetime-edit { padding: 0; }
-.form-field > input[type="date"]::-webkit-calendar-picker-indicator { margin-inline-start: auto; opacity: .45; }
+.form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
+.form-field > :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
+.ledger-date input::-webkit-datetime-edit { padding: 0; margin: 0; }
+.form-field > :is(input[type="date"], input[type="time"])::-webkit-date-and-time-value,
+.ledger-date input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.form-field > :is(input[type="date"], input[type="time"])::-webkit-calendar-picker-indicator,
+.ledger-date input::-webkit-calendar-picker-indicator { margin-inline-start: auto; opacity: .45; }
 .form-field :is(input, textarea)::placeholder { color: var(--faint); opacity: 1; }
 /* Native number spinners are noise on a phone and steal width from the value. */
 .form-field input[type="number"]::-webkit-outer-spin-button,
@@ -815,7 +823,7 @@ button:disabled { cursor: not-allowed; }
 .form-dialog-title { font-size: 19px; font-weight: 800; letter-spacing: -.35px; line-height: 1.22; color: var(--ink); }
 .form-dialog-sub { font-size: 12px; line-height: 1.55; color: var(--muted); max-width: 52ch; }
 .form-dialog > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-.form-dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 18px 14px; }
+.form-dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px 18px 14px; }
 .form-dialog-body > :first-child { margin-top: 0; }
 /* Actions: primary first in the markup. Phones stack it above Cancel, wide
    screens put Cancel on the left and the primary against the right edge. */
