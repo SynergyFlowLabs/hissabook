@@ -984,12 +984,6 @@ button:disabled { cursor: not-allowed; }
 .form-field .exit-reval-desc, .form-field .exit-reval-delta { height: 48px; border-radius: 14px; }
 .exit-reval-remove.ghost-pill { height: 48px; }
 
-/* A form that lives inside a card (the account editor) uses the same action
-   bar without the sheet padding and border bleeding into the card. */
-.form-actions.is-inline {
-  padding: 16px 0 0; margin-top: 16px; background: transparent;
-  border-top: 1px solid var(--line); border-radius: 0;
-}
 /* The close control is one 36px target in the same corner of every dialog. */
 [data-slot="dialog-content"] > [data-slot="dialog-close"] {
   position: absolute; top: 13px; right: 13px; display: grid; place-items: center;
@@ -2194,18 +2188,14 @@ button:active, [role="button"]:active { transform: scale(.97); }
 }
 .notice-bar > svg { flex: 0 0 auto; }
 
-.account-form { margin-top: 14px; }
-/* Header + close on one row: as a wrapping flex row the close button fell to
-   its own line under the copy, where it read as a stray control. */
+/* The account list is its own band: it used to follow the summary tiles with no
+   margin at all, so the two card groups touched and the page read as one packed
+   block. Same 14px rhythm the dashboard uses between its cards. */
+.account-card { margin-top: 14px; }
+/* The add/edit form lives in the shared form dialog now, so it needs nothing but
+   its type pills: the header, close button and action bar come from the shell. */
 .account-type-options { display: flex; gap: 8px; flex-wrap: wrap; }
 .account-type-options .ghost-pill { height: 48px; justify-content: center; padding: 0 16px; }
-.account-form-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
-.account-form-close {
-  width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center;
-  border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card);
-  color: var(--ink-soft); cursor: pointer;
-}
-@media (pointer: coarse) { .account-form-close { width: 40px; height: 40px; } }
 .account-list { margin-top: 6px; }
 /* Name and balance, then one overflow control. Two icon buttons per row (a
    pencil and a padlock) squeezed the name, and the padlock read as a broken
