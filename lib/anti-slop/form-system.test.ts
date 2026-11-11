@@ -114,14 +114,23 @@ describe('one form system (R-50)', () => {
     const popover = css.indexOf('.date-field-popover {');
     expect(popover).toBeGreaterThan(-1);
     expect(css.slice(popover, popover + 260)).toContain('max-height: var(--radix-popper-available-height');
-    // On a phone it is a sheet with its own insets, not a panel hung off a field
-    // whose position inside a dialog we cannot predict.
-    const sheet = css.indexOf('@media (max-width: 640px), (max-width: 900px) and (max-height: 520px) {');
+    // The panel itself must never be positioned: Radix puts it inside a
+    // transformed wrapper that owns the coordinates, so `position: fixed` on the
+    // panel resolves against that wrapper and collapses it into a strip.
+    const popoverRule = css.slice(popover, css.indexOf('}', popover));
+    expect(popoverRule).not.toContain('position: fixed');
+    // On a phone it is a sheet, pinned by its own insets - on the wrapper that
+    // Radix positions, never on the panel inside it.
+    const sheet = css.indexOf('[data-radix-popper-content-wrapper]:has(> .date-field-popover) {');
     expect(sheet).toBeGreaterThan(-1);
-    const block = css.slice(sheet, sheet + 640);
+    const block = css.slice(sheet, sheet + 400);
     expect(block).toContain('position: fixed !important');
     expect(block).toContain('inset: auto 10px');
-    expect(block).toContain('max-height: min(92dvh, 560px)');
+    // Guarded, so a browser without `:has()` keeps the anchored panel instead of
+    // getting half of the sheet.
+    expect(css).toContain('@supports selector(:has(*)) {');
+    expect(css).toContain('[data-radix-popper-content-wrapper] > .date-field-popover {');
+    expect(css).toContain('max-height: min(92dvh, 560px)');
   });
 
   it('gives every select row a comfortable height', () => {

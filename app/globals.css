@@ -857,31 +857,49 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* --- Where the picker opens ----------------------------------------- */
-/* A panel that hangs off the field only has the room between that field and the
-   screen edge, and floating-ui will not slide a panel across its own trigger, so
-   the same calendar arrived whole on one dialog and with its caption above the
-   top of the browser on another. On a phone it is a sheet instead, placed the
-   way the app's other bottom sheets are - by its own four insets - so no field
-   position can push it off screen, and it sits under the thumb. The sheet keeps
-   the popover's behaviour (focus, Escape, close on a day) because it is still
-   the same Radix popover; only its geometry changes. */
-@media (max-width: 640px), (max-width: 900px) and (max-height: 520px) {
-  .date-field-popover {
-    position: fixed !important;
-    inset: auto 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px !important;
-    width: auto !important; max-width: none !important;
-    max-height: min(92dvh, 560px);
-    padding: 10px 12px 8px; border-radius: 24px;
-    transform: none !important;
-    animation: date-sheet-in .2s cubic-bezier(.2, .7, .3, 1) !important;
-    box-shadow: 0 -14px 44px rgb(13 26 19 / .28);
+/* Two elements are involved, and which one is positioned decides everything.
+   Radix draws a `[data-radix-popper-content-wrapper]` div that owns the
+   coordinates (fixed, left/top, transform, min-width: max-content) and puts our
+   panel inside it. Styling the panel with `position: fixed` therefore does not
+   anchor it to the screen: the wrapper's own transform makes the wrapper the
+   panel's containing block, and because the panel is then out of flow the
+   wrapper collapses to nothing - the panel came out as a 58px strip (a 34px
+   grabber plus its own padding) clipped over the dialog. So the sheet pins the
+   wrapper, and the panel stays an ordinary block that fills it.
+
+   Below the phone breakpoint the picker is a sheet instead of a panel hung off
+   the field: floating-ui may not slide a panel across its own trigger, so a
+   ~370px calendar that fits between a mid-dialog field and the top of the screen
+   on one dialog overflowed it on another. Placed by its own four insets it
+   cannot be pushed anywhere, and it opens under the thumb. Behaviour is
+   untouched - same popover, same focus handling, same Escape, same
+   close-on-a-day - only the geometry changes.
+
+   The whole block is guarded by `:has()` so that a browser without it gets the
+   anchored panel with the height cap, never a half-applied sheet. */
+@supports selector(:has(*)) {
+  @media (max-width: 640px), (max-width: 900px) and (max-height: 520px) {
+    [data-radix-popper-content-wrapper]:has(> .date-field-popover) {
+      position: fixed !important;
+      inset: auto 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px !important;
+      width: auto !important; min-width: 0 !important; max-width: none !important;
+      transform: none !important;
+      animation: date-sheet-in .2s cubic-bezier(.2, .7, .3, 1) !important;
+    }
+    [data-radix-popper-content-wrapper] > .date-field-popover {
+      width: 100% !important; max-height: min(92dvh, 560px);
+      padding: 10px 12px 8px; border-radius: 24px;
+      box-shadow: 0 -14px 44px rgb(13 26 19 / .28);
+    }
+    .date-field-popover::before {
+      content: ""; display: block; width: 34px; height: 4px; margin: 2px auto 10px;
+      border-radius: 999px; background: var(--line-strong);
+    }
+    .date-field-popover .hisab-calendar { margin: 0 auto; }
+    /* the month row is a fit-content flex line: auto margins centre it */
+    .date-field-popover .rdp-months { margin-inline: auto; }
+    .date-field-shortcut { min-height: 44px; padding: 0 16px; font-size: 13px; }
   }
-  .date-field-popover::before {
-    content: ""; display: block; width: 34px; height: 4px; margin: 2px auto 10px;
-    border-radius: 999px; background: var(--line-strong);
-  }
-  .date-field-popover .hisab-calendar { margin: 0 auto; }
-  .date-field-shortcut { min-height: 44px; padding: 0 16px; font-size: 13px; }
 }
 @keyframes date-sheet-in {
   from { opacity: 0; translate: 0 18px; }
