@@ -578,14 +578,40 @@ describe('partner shares and profit sharing are wired end to end', () => {
 describe('toast and pill surfaces stay on-brand', () => {
   it('keeps the sileo toast dark, including the surfaces around the body', async () => {
     const css = await read('app/globals.css');
-    // The white shoulders in the owner's screenshot were the surfaces sileo
-    // paints around the body, which kept a pale default.
+    // Both shapes sileo draws must carry the brand fill. The pale shoulders in
+    // the owner's screenshot came from a surface sileo painted that our skin had
+    // not claimed.
     expect(css).toContain('[data-sileo-pill]');
+    expect(css).toContain('[data-sileo-body]');
     expect(css).toContain('[data-sileo-canvas] svg');
     const toaster = await read('components/app-toaster.tsx');
     // theme="light" means "drawn on a light page" => dark toast. Reversing this
     // would literally make the toast white, so pin the intent.
     expect(toaster).toContain('theme="light"');
+  });
+
+  it('never outlines the toast box, which is transparent by design', async () => {
+    // The pale rectangle in the owner's screenshot was this skin's own doing:
+    // a 1px border plus a 0 22px 60px shadow on the toast's box. Both follow the
+    // box's 20px rounded rect across its full width, but the dark SVG only fills
+    // the body and a narrow pill, so the gap either side of the pill showed the
+    // canvas inside a hairline frame with a shadow pooled under it.
+    const css = await read('app/globals.css');
+    const base = css.slice(css.indexOf('/* Sileo toast'), css.indexOf('Accessibility fallbacks'));
+    expect(base).toContain('border: 0 !important');
+    expect(base).toContain('box-shadow: none !important');
+    // The shadow belongs on the silhouette sileo actually draws.
+    expect(base).toContain('drop-shadow(');
+    expect(base).toMatch(/html \[data-sileo-canvas\] svg[^{]*\{[^}]*filter: drop-shadow/);
+  });
+
+  it('keeps the toast inside the viewport, whatever sileo defaults to', async () => {
+    // Sileo injects its stylesheet at runtime, after globals.css, so its
+    // `:root{--sileo-width:350px}` beats a custom-property override declared
+    // here. On a 320px phone the toast hung 15px over each edge.
+    const css = await read('app/globals.css');
+    expect(css).toMatch(/html \[data-sileo-toast\] \{ width: min\(92vw, 380px\); \}/);
+    expect(css).toContain('html [data-sileo-viewport] { max-width: 100vw;');
   });
 
   it('cannot widen the page from a data table, which is what shifted the pill', async () => {

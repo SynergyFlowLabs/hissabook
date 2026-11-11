@@ -1073,18 +1073,53 @@ button:disabled { cursor: not-allowed; }
   --sileo-width: min(92vw, 380px);
   --sileo-duration: 560ms;
 }
+/* The toast's own box is transparent on purpose: the dark shape is drawn by the
+   SVG inside it (a pill for the header plus a body rect, welded together by a
+   gooey filter), and the box merely reserves the space. Painting the box would
+   cover the corners the SVG leaves transparent, so the badge would stop looking
+   attached to the body.
+
+   That transparency is what produced the pale rectangle in the owner's
+   screenshot. Our skin used to put a 1px border and a 0 22px 60px shadow on
+   this transparent box. A border and a shadow both follow the box's 20px
+   rounded rect and are painted across its whole width, but the dark SVG only
+   fills the lower part and a narrow pill at the top. The gap either side of
+   that pill, and the strip under the top corner radius, therefore showed the
+   page canvas inside a hairline frame with a shadow pooled under it: a rectangle
+   with white shoulders, exactly what was reported.
+
+   The box gets no border and no shadow now. The shadow rides on the SVG
+   instead, where it follows the silhouette sileo actually draws, so it cannot
+   outline anything the fill does not cover. The 1px inner highlight is
+   reproduced inside each shape with a stroke, which also follows the shape. */
+/* Sileo injects its own stylesheet at runtime, after this file, so anything it
+   sets on the same element wins. Its `:root{--sileo-width:350px}` therefore
+   overrode the 92vw intent we declared here, and on a 320px phone the toast
+   hung 15px over each edge. Both rules below are on the elements themselves,
+   not on custom properties, so they cannot be outranked. */
+html [data-sileo-viewport] { max-width: 100vw; padding: 10px; }
+html [data-sileo-toast] { width: min(92vw, 380px); }
+
 [data-sileo-toast] {
   border-radius: 20px !important;
-  border: 1px solid rgb(255 255 255 / .10) !important;
-  box-shadow: 0 22px 60px rgb(4 10 7 / .5), inset 0 1px 0 rgb(255 255 255 / .10) !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
-/* The toast body is an SVG pill, but sileo also paints surfaces *around* it: the
-   gooey pill that fills the rounded corners, and the badge/tone layers. Those
-   defaulted to a pale tone, which showed as white shoulders behind the dark body
-   in the owner's screenshot. Pin every one of them to the brand fill so no pale
-   surface can peek out, whatever state the toast is in. */
-[data-sileo-canvas] svg, [data-sileo-svg] { background: transparent !important; }
-[data-sileo-pill] { fill: #14231b !important; }
+/* The shadow rides on the silhouette sileo draws, so it cannot outline an area
+   the fill does not cover. The SVG is explicitly sized to the toast so the
+   percent-based client width in sileo's code does not add a second error. */
+html [data-sileo-canvas] svg, html [data-sileo-svg] {
+  background: transparent !important;
+  filter: drop-shadow(0 16px 30px rgb(4 10 7 / .42));
+  width: 100% !important;
+  height: 100% !important;
+}
+[data-sileo-pill], [data-sileo-body] {
+  fill: #14231b !important;
+  /* Inner top highlight, clipped to the shape so it cannot bleed past an edge. */
+  stroke: rgb(255 255 255 / .10);
+  stroke-width: 1;
+}
 [data-sileo-badge] { background-color: rgb(255 255 255 / .10) !important; color: #d6ff5e !important; }
 [data-sileo-viewport] [data-sileo-description],
 [data-sileo-viewport][data-theme='light'] [data-sileo-description] {
