@@ -600,6 +600,27 @@ describe('toast and pill surfaces stay on-brand', () => {
     expect(rule).toContain('min-width: 0');
     expect(rule).toContain('overflow-x: auto');
     expect(rule).toContain('max-width: 100%');
+    // Paint containment, not just inline-size. On the 2026-11-10 capture the
+    // loaded Team page still laid out 645px wide on a 412px phone: a 7-column
+    // table (the 5-column skeleton fit) propagated its 720px min-content width
+    // to the initial containing block, so `window.innerWidth` itself reported
+    // 645 and the pill ran 195px past the right edge. `paint` makes the wrapper
+    // a paint boundary, which stops that propagation.
+    expect(rule).toContain('contain: inline-size paint');
+  });
+
+  it('drops that containment when the wrapper is neutralised for print', async () => {
+    // Print turns these wrappers back into plain flow so a statement can span
+    // pages. Paint containment would clip a table taller than one page, so the
+    // print overrides must reset it along with the overflow.
+    const css = await read('app/globals.css');
+    for (const selector of ['.statement-print .data-table-wrap {', '.report-body .data-table-wrap {']) {
+      const start = css.indexOf(selector);
+      expect(start).toBeGreaterThan(-1);
+      const block = css.slice(start, css.indexOf('}', start));
+      expect(block).toContain('contain: none');
+      expect(block).toContain('overflow: visible');
+    }
   });
 });
 
