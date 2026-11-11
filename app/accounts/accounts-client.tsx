@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight, Check, Landmark, Lock, Pencil, Plus, ShieldCheck,
+  ArrowRight, Check, Info, Landmark, Lock, MoreHorizontal, Pencil, Plus, ShieldCheck,
   Smartphone, Trash2, Wallet, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Topbar from '@/components/topbar';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SkPageBody, SkStatus } from '@/components/skeletons';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import { formatPKR } from '@/lib/format';
@@ -167,6 +169,14 @@ export default function AccountsClient({ userRole, initial }: { userName: string
     }
   };
 
+  // One summary of what the accounts actually are, rather than the workspace's
+  // business type as a caption under the count (which read as "3 Creative agency").
+  const typeSummary = useMemo(() => {
+    if (!data) return '';
+    const names = Array.from(new Set(data.accounts.map((account) => TYPE_LABEL[account.type] ?? account.type)));
+    return names.length ? names.join(' · ') : 'No accounts yet';
+  }, [data]);
+
   if (!data) {
     if (loadError) {
       return (
@@ -204,7 +214,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
   }
 
   const form = (adding || editingId !== null) && (
-    <form onSubmit={submit} className="soft-card" style={{ marginTop: 14 }}>
+    <form onSubmit={submit} className="soft-card account-form" aria-label={adding ? 'Add an account' : 'Edit account'}>
       <div className="card-header-row">
         <div>
           <div className="card-title">{adding ? 'Add an account' : 'Edit account'}</div>
@@ -214,6 +224,9 @@ export default function AccountsClient({ userRole, initial }: { userName: string
               : 'Rename it, or change what kind of account it is.'}
           </div>
         </div>
+        <button type="button" className="account-form-close" aria-label="Close form" onClick={cancel} disabled={busy}>
+          <X size={15} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="form-grid" style={{ marginTop: 12 }}>
@@ -275,7 +288,7 @@ export default function AccountsClient({ userRole, initial }: { userName: string
           {busy ? 'Saving…' : adding ? 'Add account' : 'Save changes'}
         </Button>
         <Button type="button" variant="outline" className="h-11 rounded-full" onClick={cancel} disabled={busy}>
-          <X size={14} /> Cancel
+          Cancel
         </Button>
       </div>
     </form>
@@ -294,111 +307,118 @@ export default function AccountsClient({ userRole, initial }: { userName: string
               <p className="page-subtitle">Cash boxes, bank accounts and mobile wallets, with balances that come from the ledger.</p>
             </div>
             {canManage && (
-              <div className="inventory-heading-actions">
+              <div className="page-heading-actions">
                 <Button className="h-11 rounded-full" onClick={startAdd} disabled={adding}>
-                  <Plus size={15} /> Add account
+                  <Plus size={15} aria-hidden="true" /> Add account
                 </Button>
               </div>
             )}
           </section>
 
-          {notice && <div className="form-error" role="status" style={{ background: 'var(--lime-soft)', borderColor: 'var(--lime-strong)', color: '#3f5a12' }}><Check size={12} style={{ verticalAlign: '-2px', marginRight: 5 }} />{notice}</div>}
+          {notice && <div className="notice-bar" role="status"><Check size={13} aria-hidden="true" />{notice}</div>}
           {formError && !adding && editingId === null && <div className="form-error" role="alert">{formError}</div>}
 
-          <section className="stat-grid" aria-label="Accounts summary">
-            <div className="stat-card">
-              <div className="stat-top"><span className="stat-label">Total recorded</span><span className="stat-icon lime"><Wallet size={16} /></span></div>
-              <div className="stat-value" style={{ fontSize: 22 }}>{formatPKR(data.total)}</div>
+          {/* One wide balance tile, then two equal cards. Three tiles in a
+              two-column grid left a hole in the last row and gave the shortest
+              card a ragged height of its own. */}
+          <section className="stat-grid is-summary" aria-label="Accounts summary">
+            <div className="stat-card stat-card-wide">
+              <div className="stat-top"><span className="stat-label">Total recorded</span><span className="stat-icon lime"><Wallet size={16} aria-hidden="true" /></span></div>
+              <div className="stat-value lg">{formatPKR(data.total)}</div>
               <div className="stat-sub">Across {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-top"><span className="stat-label">Accounts</span><span className="stat-icon green"><Landmark size={16} /></span></div>
+              <div className="stat-top"><span className="stat-label">Accounts</span><span className="stat-icon green"><Landmark size={16} aria-hidden="true" /></span></div>
               <div className="stat-value">{data.accounts.length}</div>
-              <div className="stat-sub">{data.workspace.businessType || 'Business workspace'}</div>
+              <div className="stat-sub">{typeSummary}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-top"><span className="stat-label">Your role</span><span className="stat-icon slate"><ShieldCheck size={16} /></span></div>
-              <div className="stat-value" style={{ fontSize: 16, textTransform: 'capitalize' }}>{userRole.toLowerCase()}</div>
+              <div className="stat-top"><span className="stat-label">Your role</span><span className="stat-icon slate"><ShieldCheck size={16} aria-hidden="true" /></span></div>
+              <div className="stat-value role">{userRole.toLowerCase()}</div>
               <div className="stat-sub">{canManage ? 'You can add and change accounts' : 'Read only'}</div>
             </div>
           </section>
 
           {form}
 
-          <section className="soft-card" style={{ marginTop: 14 }} aria-label="Business accounts">
+          <section className="soft-card account-card" aria-label="Business accounts">
             <div className="card-header-row">
               <div><div className="card-title">Business accounts</div><div className="card-subtitle">Balances come from cleared ledger entries, never typed by hand.</div></div>
             </div>
 
             {!canManage && (
               <div className="payroll-notice" style={{ marginTop: 12 }}>
-                <ShieldCheck size={17} />
+                <ShieldCheck size={17} aria-hidden="true" />
                 <span><strong>Read only.</strong> Only owners and admins can add or change accounts.</span>
               </div>
             )}
 
-            <div className="movement-list">
+            <div className="account-list">
+              {data.accounts.length === 0 ? (
+                <p className="empty-state">No accounts yet. Add the cash box, bank account or wallet the money sits in.</p>
+              ) : null}
               {data.accounts.map((account) => {
                 const Icon = TYPE_ICON[account.type] ?? Wallet;
+                const canRemove = removable(account, data.accounts.length);
+                const entries = account.entryCount === 0
+                  ? 'No entries yet'
+                  : `${account.entryCount} ${account.entryCount === 1 ? 'entry' : 'entries'}`;
                 return (
-                  <div key={account.id} className="movement-row account-row-stack" style={{ alignItems: 'center' }}>
-                    <span className="movement-icon in" style={{ flex: '0 0 auto' }}><Icon size={16} /></span>
-                    <div className="movement-description" style={{ flex: 1, minWidth: 0 }}>
-                      <strong>{account.name}</strong>
-                      <small>
-                        {TYPE_LABEL[account.type] ?? account.type} · {account.currency} ·{' '}
-                        {account.entryCount === 0 ? 'No entries yet' : `${account.entryCount} ${account.entryCount === 1 ? 'entry' : 'entries'}`}
-                      </small>
+                  <div key={account.id} className="account-item">
+                    <span className={`account-item-icon ${account.type === 'CASH' ? 'cash' : account.type === 'BANK' ? 'bank' : 'mobile'}`} aria-hidden="true"><Icon size={17} /></span>
+                    <div className="account-item-body">
+                      <strong title={account.name}>{account.name}</strong>
+                      <small>{TYPE_LABEL[account.type] ?? account.type} · {account.currency} · {entries}</small>
                     </div>
-                    <div className="movement-quantity" style={{ color: account.balance < 0 ? 'var(--negative)' : 'var(--ink)' }}>
-                      {formatPKR(account.balance)}
-                    </div>
+                    <div className={`account-item-figure${account.balance < 0 ? ' is-negative' : ''}`}>{formatPKR(account.balance)}</div>
                     {canManage && (
-                      <span className="account-action-group" style={{ display: 'flex', gap: 4, flex: '0 0 auto' }}>
-                        <button type="button" className="icon-row-button" aria-label={`Rename ${account.name}`} onClick={() => startEdit(account)}>
-                          <Pencil size={13} />
-                        </button>
-                        {removable(account, data.accounts.length) ? (
-                          <button
-                            type="button"
-                            className="icon-row-button archive"
-                            aria-label={`Remove ${account.name}`}
-                            disabled={busy}
-                            onClick={() => void remove(account)}
-                          >
-                            <Trash2 size={13} />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className="account-menu-button" aria-label={`Actions for ${account.name}`} disabled={busy}>
+                            <MoreHorizontal size={17} aria-hidden="true" />
                           </button>
-                        ) : (
-                          // Offered only when it would actually work. A delete that
-                          // always comes back as a refusal teaches the owner the app
-                          // is broken rather than the rule.
-                          <span
-                            className="icon-row-button"
-                            role="img"
-                            aria-label={`${account.name} cannot be removed: ${
-                              data.accounts.length <= 1 ? 'the book needs at least one account' : 'it already has entries, so rename it instead'
-                            }`}
-                            title={data.accounts.length <= 1 ? 'Keep at least one account' : 'Has entries, so rename it instead'}
-                            style={{ opacity: 0.45, cursor: 'default' }}
-                          >
-                            <Lock size={12} />
-                          </span>
-                        )}
-                      </span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel className="account-menu-title">{account.name}</DropdownMenuLabel>
+                          <DropdownMenuItem onSelect={() => startEdit(account)}>
+                            <Pencil size={14} aria-hidden="true" /> Rename account
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {canRemove ? (
+                            <DropdownMenuItem variant="destructive" onSelect={() => void remove(account)}>
+                              <Trash2 size={14} aria-hidden="true" /> Remove account
+                            </DropdownMenuItem>
+                          ) : (
+                            // Offered as a visible but disabled action, with the rule
+                            // spelled out: the account cannot be removed, and hiding
+                            // the row entirely would look like a missing feature.
+                            <>
+                              <DropdownMenuItem disabled>
+                                <Lock size={14} aria-hidden="true" /> Remove account
+                              </DropdownMenuItem>
+                              <DropdownMenuLabel className="account-menu-hint">
+                                {account.hasHistory
+                                  ? `${account.name} has entries, so it cannot be removed.`
+                                  : 'The book needs at least one account.'}
+                              </DropdownMenuLabel>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 );
               })}
             </div>
 
-            <p className="footer-note" style={{ marginTop: 12 }}>
-              <Check size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />
-              An account with transactions can be renamed but not removed, so the ledger stays readable. The opening balance is fixed once the first entry is recorded.
-            </p>
+            <div className="card-note">
+              <Info size={14} aria-hidden="true" />
+              <span>An account with transactions can be renamed but not removed, so the ledger stays readable. The opening balance is fixed once the first entry is recorded.</span>
+            </div>
           </section>
 
-          <p className="footer-note" style={{ marginTop: 14 }}>
-            <Link className="text-link" href="/">Back to the overview <ArrowRight size={11} /></Link>
+          <p className="footer-note" style={{ marginTop: 16 }}>
+            <Link className="text-link" href="/">Back to the overview <ArrowRight size={11} aria-hidden="true" /></Link>
           </p>
         </div>
       </main>
