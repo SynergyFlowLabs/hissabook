@@ -744,7 +744,7 @@ button:disabled { cursor: not-allowed; }
    to a bare chevron). */
 .form-grid { display: grid; grid-template-columns: 1fr; gap: 14px 12px; }
 @media (min-width: 701px) { .form-grid { grid-template-columns: 1fr 1fr; } }
-.form-field { display: grid; gap: 7px; min-width: 0; }
+.form-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; min-width: 0; }
 .form-field.full { grid-column: 1 / -1; }
 .form-field > label,
 .form-field > .form-label { color: var(--ink-soft); font-size: 12px; font-weight: 750; letter-spacing: .01em; line-height: 1.3; }
@@ -766,6 +766,18 @@ button:disabled { cursor: not-allowed; }
   outline: none; border-color: var(--lime-strong); box-shadow: 0 0 0 3px var(--lime-soft);
 }
 .form-field > :is(input, textarea):disabled { opacity: .6; }
+/* A native date control carries its own intrinsic width. On iOS that used to
+   push the auto grid track wider than the field, so the date box painted ~20px
+   past every other input. The track is clamped above and the control is
+   clamped here; the value still reads left aligned. */
+.form-field > :is(input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"]) {
+  width: 100%; max-width: 100%; min-width: 0; text-align: left;
+}
+.form-field > input[type="date"]::-webkit-date-and-time-value,
+.form-field > input[type="time"]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
+.form-field > input[type="date"]::-webkit-datetime-edit,
+.form-field > input[type="time"]::-webkit-datetime-edit { padding: 0; }
+.form-field > input[type="date"]::-webkit-calendar-picker-indicator { margin-inline-start: auto; opacity: .45; }
 .form-field :is(input, textarea)::placeholder { color: var(--faint); opacity: 1; }
 /* Native number spinners are noise on a phone and steal width from the value. */
 .form-field input[type="number"]::-webkit-outer-spin-button,
@@ -856,6 +868,27 @@ button:disabled { cursor: not-allowed; }
   [data-slot="dialog-content"] > [data-slot="dialog-close"] { width: 40px; height: 40px; top: 11px; right: 11px; }
 }
 
+/* ------------------------------------------------------------------ */
+/* Select menus                                                         */
+/* ------------------------------------------------------------------ */
+/* The list a select opens follows the same standard as its field: 44px rows
+   (48px under a thumb), 14px text, 12px corners, 2px between rows and 6px of
+   air inside the sheet. The rows used to be ~30px tall, so a two-option list
+   read as two thin strips and was hard to hit with a thumb. */
+/* Above the dialog sheet (z 50) so a list opened inside a form is never
+   painted under the pinned action bar. */
+[data-slot="select-content"] { padding: 6px; z-index: 60; }
+[data-slot="select-item"] {
+  min-height: 44px; padding: 10px 40px 10px 12px; border-radius: 12px;
+  font-size: 14px; font-weight: 650; line-height: 1.35; color: var(--ink);
+}
+[data-slot="select-item"] + [data-slot="select-item"] { margin-top: 2px; }
+[data-slot="select-item"][data-highlighted] { background: var(--lime-soft); color: var(--ink); }
+[data-slot="select-item"][data-state="checked"] { font-weight: 750; }
+[data-slot="select-content"] [data-slot="select-item-indicator"] { right: 12px; }
+[data-slot="select-content"] [data-slot="select-item-indicator"] svg { width: 16px; height: 16px; color: var(--lime-strong); }
+@media (pointer: coarse) { [data-slot="select-item"] { min-height: 48px; } }
+
 /* legacy table classes still used by the ledger export */
 .table-muted { color: var(--muted); }
 .amount-positive { color: var(--positive); font-weight: 800; }
@@ -907,7 +940,7 @@ button:disabled { cursor: not-allowed; }
    a date is chosen. */
 .ledger-date-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .ledger-date { position: relative; display: block; min-width: 0; }
-.ledger-date input { width: 100%; height: 48px; border-radius: 14px; font-variant-numeric: tabular-nums; }
+.ledger-date input { width: 100%; max-width: 100%; min-width: 0; height: 48px; border-radius: 14px; text-align: left; font-variant-numeric: tabular-nums; }
 /* The native picker glyph is the only calendar affordance left in the box: it
    gets a slight dim so it sits at the same weight as the field's label. */
 .ledger-date input::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }

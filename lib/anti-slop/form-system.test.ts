@@ -86,6 +86,29 @@ describe('one form system (R-50)', () => {
     }
   });
 
+  it('clamps a native date control to the field box', () => {
+    const css = read('app/globals.css');
+    // The field is one clamped track: no control can widen the column.
+    expect(css).toContain('.form-field { display: grid; grid-template-columns: minmax(0, 1fr);');
+    const rule = css.indexOf('input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"])');
+    expect(rule).toBeGreaterThan(-1);
+    const block = css.slice(rule, rule + 240);
+    expect(block).toContain('max-width: 100%');
+    expect(block).toContain('min-width: 0');
+    // The ledger date pair lives one level deeper and is clamped too.
+    expect(css).toContain('.ledger-date input { width: 100%; max-width: 100%; min-width: 0;');
+  });
+
+  it('gives every select row a comfortable height', () => {
+    const css = read('app/globals.css');
+    const rule = css.indexOf('[data-slot="select-item"] {');
+    expect(rule).toBeGreaterThan(-1);
+    const block = css.slice(rule, rule + 200);
+    expect(block).toContain('min-height: 44px');
+    expect(block).toContain('font-size: 14px');
+    expect(css).toContain('@media (pointer: coarse) { [data-slot="select-item"] { min-height: 48px; } }');
+  });
+
   it('labels every field with the shared label and hint classes', () => {
     const css = read('app/globals.css');
     expect(css).toContain('.form-field > label,');
