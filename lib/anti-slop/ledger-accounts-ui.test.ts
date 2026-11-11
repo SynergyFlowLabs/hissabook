@@ -101,6 +101,31 @@ describe('the accounts screen fills its grid and its rows', () => {
     expect(client).not.toContain('className="icon-row-button archive"');
   });
 
+  it('opens the account form in the shared dialog, never as a card in the page', async () => {
+    const client = await read('app/accounts/accounts-client.tsx');
+    // It used to be a `soft-card` wedged between the summary tiles and the list:
+    // the book was pushed down, the page read as one packed block, and the form
+    // did not behave like every other form in the product.
+    expect(client).toContain('<DialogContent className="form-dialog">');
+    expect(client).toContain('form-dialog-body');
+    expect(client).toContain('className="form-actions"');
+    expect(client).not.toContain('soft-card account-form');
+    expect(client).not.toContain('account-form-close');
+    // The same shell as every other dialog: one head, one title, one sub.
+    expect(client).toContain('className="form-dialog-head"');
+    expect(client).toContain('className="form-dialog-title"');
+    expect(client).toContain('className="form-dialog-sub"');
+  });
+
+  it('keeps the account list a band of its own', async () => {
+    const css = await read('app/globals.css');
+    // The list card followed the summary tiles with no margin at all, so the two
+    // card groups touched and the page looked compacted.
+    expect(css).toContain('.account-card { margin-top: 14px; }');
+    // The in-card action bar existed for the inline editor and is gone with it.
+    expect(css).not.toContain('.form-actions.is-inline');
+  });
+
   it('states the ledger rules as a note, not a centred paragraph', async () => {
     const client = await read('app/accounts/accounts-client.tsx');
     expect(client).toContain('className="card-note"');

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight, Check, Info, Landmark, Lock, MoreHorizontal, Pencil, Plus, ShieldCheck,
-  Smartphone, Trash2, Wallet, X,
+  Smartphone, Trash2, Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Topbar from '@/components/topbar';
@@ -13,6 +13,9 @@ import { Label } from '@/components/ui/label';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { SkPageBody, SkStatus } from '@/components/skeletons';
 import { forgetCache, readCache, writeCache } from '@/lib/route-cache';
 import { formatPKR } from '@/lib/format';
@@ -213,83 +216,94 @@ export default function AccountsClient({ userRole, initial }: { userName: string
     );
   }
 
-  const form = (adding || editingId !== null) && (
-    <form onSubmit={submit} className="soft-card account-form" aria-label={adding ? 'Add an account' : 'Edit account'}>
-      <div className="card-header-row account-form-head">
-        <div>
-          <div className="card-title">{adding ? 'Add an account' : 'Edit account'}</div>
-          <div className="card-subtitle">
+  const formOpen = adding || editingId !== null;
+
+  /*
+   * The form used to be a card in the page, wedged between the summary tiles and
+   * the account list. It pushed the book down, made the page read as one packed
+   * block and behaved differently from every other form in the product. It is a
+   * dialog now - the same `form-dialog` shell the transaction, partner, team and
+   * inventory forms use, so the header, the scrolling body, the pinned actions
+   * and the close button are the ones people already know.
+   */
+  const accountForm = (
+    <Dialog open={formOpen} onOpenChange={(open) => { if (!open) cancel(); }}>
+      <DialogContent className="form-dialog">
+        <DialogHeader className="form-dialog-head">
+          <DialogTitle className="form-dialog-title">{adding ? 'Add an account' : 'Edit account'}</DialogTitle>
+          <DialogDescription className="form-dialog-sub">
             {adding
               ? 'Where the money currently sits. The opening balance is what is already there today.'
               : 'Rename it, or change what kind of account it is.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit}>
+          <div className="form-dialog-body">
+            <div className="form-grid">
+              <div className="form-field">
+                <Label htmlFor="account-name" className="form-label">Account name</Label>
+                <Input
+                  id="account-name"
+                  autoFocus
+                  value={draft.name}
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                  placeholder="e.g. Meezan Bank"
+                  maxLength={80}
+                />
+              </div>
+
+              <div className="form-field">
+                <Label className="form-label">Type</Label>
+                <div className="account-type-options">
+                  {(['CASH', 'BANK', 'MOBILE'] as const).map((type) => {
+                    const Icon = TYPE_ICON[type];
+                    const active = draft.accountType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, accountType: type })}
+                        aria-pressed={active}
+                        className={`ghost-pill ${active ? 'active' : ''}`}
+                        style={active ? { borderColor: 'var(--lime-strong)', color: 'var(--ink)' } : undefined}
+                      >
+                        <Icon size={13} /> {TYPE_LABEL[type]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {adding && (
+                <div className="form-field full">
+                  <Label htmlFor="account-opening" className="form-label">Opening balance (PKR)</Label>
+                  <Input
+                    id="account-opening"
+                    type="number"
+                    inputMode="numeric"
+                    value={draft.openingBalance}
+                    onChange={(event) => setDraft({ ...draft, openingBalance: event.target.value })}
+                  />
+                  <span className="field-hint">What is already in this account today. Leave 0 to start empty.</span>
+                </div>
+              )}
+            </div>
+
+            {formError && <div className="form-error" role="alert">{formError}</div>}
           </div>
-        </div>
-        <button type="button" className="account-form-close" aria-label="Close form" onClick={cancel} disabled={busy}>
-          <X size={15} aria-hidden="true" />
-        </button>
-      </div>
 
-      <div className="form-grid" style={{ marginTop: 12 }}>
-        <div className="form-field">
-          <Label htmlFor="account-name" className="form-label">Account name</Label>
-          <Input
-            id="account-name"
-            autoFocus
-            value={draft.name}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            placeholder="e.g. Meezan Bank"
-            maxLength={80}
-          />
-        </div>
-
-        <div className="form-field">
-          <Label className="form-label">Type</Label>
-          <div className="account-type-options">
-            {(['CASH', 'BANK', 'MOBILE'] as const).map((type) => {
-              const Icon = TYPE_ICON[type];
-              const active = draft.accountType === type;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, accountType: type })}
-                  aria-pressed={active}
-                  className={`ghost-pill ${active ? 'active' : ''}`}
-                  style={active ? { borderColor: 'var(--lime-strong)', color: 'var(--ink)' } : undefined}
-                >
-                  <Icon size={13} /> {TYPE_LABEL[type]}
-                </button>
-              );
-            })}
+          <div className="form-actions">
+            <Button type="submit" className="lime-button" disabled={busy || !draft.name.trim()}>
+              {busy ? 'Saving…' : adding ? 'Add account' : 'Save changes'}
+            </Button>
+            <Button type="button" variant="outline" onClick={cancel} disabled={busy}>
+              Cancel
+            </Button>
           </div>
-        </div>
-
-        {adding && (
-          <div className="form-field full">
-            <Label htmlFor="account-opening" className="form-label">Opening balance (PKR)</Label>
-            <Input
-              id="account-opening"
-              type="number"
-              inputMode="numeric"
-              value={draft.openingBalance}
-              onChange={(event) => setDraft({ ...draft, openingBalance: event.target.value })}
-            />
-            <span className="field-hint">What is already in this account today. Leave 0 to start empty.</span>
-          </div>
-        )}
-      </div>
-
-      {formError && <div className="form-error" role="alert">{formError}</div>}
-
-      <div className="form-actions is-inline">
-        <Button type="submit" className="lime-button" disabled={busy || !draft.name.trim()}>
-          {busy ? 'Saving…' : adding ? 'Add account' : 'Save changes'}
-        </Button>
-        <Button type="button" variant="outline" onClick={cancel} disabled={busy}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 
   return (
@@ -336,8 +350,6 @@ export default function AccountsClient({ userRole, initial }: { userName: string
               <div className="stat-sub">{canManage ? 'You can add and change accounts' : 'Read only'}</div>
             </div>
           </section>
-
-          {form}
 
           <section className="soft-card account-card" aria-label="Business accounts">
             <div className="card-header-row">
@@ -420,6 +432,8 @@ export default function AccountsClient({ userRole, initial }: { userName: string
           </p>
         </div>
       </main>
+
+      {accountForm}
     </div>
   );
 }
