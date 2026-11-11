@@ -235,8 +235,8 @@ describe('the topbar is one shared bar with one control order', () => {
     expect(bell).toBeGreaterThan(search);
     expect(profile).toBeGreaterThan(bell);
     // Profile is the last thing in the cluster, so nothing can sit right of it.
-    const afterProfile = cluster.slice(cluster.indexOf('<div className="topbar-profile"'));
-    expect(afterProfile).toContain('topbar-profile-menu');
+    const afterProfile = cluster.slice(cluster.indexOf('className="topbar-profile-trigger"'));
+    expect(afterProfile).toContain('</div>');
     expect(afterProfile).not.toContain('topbar-icon-button');
     expect(afterProfile).not.toContain('<NotificationButton');
   });
@@ -271,6 +271,27 @@ describe('the topbar is one shared bar with one control order', () => {
     // sidebar trigger is the one that goes and this one never hides.
     const bellRules = css.slice(css.indexOf('.notif-topbar-btn {'), css.indexOf('.notif-topbar-btn .notif-badge {'));
     expect(bellRules).not.toContain('display: none');
+  });
+
+  it('signs out from one account sheet, not three copies of the row', async () => {
+    // The sidebar footer used to carry a sound toggle and a sign-out button beside
+    // the name, and the same two actions lived in the mobile menu and the topbar
+    // menu. Three copies also cost the name its space: 88px for 91px of text.
+    const sidebar = await read('components/app-sidebar.tsx');
+    expect(sidebar).not.toContain('<SoundControl');
+    expect(sidebar).toContain('<ProfileMenu');
+    const topbar = await read('components/topbar.tsx');
+    expect(topbar).not.toContain('signOut');
+    expect(topbar).not.toContain('<SoundControl');
+    // One sheet owns both actions, and it is mounted once, in the shell.
+    const sheet = await read('components/profile-menu.tsx');
+    expect(sheet).toContain('clearCache()');
+    expect(sheet).toContain('resetWorkspaceContext()');
+    expect(sheet).toContain('<SoundControl');
+    expect(sidebar.match(/<ProfileMenu/g)?.length).toBe(1);
+    // The topbar avatar announces to the shell rather than drawing its own menu.
+    expect(topbar).toContain('openAccountSheet()');
+    expect(sidebar).toContain('subscribeAccountSheet');
   });
 
   it('does not draw a second bell in the sidebar', async () => {
@@ -392,7 +413,9 @@ describe('navigation is client-side, not a full page reload', () => {
   it('drops cached payloads and identity on sign-out', async () => {
     // Both caches outlive the session in browser memory; a second account on the
     // same device must not paint the first account's books or loan badge.
-    for (const surface of ['components/app-sidebar.tsx', 'components/mobile-menu.tsx']) {
+    // Sign out now lives in one account sheet plus the mobile menu. The sidebar
+    // footer and the topbar avatar open that sheet rather than doing their own.
+    for (const surface of ['components/profile-menu.tsx', 'components/mobile-menu.tsx']) {
       const source = await read(surface);
       expect({ surface, clearsCache: source.includes('clearCache()') }).toEqual({ surface, clearsCache: true });
       expect({ surface, resetsIdentity: source.includes('resetWorkspaceContext()') }).toEqual({ surface, resetsIdentity: true });
