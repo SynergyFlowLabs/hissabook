@@ -5,9 +5,10 @@ import { readCache, writeCache } from '@/lib/route-cache';
 import { SkList, SkPageBody, SkStatus } from '@/components/skeletons';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Download, HandCoins, History, LogOut, PieChart, Plus, Printer,
-  SlidersHorizontal, Receipt, Scale, ShieldCheck, UserPlus, UsersRound, Wallet, X,
+  ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Coins, Download, HandCoins, History, LogOut,
+  MoreHorizontal, PieChart, Plus, Printer, SlidersHorizontal, Receipt, Scale, UserPlus, X,
 } from 'lucide-react';
+import PageActions from '@/components/page-actions';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -173,6 +174,9 @@ export default function PartnersClient({ userName, role }: { userName: string; r
   const [movementPartnerId, setMovementPartnerId] = useState<number | null>(null);
   const [statementOpen, setStatementOpen] = useState(false);
   const [statementPartnerId, setStatementPartnerId] = useState<number | null>(null);
+  // Which partner's overflow sheet is open (money in/out actions that used to be
+  // seven pills wrapping across three rows on every card).
+  const [partnerSheetId, setPartnerSheetId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -277,6 +281,18 @@ export default function PartnersClient({ userName, role }: { userName: string; r
       drawings: list.reduce((sum, partner) => sum + partner.month.drawings, 0),
       owed: list.reduce((sum, partner) => sum + partner.settleable, 0),
     };
+  }, [data]);
+
+  /**
+   * How the partners' net position moved this month. Each partner's `settleable`
+   * already includes this month's fronts, reimbursements and drawings, so
+   * stripping those back out gives the position at the start of the month and
+   * the difference is the movement, without another request.
+   */
+  const monthDelta = useMemo(() => {
+    if (!data) return null;
+    const movement = data.partners.reduce((sum, partner) => sum + partner.month.fronts - partner.month.reimbursed - partner.month.drawings, 0);
+    return Math.round(movement);
   }, [data]);
 
   const openAddPartner = () => { rememberOpener(); setFormError(''); setNpName(''); setNpRole('Partner'); setNpShare('50'); setNpDate(todayIso()); setNpUserId('none'); setAddOpen(true); };
@@ -675,6 +691,15 @@ export default function PartnersClient({ userName, role }: { userName: string; r
 
   const statementCsvHref = statementPartnerId ? `/api/partners/statement?ownerId=${statementPartnerId}&from=${statementFrom}&to=${statementTo}&format=csv` : '#';
   const movementPartner = activePartners.find((partner) => partner.id === movementPartnerId) ?? null;
+  const sheetPartner = data?.partners.find((partner) => partner.id === partnerSheetId) ?? null;
+  /** Set while a sheet row hands off to another dialog, so focus follows the new one. */
+  const forwardingRef = useRef(false);
+  const forwardFromSheet = (open: () => void) => {
+    forwardingRef.current = true;
+    setPartnerSheetId(null);
+    open();
+    window.setTimeout(() => { forwardingRef.current = false; }, 0);
+  };
   const drawingCapWarning = (() => {
     if (movementKind !== 'drawing' || !movementPartner || !data) return null;
     const amount = Math.trunc(Number(mAmount));
@@ -728,41 +753,83 @@ export default function PartnersClient({ userName, role }: { userName: string; r
               <h1 className="page-title">Partners & shares</h1>
               <p className="page-subtitle">Who fronts what, who draws from the counter, and what each partner is owed.</p>
             </div>
-            <div className="inventory-heading-actions">
-              <a className="ghost-pill" href="/api/partners/movements?format=csv" download><Download size={13} /> Movements CSV</a>
-              {canManage && <button className="ghost-pill" onClick={openDistribution}><PieChart size={13} /> Distribute profit</button>}
-              {canManage && <button className="ghost-pill" onClick={openDeed}><SlidersHorizontal size={13} /> Deed terms</button>}
-              {canManage && <button className="ghost-pill" onClick={openShare}><Scale size={13} /> Edit shares</button>}
-              {canManage && <button className="lime-button" onClick={openAddPartner}><UserPlus size={15} strokeWidth={2.6} /> Add partner</button>}
-            </div>
+            <PageActions
+              label="Partner actions"
+              actions={[
+                { key: 'csv', label: 'Movements CSV', href: '/api/partners/movements?format=csv', download: '', icon: <Download size={13} aria-hidden="true" /> },
+                ...(canManage ? [
+                  { key: 'distribute', label: 'Distribute profit', onClick: openDistribution, icon: <PieChart size={13} aria-hidden="true" /> },
+                  { key: 'deed', label: 'Deed terms', onClick: openDeed, icon: <SlidersHorizontal size={13} aria-hidden="true" /> },
+                  { key: 'shares', label: 'Edit shares', onClick: openShare, icon: <Scale size={13} aria-hidden="true" /> },
+                  { key: 'primary', label: 'Add partner', onClick: openAddPartner, icon: <UserPlus size={15} strokeWidth={2.6} aria-hidden="true" /> },
+                ] : []),
+              ]}
+            />
           </section>
 
-          <div className="deed-chips" aria-label="Current deed terms">
-            <span className="deed-chip-label">Deed</span>
-            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Salaries {data.settings.partnerSalaryEnabled ? 'on' : 'off'}</button>
-            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Interest on capital {data.settings.interestOnCapitalEnabled ? `${data.settings.interestOnCapitalPct ?? 0}% p.a.` : 'off'}</button>
-            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Interest on drawings {data.settings.interestOnDrawingsEnabled ? `${data.settings.interestOnDrawingsPct ?? 0}% p.a.` : 'off'}</button>
-            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Drawing cap {data.settings.drawingCapPct}%</button>
-            <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>Exit mode {data.settings.settlementMethod === 'LOAN' ? 'loan' : 'pay'}</button>
+          {/* Terms in force, and the money in one glance. The deed chips used to
+              sit loose above four separate stat cards, each of which needed a
+              caption to make sense; the numbers now share one band and the
+              long explanation is behind a disclosure instead of on the page. */}
+          <div className="pulse-band" aria-label="Partner money summary">
+            <div className="pulse-head">
+              <span className="pulse-label">{totals.owed < 0 ? 'Partners are overdrawn' : 'Owed to partners'}</span>
+              {monthDelta !== null && (
+                <span className={`pulse-delta ${monthDelta > 0 ? 'up' : monthDelta < 0 ? 'down' : 'flat'}`}>
+                  {monthDelta > 0 ? '↑' : monthDelta < 0 ? '↓' : '·'} {monthDelta === 0 ? 'No change' : `${money(Math.abs(monthDelta))} ${monthDelta > 0 ? 'up' : 'down'} this month`}
+                </span>
+              )}
+              <span className="pulse-when">{data.workspace.name}</span>
+            </div>
+            <div className="pulse-hero">
+              <span className={`pulse-amount ${totals.owed < 0 ? 'negative' : ''}`}>{signed(totals.owed)}</span>
+            </div>
+            <p className="pulse-cap">
+              {totals.owed >= 0 ? 'Fronts and profit shares, net of what partners have drawn.' : 'Drawings have passed what partners fronted and earned.'}
+            </p>
+            <div className="pulse-foot">
+              <div className="pulse-cell"><span>Partners</span><strong>{totals.active} active</strong></div>
+              <div className="pulse-cell"><span>Fronted this month</span><strong className="credit">{money(totals.fronts)}</strong></div>
+              <div className="pulse-cell"><span>Drawn this month</span><strong className="debit">−{money(totals.drawings)}</strong></div>
+            </div>
           </div>
 
-          <div className="payroll-notice">
-            <ShieldCheck size={17} />
-            <span><strong>One running hisaab per partner.</strong> Fronting an expense credits the partner; a counter drawing debits them. The balance settles at profit distribution or when someone exits. Contributions build capital and are settled separately.</span>
-          </div>
-
-          <section className="stat-grid" aria-label="Partner money summary">
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Active partners</span><span className="stat-icon lime"><UsersRound size={16} /></span></div><div className="stat-value">{totals.active}</div><div className="stat-foot">Recorded shares in {data.workspace.name}</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Fronted this month</span><span className="stat-icon green"><Receipt size={16} /></span></div><div className="stat-value">{money(totals.fronts)}</div><div className="stat-foot">Business expenses paid from partner pockets</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Drawings this month</span><span className="stat-icon terra"><ArrowDownLeft size={16} /></span></div><div className="stat-value">{money(totals.drawings)}</div><div className="stat-foot">Taken from the counter and accounts</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-label">Owed to partners</span><span className="stat-icon slate"><Wallet size={16} /></span></div><div className="stat-value">{signed(totals.owed)}</div><div className="stat-foot">{totals.owed >= 0 ? 'Fronts and appropriations net of drawings' : 'Partners have drawn more than they fronted'}</div></div>
+          <section className="deed-card" aria-label="Current deed terms">
+            <div className="deed-head">
+              <span className="deed-title"><Scale size={13} aria-hidden="true" /> Deed terms</span>
+              <span className="deed-status">{canManage ? 'Tap a term to change it' : 'Set by the owner'}</span>
+            </div>
+            <div className="deed-chips">
+              <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>
+                Salaries <span className={data.settings.partnerSalaryEnabled ? 'deed-chip-on' : 'deed-chip-off'}>{data.settings.partnerSalaryEnabled ? 'on' : 'off'}</span>
+              </button>
+              <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>
+                Capital interest <span className={data.settings.interestOnCapitalEnabled ? 'deed-chip-on' : 'deed-chip-off'}>{data.settings.interestOnCapitalEnabled ? `${data.settings.interestOnCapitalPct ?? 0}% p.a.` : 'off'}</span>
+              </button>
+              <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>
+                Drawing interest <span className={data.settings.interestOnDrawingsEnabled ? 'deed-chip-on' : 'deed-chip-off'}>{data.settings.interestOnDrawingsEnabled ? `${data.settings.interestOnDrawingsPct ?? 0}% p.a.` : 'off'}</span>
+              </button>
+              <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>
+                Drawing cap <span className="deed-chip-on">{data.settings.drawingCapPct}%</span>
+              </button>
+              <button type="button" className="deed-chip" onClick={canManage ? openDeed : undefined} disabled={!canManage}>
+                Exit <span className="deed-chip-on">{data.settings.settlementMethod === 'LOAN' ? 'by loan' : 'paid out'}</span>
+              </button>
+            </div>
+            <details className="deed-help">
+              <summary>How the running hisaab works</summary>
+              <div className="deed-help-body">
+                <strong>One hisaab per partner.</strong> Fronting an expense credits the partner; a counter drawing debits them. The balance settles at profit distribution or when someone exits. Contributions build capital and are settled separately.
+              </div>
+            </details>
           </section>
 
           {canEdit && (
-            <section className="quick-actions" aria-label="Quick actions" style={{ marginTop: 14 }}>
-              <button className="quick-action primary" onClick={openFronted}><span className="quick-action-icon"><Receipt size={17} /></span><span>Out of pocket</span></button>
-              <button className="quick-action" onClick={() => openMovement('drawing', activePartners[0]?.id ?? (data.partners[0]?.id ?? 0))}><span className="quick-action-icon"><ArrowDownLeft size={17} /></span><span>Counter drawing</span></button>
-              <button className="quick-action" onClick={() => openMovement('reimburse', activePartners[0]?.id ?? (data.partners[0]?.id ?? 0))}><span className="quick-action-icon"><HandCoins size={17} /></span><span>Reimburse</span></button>
+            <section className="quick-actions" aria-label="Record a partner movement" style={{ marginTop: 14 }}>
+              <button className="quick-action primary" onClick={openFronted}><span className="quick-action-icon"><Receipt size={17} aria-hidden="true" /></span><span>Out of pocket</span></button>
+              <button className="quick-action" onClick={() => openMovement('drawing', activePartners[0]?.id ?? (data.partners[0]?.id ?? 0))}><span className="quick-action-icon"><ArrowDownLeft size={17} aria-hidden="true" /></span><span>Counter drawing</span></button>
+              <button className="quick-action" onClick={() => openMovement('reimburse', activePartners[0]?.id ?? (data.partners[0]?.id ?? 0))}><span className="quick-action-icon"><HandCoins size={17} aria-hidden="true" /></span><span>Reimburse</span></button>
+              <button className="quick-action" onClick={() => openMovement('contribution', activePartners[0]?.id ?? (data.partners[0]?.id ?? 0))}><span className="quick-action-icon"><Coins size={17} aria-hidden="true" /></span><span>Add capital</span></button>
             </section>
           )}
 
@@ -786,10 +853,14 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                   </div>
                   <div className="owner-bar" style={{ marginTop: 10 }} aria-hidden="true"><span style={{ width: `${Math.min(100, Number(partner.share) || 0)}%` }} /></div>
 
-                  <div className="partner-stats">
-                    <div className="partner-stat"><span>Capital in</span><strong>{money(partner.capitalBalance)}</strong></div>
-                    <div className="partner-stat"><span>{overdrawn ? 'Overdrawn by' : 'Owed to partner'}</span><strong className={overdrawn ? 'partner-negative' : 'partner-positive'}>{money(partner.settleable)}</strong></div>
-                    <div className="partner-stat"><span>Drew this month</span><strong>{money(partner.month.drawings)}</strong></div>
+                  {/* The running balance is what the card is about, so it leads.
+                      Capital and drawings read as supporting detail next to it. */}
+                  <div className="partner-balance">
+                    <span className="partner-balance-label">{overdrawn ? 'Overdrawn by' : 'Owed to partner'}</span>
+                    <strong className={`partner-balance-value ${overdrawn ? 'partner-negative' : 'partner-positive'}`}>{money(partner.settleable)}</strong>
+                    <span className="partner-balance-meta">
+                      {money(partner.capitalBalance)} capital{partner.month.fronts > 0 ? ` · fronted ${money(partner.month.fronts)}` : ''}{partner.month.drawings > 0 ? ` · drew ${money(partner.month.drawings)}` : ''}
+                    </span>
                   </div>
 
                   {partner.lastMovements.length > 0 && (
@@ -805,13 +876,23 @@ export default function PartnersClient({ userName, role }: { userName: string; r
                   )}
 
                   <div className="partner-actions">
-                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => { setFormError(''); setFrontedOpen(true); setFeFunders([{ ownerId: String(partner.id), amount: '' }]); }}><Receipt size={12} /> Out of pocket</button>}
-                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('drawing', partner.id)}><ArrowDownLeft size={12} /> Counter drawing</button>}
-                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('reimburse', partner.id)}><HandCoins size={12} /> Reimburse{partner.frontedOutstanding > 0 ? ` (${money(partner.frontedOutstanding)})` : ''}</button>}
-                    {canEdit && partner.status === 'active' && <button className="ghost-pill" onClick={() => openMovement('contribution', partner.id)}><Plus size={12} /> Add capital</button>}
-                    <button className="ghost-pill" onClick={() => openStatement(partner.id)}><Printer size={12} /> Statement</button>
-                    {canEdit && partner.status === 'active' && partner.capitalBalance > 0 && <button className="text-link" style={{ fontSize: 10 }} onClick={() => openMovement('capital-return', partner.id)}>Return capital <ArrowRight size={12} /></button>}
-                    {canManage && partner.status === 'active' && <button className="text-link" style={{ fontSize: 10, color: 'var(--ink-soft)' }} onClick={() => openExit(partner.id)}><LogOut size={12} style={{ verticalAlign: '-2px' }} /> Exit partner</button>}
+                    {canEdit && partner.status === 'active' && (
+                      <button className="ghost-pill partner-action-grow" onClick={() => openMovement('drawing', partner.id)}>
+                        <ArrowDownLeft size={12} aria-hidden="true" /> Record movement
+                      </button>
+                    )}
+                    <button className="ghost-pill partner-action-grow" onClick={() => openStatement(partner.id)}>
+                      <Printer size={12} aria-hidden="true" /> Statement
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-pill partner-more"
+                      onClick={() => { rememberOpener(); setPartnerSheetId(partner.id); }}
+                      aria-label={`More actions for ${partner.name}`}
+                      aria-haspopup="dialog"
+                    >
+                      <MoreHorizontal size={15} aria-hidden="true" />
+                    </button>
                   </div>
                 </article>
               );
@@ -1173,6 +1254,61 @@ export default function PartnersClient({ userName, role }: { userName: string; r
             {formError && <p className="form-field full form-error" role="alert">{formError}</p>}
             <DialogFooter className="form-field full sm:justify-end"><Button type="button" variant="outline" className="h-11 rounded-full" onClick={() => setDeedOpen(false)}>Cancel</Button><button type="submit" className="lime-button" disabled={busy}>{busy ? 'Saving…' : 'Save deed terms'}</button></DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Per-partner action sheet. The card used to carry seven pills in up to
+          three wrapped rows; the frequent two stay on the card and everything
+          else lands here, one thumb-sized row each. */}
+      {/* A sheet row often opens another dialog straight after closing this one.
+          Restoring focus to the "..." trigger would then pull focus out of that
+          dialog, so this one only restores when it closes on its own. */}
+      <Dialog open={partnerSheetId !== null} onOpenChange={(open) => { if (!open) { setPartnerSheetId(null); if (!forwardingRef.current) restoreOpener(); } }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-extrabold tracking-tight">{sheetPartner ? sheetPartner.name : 'Partner'}</DialogTitle>
+            <DialogDescription>
+              {sheetPartner ? `${sheetPartner.role} · ${Number(sheetPartner.share).toLocaleString('en-PK')}% share · ${money(sheetPartner.settleable)} ${sheetPartner.settleable < 0 ? 'overdrawn' : 'owed'}` : 'Record money moving for this partner.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="action-sheet">
+            {canEdit && sheetPartner?.status === 'active' && (
+              <button type="button" className="action-sheet-row primary" onClick={() => forwardFromSheet(() => { setFormError(''); setFeFunders([{ ownerId: String(sheetPartner.id), amount: '' }]); setFrontedOpen(true); })}>
+                <Receipt size={16} aria-hidden="true" /><span>Paid out of pocket</span>
+              </button>
+            )}
+            {canEdit && sheetPartner?.status === 'active' && (
+              <button type="button" className="action-sheet-row" onClick={() => forwardFromSheet(() => openMovement('drawing', sheetPartner.id))}>
+                <ArrowDownLeft size={16} aria-hidden="true" /><span>Counter drawing</span>
+              </button>
+            )}
+            {canEdit && sheetPartner?.status === 'active' && (
+              <button type="button" className="action-sheet-row" onClick={() => forwardFromSheet(() => openMovement('reimburse', sheetPartner.id))}>
+                <HandCoins size={16} aria-hidden="true" />
+                <span>Reimburse{sheetPartner.frontedOutstanding > 0 ? ` ${money(sheetPartner.frontedOutstanding)}` : ''}</span>
+              </button>
+            )}
+            {canEdit && sheetPartner?.status === 'active' && (
+              <button type="button" className="action-sheet-row" onClick={() => forwardFromSheet(() => openMovement('contribution', sheetPartner.id))}>
+                <Coins size={16} aria-hidden="true" /><span>Add capital</span>
+              </button>
+            )}
+            {canEdit && sheetPartner?.status === 'active' && sheetPartner.capitalBalance > 0 && (
+              <button type="button" className="action-sheet-row" onClick={() => forwardFromSheet(() => openMovement('capital-return', sheetPartner.id))}>
+                <ArrowUpRight size={16} aria-hidden="true" /><span>Return capital</span>
+              </button>
+            )}
+            {sheetPartner && (
+              <button type="button" className="action-sheet-row" onClick={() => forwardFromSheet(() => openStatement(sheetPartner.id))}>
+                <Printer size={16} aria-hidden="true" /><span>Statement and CSV</span>
+              </button>
+            )}
+            {canManage && sheetPartner?.status === 'active' && (
+              <button type="button" className="action-sheet-row link" onClick={() => forwardFromSheet(() => openExit(sheetPartner.id))}>
+                <LogOut size={16} aria-hidden="true" /><span>Exit this partner</span>
+              </button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

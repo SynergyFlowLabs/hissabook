@@ -925,6 +925,84 @@ button:disabled { cursor: not-allowed; }
 .inventory-heading-actions { display: flex; align-items: center; gap: 10px; width: 100%; }
 .inventory-heading-actions > * { flex: 1; justify-content: center; }
 @media (min-width: 701px) { .inventory-heading-actions { width: auto; } .inventory-heading-actions > * { flex: initial; } }
+
+/* ------------------------------------------------------------------ */
+/* Page actions (the buttons in a screen heading)                     */
+/* ------------------------------------------------------------------ */
+/* Replaces the old nowrap row. On Partners it held 584px of buttons in a
+   380px page with `overflow-x: visible`, so "Edit shares" and "Add partner"
+   were painted past the right edge and could not be reached at all. The row
+   now scrolls when it must, keeps every label on one line, and hands the
+   overflow to a "More" sheet instead of wrapping into extra rows that pushed
+   the statistics off the first screen. */
+/* On a phone the heading is a column and the row takes the full width: that is
+   also the layout where the overflow collapse runs, so the width it measures is
+   the width it really has. On desktop every action is laid out and allowed to
+   wrap, which keeps the buttons right-aligned under the heading. */
+.page-actions { width: 100%; min-width: 0; }
+/* Desktop sizes to its content and wraps: `width: auto` collapsed the wrapper
+   to 4px because the row below carries inline-size containment, which makes its
+   contents contribute nothing to the intrinsic width. */
+@media (min-width: 901px) { .page-actions { width: max-content; max-width: 100%; flex: 0 1 auto; } }
+.page-actions-row {
+  display: flex; align-items: center; gap: 8px;
+  min-width: 0; max-width: 100%;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Inline-size containment only: the row is a block that fills its parent, so
+     children can never widen it, and `paint` here clipped the lime button's
+     glow into a visible rectangle. */
+  contain: inline-size;
+  padding: 2px 2px 6px;
+}
+.page-actions-row::-webkit-scrollbar { display: none; }
+/* The measuring copy: same boxes, natural widths, never painted or tabbable. */
+.page-actions-measure {
+  position: absolute; top: 0; left: 0; width: max-content; height: 0; overflow: hidden;
+  display: flex; gap: 8px; visibility: hidden; pointer-events: none;
+}
+.page-actions-measure > * { flex: 0 0 auto; white-space: nowrap; }
+@media (min-width: 901px) {
+  /* No containment here: the row only ever wraps on desktop, and containment is
+     what made the surrounding wrapper unable to size to its content. */
+  .page-actions-row { flex-wrap: wrap; justify-content: flex-end; overflow-x: visible; contain: none; }
+}
+.page-actions-row > * { flex: 0 0 auto; white-space: nowrap; }
+.page-action {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 13px;
+  border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
+  border-radius: 999px; font-size: 11px; font-weight: 750; text-decoration: none;
+  transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+@media (hover: hover) and (pointer: fine) { .page-action:hover { border-color: var(--lime-strong); color: var(--ink); } }
+.page-action > span { min-width: 0; }
+.page-action-more { gap: 5px; padding: 0 11px; background: var(--card-soft); border-style: dashed; }
+.page-action-count {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--deep); color: var(--lime); font-size: 9px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.page-action-primary { height: 36px; padding: 0 15px; font-size: 11px; }
+@media (pointer: coarse) { .page-action { min-height: 44px; padding: 0 15px; } }
+
+/* The overflow sheet: full-width rows, generous targets, grouped by weight. */
+.action-sheet { display: grid; gap: 7px; }
+.action-sheet-row {
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 50px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 15px; background: var(--card-soft);
+  color: var(--ink); font-size: 12px; font-weight: 750; text-align: left; text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+@media (hover: hover) and (pointer: fine) { .action-sheet-row:hover { border-color: var(--line-strong); background: #fff; } }
+.action-sheet-row > svg { flex: 0 0 auto; color: var(--ink-soft); }
+.action-sheet-row.primary { background: var(--deep); border-color: var(--deep); color: #eef6ea; }
+.action-sheet-row.primary > svg { color: var(--lime); }
+.action-sheet-row.link { background: transparent; border-color: transparent; color: var(--positive); }
+
+/* A stat caption that wraps to two phone lines must not centre its first line
+   against the icon it sits beside. */
+.stat-card .stat-foot { align-items: flex-start; line-height: 1.45; }
 .inventory-search { position: relative; display: block; width: min(100%, 260px); min-width: 0; flex-shrink: 1; }
 .inventory-search > svg { position: absolute; left: 12px; top: 12px; color: var(--faint); pointer-events: none; }
 .inventory-search input { width: 100%; height: 40px; border: 1px solid var(--line-strong); background: var(--card-soft); color: var(--ink); border-radius: 999px; outline: 0; padding: 0 13px 0 36px; font-size: 11px; }
@@ -1235,11 +1313,93 @@ button:active, [role="button"]:active { transform: scale(.97); }
 /* ------------------------------------------------------------------ */
 /* Partners page                                                      */
 /* ------------------------------------------------------------------ */
+/* The money pulse: the three numbers a partner cares about, as a single
+   labelled band instead of four stat cards that each needed a caption to be
+   understood. Replaces the KPI grid on this screen only. */
+.pulse-band {
+  position: relative; overflow: hidden; margin-top: 14px; padding: 15px 16px 16px;
+  border-radius: 22px; border: 1px solid #ffffff14; color: #eef6ea;
+  background:
+    radial-gradient(120% 100% at 88% -20%, rgba(201, 242, 79, 0.20), transparent 58%),
+    linear-gradient(160deg, var(--deep-2) 0%, var(--deep) 55%, var(--deep-3) 100%);
+  /* Deliberately smaller than --shadow-lg (30px/80px): that much blur on a dark
+     panel bled a grey band across the white card underneath it. */
+  box-shadow: 0 14px 30px rgba(18, 31, 23, 0.18); min-width: 0;
+}
+.pulse-band::after {
+  content: ''; position: absolute; right: -46px; top: -54px; width: 168px; height: 168px;
+  border-radius: 50%; border: 1px solid #ffffff10;
+  box-shadow: 0 0 0 22px #ffffff08, 0 0 0 46px #ffffff05; pointer-events: none;
+}
+.pulse-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; position: relative; z-index: 1; }
+.pulse-label { font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: #b9c8b4; }
+.pulse-when { margin-left: auto; font-size: 9px; font-weight: 700; color: #93a68e; white-space: nowrap; }
+.pulse-hero { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 7px; position: relative; z-index: 1; }
+.pulse-amount {
+  font-family: var(--font-display); font-size: clamp(27px, 8.4vw, 34px); font-weight: 400;
+  letter-spacing: -1.1px; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.pulse-amount.negative { color: #ffb59c; }
+.pulse-delta {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.pulse-delta.up { background: rgba(201, 242, 79, .18); color: var(--lime); }
+.pulse-delta.down { background: rgba(255, 159, 128, .16); color: #ffb59c; }
+.pulse-delta.flat { background: #ffffff12; color: #b9c8b4; }
+.pulse-cap { margin-top: 6px; font-size: 9.5px; color: #9fb09a; font-weight: 650; line-height: 1.5; position: relative; z-index: 1; }
+.pulse-foot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 13px; position: relative; z-index: 1; }
+@media (max-width: 359px) { .pulse-foot { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pulse-cell { background: #ffffff0d; border: 1px solid #ffffff14; border-radius: 14px; padding: 9px 10px; min-width: 0; }
+.pulse-cell span { display: block; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #9fb09a; }
+.pulse-cell strong { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.pulse-cell strong.credit { color: #c9f24f; }
+.pulse-cell strong.debit { color: #ffb59c; }
+
+/* Deed terms: five chips used to float loose above a poster of explanatory
+   copy. They now sit in one quiet card that says what it is, and the long
+   explanation moved behind a disclosure. */
+.deed-card { margin-top: 14px; padding: 13px 14px 12px; border-radius: 19px; background: var(--card); border: 1px solid #fff; box-shadow: var(--shadow-md); min-width: 0; }
+.deed-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.deed-title { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+.deed-title > svg { color: var(--lime-strong); }
+.deed-status { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 750; color: var(--muted); }
+.deed-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+.deed-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 0; }
+.deed-chip-label { font-size: 8px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
+.deed-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 750; color: var(--ink-soft); background: var(--card-soft);
+  border: 1px solid var(--line-strong); padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.deed-chip .deed-chip-on { color: var(--positive); font-weight: 800; }
+.deed-chip .deed-chip-off { color: var(--faint); font-weight: 700; }
+.deed-chip[disabled] { cursor: default; }
+.deed-chip.active { background: var(--deep); color: var(--lime); border-color: var(--deep); }
+@media (hover: hover) and (pointer: fine) { button.deed-chip:not([disabled]):hover { border-color: var(--deep); color: var(--ink); } }
+.deed-help { margin-top: 10px; }
+.deed-help > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9.5px; font-weight: 800; color: var(--positive);
+}
+.deed-help > summary::-webkit-details-marker { display: none; }
+.deed-help > summary::after { content: '+'; font-size: 11px; line-height: 1; }
+.deed-help[open] > summary::after { content: '−'; }
+.deed-help-body { margin-top: 8px; font-size: 10px; line-height: 1.6; color: var(--muted); font-weight: 600; }
+.deed-help-body strong { color: var(--ink); }
+
 .partner-card { display: flex; flex-direction: column; }
-.partner-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
-.partner-stat { background: var(--card-soft); border: 1px solid var(--line); border-radius: 15px; padding: 10px 12px; min-width: 0; }
-.partner-stat span { display: block; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
-.partner-stat strong { display: block; margin-top: 5px; font-size: 13px; font-weight: 800; letter-spacing: -.2px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* One balance, stated once. Three equal bordered boxes made capital, the
+   running balance and this month's drawings look equally important, and the
+   running balance is the only number that answers "what is this partner owed". */
+.partner-balance {
+  margin-top: 12px; padding: 12px 14px; border-radius: 16px;
+  background: var(--card-soft); border: 1px solid var(--line); min-width: 0;
+}
+.partner-balance-label { display: block; font-size: 8px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+.partner-balance-value { display: block; margin-top: 4px; font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -.9px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.partner-balance-meta { display: block; margin-top: 5px; font-size: 9px; font-weight: 650; color: var(--muted); line-height: 1.45; }
 .partner-positive { color: var(--positive); }
 .partner-negative { color: var(--negative); }
 .partner-movements { margin-top: 12px; display: grid; gap: 2px; }
@@ -1252,7 +1412,17 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .partner-movement-text strong { display: block; font-size: 10px; font-weight: 750; }
 .partner-movement-text small { display: block; font-size: 8px; color: var(--faint); font-weight: 600; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .partner-movement-amount { font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.partner-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; padding-top: 12px; align-items: center; }
+/* Partner card actions. Seven pills wrapped into three rows and pushed every
+   card to ~500px. The two actions a partner actually reaches for stay as
+   buttons; the rest live in a per-partner sheet behind "More". */
+.partner-actions { display: flex; align-items: center; gap: 7px; margin-top: auto; padding-top: 12px; flex-wrap: wrap; }
+.partner-actions > .partner-action-grow { flex: 1 1 auto; min-width: 0; }
+.partner-actions .ghost-pill { height: 34px; padding: 0 12px; font-size: 10px; gap: 5px; }
+.partner-actions .ghost-pill.partner-more { margin-left: auto; padding: 0 11px; }
+.partner-net { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.partner-net-label { font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.partner-net-value { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+@media (pointer: coarse) { .partner-actions .ghost-pill { min-height: 44px; padding: 0 14px; } }
 .owner-position { margin-top: 6px; font-size: 8.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Unattributed (pre-partners) tray */
@@ -1271,9 +1441,20 @@ button:active, [role="button"]:active { transform: scale(.97); }
 .legacy-tag-button { height: 40px; padding: 0 14px; font-size: 10px; }
 @media (max-width: 560px) {
   .legacy-row { flex-direction: column; align-items: stretch; gap: 8px; }
-  .legacy-side { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
-  .legacy-tag { flex: 1 1 auto; min-width: 0; }
-  .legacy-select { width: 100%; }
+  /* The amount, the picker and the button share one line. Without an explicit
+     min-width: 0 on the picker the row could not shrink below the select's
+     intrinsic width, and on a 320px phone the Tag button was pushed past the
+     right edge and became untappable. */
+  .legacy-side { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .legacy-amount { flex: 0 0 auto; }
+  .legacy-tag { flex: 1 1 140px; min-width: 0; }
+  .legacy-select { width: 100%; min-width: 0; }
+  .legacy-tag-button { flex: 0 0 auto; }
+}
+@media (max-width: 359px) {
+  /* Below this the three-up row cannot work: let the picker take its own line. */
+  .legacy-tag { flex: 1 1 100%; }
+  .legacy-tag-button { width: 100%; }
 }
 .status-chip.legacy { background: var(--card-soft); color: var(--ink-soft); border: 1px solid var(--line-strong); margin-left: 0; }
 
